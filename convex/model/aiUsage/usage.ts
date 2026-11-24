@@ -3,8 +3,8 @@
  * projections and reports, and the validated provider usage record.
  *
  * Status: implemented. Pure TypeScript with no floating arithmetic and no
- * rounding: the provider body decoder, which turns OpenRouter's decimal USD
- * cost into integer nano-USD (1 USD = 1e9), is the adapter
+ * rounding: the provider body decoder converts reported and estimated USD
+ * costs into integer nano-USD (1 USD = 1e9) in the adapter
  * `convex/lib/providerUsage.ts`, and the Convex validators for these shapes
  * live in `convex/aiUsage/validators.ts`. This module owns the vocabulary
  * and `readProviderUsage`, the validated frozen constructor every decoded
@@ -36,7 +36,8 @@ export type UsageStatus = (typeof USAGE_STATUSES)[number];
 export const isUsageStatus = (value: unknown): value is UsageStatus =>
   (USAGE_STATUSES as readonly unknown[]).includes(value);
 
-export type BillingStatus = "REPORTED" | "UNKNOWN";
+export type Provider = "OPENROUTER" | "OPENAI";
+export type BillingStatus = "REPORTED" | "ESTIMATED" | "UNKNOWN";
 export const USAGE_SOURCES = Object.freeze([
   "RESPONSE",
   "GENERATION_LOOKUP",
@@ -91,10 +92,15 @@ const invalid = (field: string) =>
 /**
  * Where a provider caller records usage. The Convex adapter
  * (`convex/lib/aiUsage.ts`) binds it to the authorized tenant scope; the
- * caller names only the feature and model.
+ * caller names the feature, model, and provider.
  */
 export interface AiUsageRecorder {
-  begin(feature: Feature, model: string, attemptNo: number): Promise<void>;
+  begin(
+    feature: Feature,
+    model: string,
+    attemptNo: number,
+    provider?: Provider,
+  ): Promise<void>;
   /**
    * Finalize a sent attempt. Settles within the adapter's finite accounting
    * budget, written or not; it never repeats the provider request.
@@ -160,9 +166,9 @@ function snapshotUsage(
 /**
  * Validate one whitelisted usage record and return a frozen copy, or name
  * the first field that is wrong. Integer nano-USD is the authoritative
- * amount; `costUsd` is the provider's decimal exactly as reported, kept for
- * audit and never used in arithmetic here. A record with a cost is
- * `REPORTED`; one without is `UNKNOWN`, never zero. Unknown keys are
+ * amount. `costUsd` preserves the reported or estimated USD amount for
+ * audit. A record with a cost is
+ * `REPORTED` or `ESTIMATED`; one without is `UNKNOWN`, never zero. Unknown keys are
  * refused, so nothing outside the whitelist can ride along; the frozen copy
  * holds only the own enumerable field values that were validated.
  */
@@ -197,8 +203,11 @@ export function readProviderUsage(
     return invalid("costUsd");
   if ((value.costUsd === undefined) !== (value.costUsdNano === undefined))
     return invalid("costUsdNano");
-  const reported = value.costUsdNano !== undefined;
-  if (value.billingStatus !== (reported ? "REPORTED" : "UNKNOWN"))
+  const known =
+    value.billingStatus === "REPORTED" || value.billingStatus === "ESTIMATED";
+  if (
+    value.costUsdNano === undefined ? value.billingStatus !== "UNKNOWN" : !known
+  )
     return invalid("billingStatus");
   return ok(Object.freeze(value) as unknown as ProviderUsage);
 }

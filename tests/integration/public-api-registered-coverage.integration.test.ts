@@ -504,6 +504,7 @@ describe("representative registered payloads and safe HR capability gates", () =
 describe("shipping registered job-ticket action", () => {
   it("calls only mocked provider transport and preserves the real extraction result contract", async () => {
     const world = await createPublicApiWorld(MODULES);
+    vi.stubEnv("AI_IMAGE_PROVIDER", "openrouter");
     vi.stubEnv("OPENROUTER_API_KEY", "synthetic-provider-test-key");
     vi.stubEnv("JOB_SCAN_DEMO_AI", "0");
     const extraction = {
@@ -561,6 +562,7 @@ describe("shipping registered job-ticket action", () => {
 
   it("denies the real read-only role before provider transport", async () => {
     const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
+    vi.stubEnv("AI_IMAGE_PROVIDER", "openrouter");
     vi.stubEnv("OPENROUTER_API_KEY", "synthetic-provider-test-key");
     const result = await world.t
       .withIdentity(PUBLIC_API_ACTOR)

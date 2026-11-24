@@ -168,6 +168,7 @@ describe("registered job-scan result contracts", () => {
   it("validates extraction success with partial fields and optional AI provenance", async () => {
     const { client, warehouseId } = await world();
     const args = { warehouseId, imageUrl: "https://example.test/ticket.jpg" };
+    vi.stubEnv("AI_IMAGE_PROVIDER", "openrouter");
     vi.stubEnv("OPENROUTER_API_KEY", "");
     vi.stubEnv("JOB_SCAN_DEMO_AI", "1");
     expect(await client.action(scans.extractJobTicket, args)).toMatchObject({
@@ -216,6 +217,7 @@ describe("registered job-scan result contracts", () => {
 
   it("validates invalid images and unavailable extraction", async () => {
     const { client, warehouseId } = await world();
+    vi.stubEnv("AI_IMAGE_PROVIDER", "openrouter");
     vi.stubEnv("OPENROUTER_API_KEY", "");
     vi.stubEnv("JOB_SCAN_DEMO_AI", "0");
     expect(

@@ -45,6 +45,7 @@ const ledger = () =>
   }));
 
 beforeEach(async () => {
+  vi.stubEnv("AI_IMAGE_PROVIDER", "openrouter");
   vi.stubEnv("OPENROUTER_API_KEY", "fixture-key");
   vi.stubEnv("OPENROUTER_MODEL", "openai/gpt-6-luna");
   world = await createConvexTenantWorld(modules);

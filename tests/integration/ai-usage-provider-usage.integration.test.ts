@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   decodeProviderUsage,
+  openAiResponseUsage,
   providerCostToNano,
   responseUsage,
 } from "../../convex/lib/providerUsage";
@@ -156,5 +157,90 @@ describe("provider usage adapter: decimal USD to integer nano-USD", () => {
     responseUsage(body);
     decodeProviderUsage(body, "GENERATION_LOOKUP");
     expect(JSON.stringify(body)).toBe(before);
+  });
+});
+
+describe("OpenAI Responses usage", () => {
+  const body = {
+    id: "resp-synthetic",
+    model: "gpt-6-luna",
+    output: [SENTINEL],
+    usage: {
+      input_tokens: 1200,
+      input_tokens_details: { cached_tokens: 800 },
+      output_tokens: 200,
+      output_tokens_details: { reasoning_tokens: 40 },
+      total_tokens: 1400,
+    },
+  };
+
+  it("estimates cost from cached and uncached input and all output once", () => {
+    const usage = openAiResponseUsage(body);
+    expect(usage).toEqual({
+      ...UNKNOWN_USAGE,
+      billingStatus: "ESTIMATED",
+      providerGenerationId: "resp-synthetic",
+      actualModel: "gpt-6-luna",
+      inputUnitCount: 1200,
+      cachedInputUnitCount: 800,
+      outputUnitCount: 200,
+      reasoningUnitCount: 40,
+      totalUnitCount: 1400,
+      costUsd: 0.000148,
+      costUsdNano: 148_000,
+    });
+    expect(JSON.stringify(usage)).not.toContain(SENTINEL);
+  });
+
+  it.each([
+    [200, "ESTIMATED", 153_000],
+    [401, "UNKNOWN", undefined],
+    [-1, "UNKNOWN", undefined],
+    [null, "UNKNOWN", undefined],
+  ] as const)(
+    "prices cache writes %s separately from hits",
+    (writes, status, nano) => {
+      const result = openAiResponseUsage({
+        ...body,
+        usage: {
+          ...body.usage,
+          input_tokens_details: {
+            cached_tokens: 800,
+            cache_write_tokens: writes,
+          },
+        },
+      });
+      expect(result.billingStatus).toBe(status);
+      expect(result.costUsdNano).toBe(nano);
+    },
+  );
+
+  it.each(["unpriced-model", undefined, "constructor"])(
+    "preserves token counts with unknown cost for model %s",
+    (model) => {
+      const usage = openAiResponseUsage({ ...body, model });
+      expect(usage).toMatchObject({
+        providerGenerationId: "resp-synthetic",
+        inputUnitCount: 1200,
+        billingStatus: "UNKNOWN",
+      });
+      expect(usage.costUsdNano).toBeUndefined();
+      expect(usage.costUsd).toBeUndefined();
+    },
+  );
+
+  it("prices missing cached counts as uncached and refuses impossible counts", () => {
+    expect(
+      openAiResponseUsage({
+        ...body,
+        usage: { ...body.usage, input_tokens_details: undefined },
+      }),
+    ).toMatchObject({ billingStatus: "ESTIMATED", costUsdNano: 220_000 });
+    expect(
+      openAiResponseUsage({
+        ...body,
+        usage: { ...body.usage, input_tokens: 1 },
+      }),
+    ).toMatchObject({ billingStatus: "UNKNOWN" });
   });
 });

@@ -237,7 +237,7 @@ export function projectOperation(
     if (finishedAt !== undefined && !isCount(finishedAt))
       return ledgerInvalid("finishedAt");
     if (!isUsageStatus(status)) return ledgerInvalid("status");
-    if (billingStatus === "REPORTED") {
+    if (billingStatus === "REPORTED" || billingStatus === "ESTIMATED") {
       if (!isCount(cost)) return ledgerInvalid("costUsdNano");
       knownCostUsdNano += cost;
       if (!isCount(knownCostUsdNano)) return ledgerInvalid("costUsdNano");

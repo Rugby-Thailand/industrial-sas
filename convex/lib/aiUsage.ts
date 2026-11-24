@@ -4,14 +4,15 @@ import type { Id } from "../_generated/dataModel";
 import type {
   AiUsageRecorder,
   Feature,
+  Provider,
   UsageFinish,
 } from "../model/aiUsage/usage";
 import { responseUsage } from "./providerUsage";
 
 /**
  * Tenant-scoped AI usage recording for an authorized action. The scope comes
- * from the authorization preflight; handlers choose only the feature and
- * model. `begin` is durable before any provider request; `finish` retries
+ * from the authorization preflight; handlers choose the feature, model,
+ * and provider. `begin` is durable before any provider request; `finish` retries
  * only the database write, never the billable request, and `finish` and
  * `abandon` each settle within {@link ACCOUNTING_WRITE_BUDGET_MS}.
  */
@@ -24,7 +25,12 @@ type Scope = {
 };
 const beginRef = makeFunctionReference<
   "mutation",
-  Scope & { feature: Feature; requestedModel: string; attemptNo: number },
+  Scope & {
+    feature: Feature;
+    requestedModel: string;
+    attemptNo: number;
+    provider: Provider;
+  },
   Id<"aiUsageEvents">
 >("aiUsage/internal:begin");
 const finishRef = makeFunctionReference<
@@ -145,6 +151,7 @@ export function createAiUsagePort(
       chosen: Feature,
       requestedModel: string,
       attemptNo: number,
+      provider: Provider = "OPENROUTER",
     ) => {
       feature = chosen;
       await ctx.runMutation(beginRef, {
@@ -152,6 +159,7 @@ export function createAiUsagePort(
         feature: chosen,
         requestedModel,
         attemptNo,
+        provider,
       });
     },
     finish: async (attemptNo: number, result: UsageFinish) => {

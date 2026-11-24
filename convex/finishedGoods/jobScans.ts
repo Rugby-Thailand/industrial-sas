@@ -1,6 +1,9 @@
 import { customerLinkArg } from "../customers/validators";
 import type { ImageProviderOutcome as JobTicketProviderOutcome } from "../lib/imageProvider";
-import { requestImageProvider as requestJobTicketProvider } from "../lib/imageProvider";
+import {
+  imageProviderRequest,
+  requestImageProvider as requestJobTicketProvider,
+} from "../lib/imageProvider";
 export {
   IMAGE_PROVIDER_POLICY as JOB_TICKET_PROVIDER_POLICY,
   requestImageProvider as requestJobTicketProvider,
@@ -64,7 +67,6 @@ const batchFormat = v.union(
 const READ = "masterData.storageLayout.read";
 const MANAGE = "masterData.storageLayout.manage";
 const TABLE = "finishedGoodsJobScans";
-const DEFAULT_MODEL = "openai/gpt-6-luna";
 const MAX_ITEMS = MAX_JOB_SCAN_ITEMS;
 const LIST_LIMIT = 300;
 
@@ -191,7 +193,7 @@ async function mapLocation(
   };
 }
 
-/** Reads a job ticket photo with OpenRouter. Sample extraction requires explicit local opt-in. */
+/** Reads a job ticket photo with the configured image provider. Sample extraction requires explicit local opt-in. */
 export const extractJobTicket = actionWithOrg({
   args: { warehouseId: v.id("warehouses"), imageUrl: v.string() },
   returns: extractionOutcome,
@@ -199,7 +201,7 @@ export const extractJobTicket = actionWithOrg({
   target: { table: TABLE },
   warehouseId: (args) => args.warehouseId,
   handler: async (ctx, args): Promise<Infer<typeof extractionOutcome>> => {
-    // An uploaded https URL, or the photo itself as a JPEG data URL (≈1 MB after client resize).
+    // An uploaded HTTPS URL or a downscaled photo as a data URL.
     if (
       !/^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(
         args.imageUrl,
@@ -207,8 +209,14 @@ export const extractJobTicket = actionWithOrg({
       args.imageUrl.length > 4_000_000
     )
       return { ok: false as const, error: { code: "IMAGE_URL_INVALID" } };
-    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-    if (!apiKey) {
+    const request = imageProviderRequest({
+      prompt: JOB_TICKET_PROMPT,
+      instruction: "Extract information from this image",
+      imageUrl: args.imageUrl,
+      name: "job_ticket",
+      schema: JOB_TICKET_JSON_SCHEMA,
+    });
+    if (!request) {
       if (
         process.env.NODE_ENV === "production" ||
         process.env.JOB_SCAN_DEMO_AI !== "1"
@@ -232,42 +240,15 @@ export const extractJobTicket = actionWithOrg({
         raw: JSON.stringify(sample),
       };
     }
-    const model = process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
-    const send = (signal: AbortSignal) =>
-      fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        signal,
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          temperature: 0,
-          messages: [
-            { role: "system", content: JOB_TICKET_PROMPT },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: "Extract information from this image" },
-                { type: "image_url", image_url: { url: args.imageUrl } },
-              ],
-            },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "job_ticket",
-              strict: true,
-              schema: JOB_TICKET_JSON_SCHEMA,
-            },
-          },
-        }),
-      });
     let outcome: JobTicketProviderOutcome;
     try {
-      outcome = await requestJobTicketProvider(send, {
-        tracking: { port: ctx.aiUsage, feature: "JOB_TICKET_SCAN", model },
+      outcome = await requestJobTicketProvider(request.send, {
+        adapter: request.adapter,
+        tracking: {
+          port: ctx.aiUsage,
+          feature: "JOB_TICKET_SCAN",
+          model: request.model,
+        },
         validateContent: (content) => {
           try {
             parseJobTicket(

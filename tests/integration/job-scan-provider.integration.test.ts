@@ -8,6 +8,10 @@ import {
 } from "../../convex/finishedGoods/jobScans";
 import { ACCOUNTING_WINDOW_MS } from "../../convex/lib/imageProvider";
 import {
+  JOB_TICKET_JSON_SCHEMA,
+  JOB_TICKET_PROMPT,
+} from "../../convex/model/finishedGoods/jobScans";
+import {
   PUBLIC_API_ACTOR,
   createPublicApiWorld,
 } from "../fixtures/public-api-examples";
@@ -101,8 +105,8 @@ describe("job-ticket provider deadline and retry policy", () => {
   );
   it("declares an explicit bounded default policy with at most one retry", () => {
     expect(JOB_TICKET_PROVIDER_POLICY).toEqual({
-      attemptTimeoutMs: 40_000,
-      totalDeadlineMs: 55_000,
+      attemptTimeoutMs: 20_000,
+      totalDeadlineMs: 30_000,
       maxRetries: 1,
       minRetryBudgetMs: 10_000,
       maxResponseBytes: 256 * 1024,
@@ -756,6 +760,9 @@ beforeEach(() => {
     throw new Error("Unexpected provider transport.");
   });
   vi.stubGlobal("fetch", transport);
+  vi.stubEnv("AI_IMAGE_PROVIDER", "");
+  vi.stubEnv("OPENAI_API_KEY", "");
+  vi.stubEnv("OPENAI_IMAGE_MODEL", "");
   vi.stubEnv("OPENROUTER_API_KEY", KEY_SENTINEL);
   vi.stubEnv("JOB_SCAN_DEMO_AI", "0");
 });
@@ -778,6 +785,152 @@ async function extract() {
 function logged(spy: { mock: { calls: unknown[][] } }) {
   return spy.mock.calls.map((call) => call.map(String).join(" "));
 }
+
+describe("registered extractJobTicket provider selection", () => {
+  const modelText = '{"factory_order":"FO1","product_barcode_text":"BOX1"}';
+  const message = (...content: unknown[]) => ({ type: "message", content });
+  const outputText = (text: string) => ({ type: "output_text", text });
+
+  it("defaults to OpenAI, sends the strict Responses request and joins the final message's text", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "fixture-openai-key");
+    transport.mockResolvedValue(
+      Response.json({
+        status: "completed",
+        output: [
+          { type: "reasoning", content: [outputText("ignored")] },
+          message(outputText('{"factory_order":"STALE"}')),
+          message(
+            outputText(modelText.slice(0, 20)),
+            { type: "other" },
+            outputText(modelText.slice(20)),
+          ),
+        ],
+      }),
+    );
+
+    expect(await extract()).toMatchObject({
+      value: {
+        ok: true,
+        mock: false,
+        fields: { factoryOrder: "FO1", productBarcodeText: "BOX1" },
+        raw: modelText,
+      },
+    });
+    expect(transport).toHaveBeenCalledOnce();
+    const [url, init] = transport.mock.calls[0]!;
+    expect(url).toBe("https://api.openai.com/v1/responses");
+    expect(init?.headers).toMatchObject({
+      Authorization: "Bearer fixture-openai-key",
+    });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      model: "gpt-6-luna",
+      store: false,
+      service_tier: "default",
+      reasoning: { effort: "none" },
+      input: [
+        { role: "developer", content: JOB_TICKET_PROMPT },
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: "Extract information from this image" },
+            { type: "input_image", image_url: IMAGE_SENTINEL },
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "job_ticket",
+          strict: true,
+          schema: JOB_TICKET_JSON_SCHEMA,
+        },
+      },
+    });
+  });
+
+  it("rolls back to OpenRouter with reasoning disabled even when both keys are configured", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "fixture-openai-key");
+    vi.stubEnv("AI_IMAGE_PROVIDER", "openrouter");
+    vi.stubEnv("OPENROUTER_MODEL", "openai/fixture-model");
+    transport.mockResolvedValue(ok(envelope(modelText)));
+
+    expect(await extract()).toMatchObject({ value: { ok: true } });
+    const [url, init] = transport.mock.calls[0]!;
+    expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(init?.headers).toMatchObject({
+      Authorization: `Bearer ${KEY_SENTINEL}`,
+    });
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      model: "openai/fixture-model",
+      reasoning: { effort: "none" },
+      response_format: { json_schema: { name: "job_ticket", strict: true } },
+    });
+  });
+
+  it("requires the selected provider's key and preserves the opt-in job demo", async () => {
+    vi.stubEnv("AI_IMAGE_PROVIDER", "openai");
+    expect(await extract()).toMatchObject({
+      value: { ok: false, error: { code: "AI_UNAVAILABLE" } },
+    });
+    vi.stubEnv("JOB_SCAN_DEMO_AI", "1");
+    expect(await extract()).toMatchObject({ value: { ok: true, mock: true } });
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "refusal with text",
+      {
+        output: [
+          message(outputText(modelText), {
+            type: "refusal",
+            refusal: CONTENT_SENTINEL,
+          }),
+        ],
+      },
+    ],
+    ["missing text", { output: [message()] }],
+    ["malformed output", { output: { unexpected: true } }],
+    [
+      "malformed model JSON",
+      { output: [message(outputText(`{${CONTENT_SENTINEL}`))] },
+    ],
+  ])(
+    "marks a Responses answer with %s unreadable without retrying",
+    async (_case, body) => {
+      vi.stubEnv("OPENAI_API_KEY", "fixture-openai-key");
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      transport.mockResolvedValue(Response.json(body));
+
+      expect(await extract()).toMatchObject({
+        value: { ok: false, error: { code: "AI_UNREADABLE" } },
+      });
+      expect(transport).toHaveBeenCalledOnce();
+      expectNoSentinel(logged(warn));
+    },
+  );
+
+  it.each([
+    ["an incomplete response", { status: "incomplete" }, {}],
+    ["an incomplete final message", {}, { status: "incomplete" }],
+  ])(
+    "rejects %s even when its text is valid JSON, without retrying",
+    async (_case, response, final) => {
+      vi.stubEnv("OPENAI_API_KEY", "fixture-openai-key");
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      transport.mockResolvedValue(
+        Response.json({
+          ...response,
+          output: [{ ...message(outputText(modelText)), ...final }],
+          usage: { input_tokens: 10, output_tokens: 5 },
+        }),
+      );
+
+      expect(await extract()).toMatchObject({ value: { ok: false } });
+      expect(transport).toHaveBeenCalledOnce();
+    },
+  );
+});
 
 describe("registered extractJobTicket provider failures", () => {
   it("returns AI_UNAVAILABLE after one bounded 5xx retry and logs no provider body, image or key", async () => {

@@ -21,6 +21,7 @@ const transport = vi.fn<typeof fetch>();
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-11-24T04:27:00Z"));
+  vi.stubEnv("AI_IMAGE_PROVIDER", "openrouter");
   vi.stubEnv("OPENROUTER_API_KEY", "synthetic");
   vi.stubGlobal("fetch", transport);
   transport.mockReset().mockImplementation(async () =>

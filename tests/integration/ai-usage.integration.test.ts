@@ -68,6 +68,8 @@ const ledger = () =>
   }));
 beforeEach(async () => {
   vi.useFakeTimers();
+  vi.stubEnv("AI_IMAGE_PROVIDER", "");
+  vi.stubEnv("OPENAI_API_KEY", "");
   vi.stubEnv("OPENROUTER_API_KEY", "fixture-key");
   vi.stubEnv("OPENROUTER_MODEL", "openai/gpt-6-luna");
   world = await createConvexTenantWorld(modules);
@@ -103,6 +105,7 @@ describe("AI usage ledger through authorized actions", () => {
           factoryOrder: "FO1",
           productBarcodeText: "BOX1",
           source: "AI" as const,
+          aiRaw: '{"factory_order":"FO1"}',
           aiUsageOperationId: result.requestId,
         },
       ],
@@ -111,6 +114,11 @@ describe("AI usage ledger through authorized actions", () => {
     await auth().mutation(api.finishedGoods.jobScans.saveJobScans, saveArgs);
     const after = await ledger();
     expect(after.operations[0]?.jobScanId).toBeDefined();
+    const saved = await world.t.run((ctx) =>
+      ctx.db.query("finishedGoodsJobScans").collect(),
+    );
+    expect(saved).toHaveLength(1);
+    expect(saved[0]?.aiRaw).toBe('{"factory_order":"FO1"}');
     expect(after.summaries[0]?.operationCount).toBe(1);
     expect(after.summaries[0]?.knownCostUsdNano).toBe(588675);
     const reuse = await auth().mutation(
@@ -128,6 +136,80 @@ describe("AI usage ledger through authorized actions", () => {
     expect((await ledger()).operations[0]?.jobScanId).toBe(
       after.operations[0]?.jobScanId,
     );
+  });
+
+  it("records the direct provider per retry and includes the estimated cost in summary and recent activity", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "fixture-openai-key");
+    vi.stubEnv("OPENAI_IMAGE_MODEL", "");
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({}, { status: 503 }))
+      .mockResolvedValueOnce(
+        Response.json({
+          id: "resp-synthetic",
+          model: "gpt-6-luna",
+          usage: {
+            input_tokens: 1000,
+            input_tokens_details: { cached_tokens: 500 },
+            output_tokens: 50,
+            total_tokens: 1050,
+          },
+          output: [
+            {
+              type: "message",
+              content: [
+                {
+                  type: "output_text",
+                  text: '{"factory_order":"FO1","product_barcode_text":"BOX1"}',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+    vi.stubGlobal("fetch", fetcher);
+
+    expect(await extract()).toMatchObject({ value: { ok: true } });
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      "https://api.openai.com/v1/responses",
+      "https://api.openai.com/v1/responses",
+    ]);
+    const { events } = await ledger();
+    expect(events).toMatchObject([
+      {
+        attemptNo: 1,
+        provider: "OPENAI",
+        status: "PROVIDER_ERROR",
+        billingStatus: "UNKNOWN",
+      },
+      {
+        attemptNo: 2,
+        provider: "OPENAI",
+        requestedModel: "gpt-6-luna",
+        status: "SUCCEEDED",
+        billingStatus: "ESTIMATED",
+        providerGenerationId: "resp-synthetic",
+        costUsdNano: 80_000,
+      },
+    ]);
+    expect(await auth().query(api.aiUsage.reports.summary, {})).toMatchObject({
+      value: {
+        byFeature: {
+          JOB_TICKET_SCAN: { knownCostUsdNano: 80_000, unknownAttemptCount: 1 },
+        },
+      },
+    });
+    expect(await auth().query(api.aiUsage.reports.recent, {})).toMatchObject({
+      value: {
+        items: [
+          {
+            knownCostUsdNano: 80_000,
+            unknownAttemptCount: 1,
+            hasEstimatedCost: true,
+          },
+        ],
+      },
+    });
   });
   it("bills unreadable output and counts one image with two HTTP attempts on a 5xx retry", async () => {
     const fetcher = vi

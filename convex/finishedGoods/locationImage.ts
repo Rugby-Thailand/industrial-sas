@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { actionWithOrg } from "../lib/tenantFunctions";
 import {
+  imageProviderRequest,
   requestImageProvider,
   type ImageProviderOutcome,
 } from "../lib/imageProvider";
@@ -18,7 +19,6 @@ export const LOCATION_IMAGE_RATE_LIMIT = Object.freeze({
   limit: 20,
   windowMs: 10 * 60_000,
 });
-const DEFAULT_MODEL = "openai/gpt-6-luna";
 
 /** The validated candidates of model content, or null when unreadable. */
 function readCandidates(content: string): LocationLabelCandidate[] | null {
@@ -47,49 +47,25 @@ export const extractLocationLabel = actionWithOrg({
         retryAfterMs:
           ctx.quota?.retryAfterMs ?? LOCATION_IMAGE_RATE_LIMIT.windowMs,
       };
-    const key = process.env.OPENROUTER_API_KEY?.trim();
-    if (!key) return { ok: false, error: { code: "AI_UNAVAILABLE" } };
-    const model = process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
-    const send = (signal: AbortSignal) =>
-      fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        signal,
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          temperature: 0,
-          messages: [
-            { role: "system", content: LOCATION_LABEL_PROMPT },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Read the visible warehouse location labels in this photo.",
-                },
-                { type: "image_url", image_url: { url: args.imageDataUrl } },
-              ],
-            },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "location_label",
-              strict: true,
-              schema: LOCATION_LABEL_SCHEMA,
-            },
-          },
-        }),
-      });
+    const request = imageProviderRequest({
+      prompt: LOCATION_LABEL_PROMPT,
+      instruction: "Read the visible warehouse location labels in this photo.",
+      imageUrl: args.imageDataUrl,
+      name: "location_label",
+      schema: LOCATION_LABEL_SCHEMA,
+    });
+    if (!request) return { ok: false, error: { code: "AI_UNAVAILABLE" } };
     let outcome: ImageProviderOutcome;
     try {
       // Its own feature in the shared ledger: billed whether or not the
       // labels are readable, and never linkable to a saved job ticket.
-      outcome = await requestImageProvider(send, {
-        tracking: { port: ctx.aiUsage, feature: "LOCATION_LABEL_SCAN", model },
+      outcome = await requestImageProvider(request.send, {
+        adapter: request.adapter,
+        tracking: {
+          port: ctx.aiUsage,
+          feature: "LOCATION_LABEL_SCAN",
+          model: request.model,
+        },
         validateContent: (content) => readCandidates(content) !== null,
       });
     } catch {

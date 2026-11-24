@@ -428,11 +428,9 @@ describe("AiUsageScreen statement and feature strip", () => {
       locale: "en",
     });
     const photos = within(entry("JOB_TICKET_SCAN"));
-    expect(photos.getByText("Not yet confirmed")).toBeInTheDocument();
+    expect(photos.getByText("Cost unavailable")).toBeInTheDocument();
     expect(photos.queryByText(/US\$0\.00/)).toBeNull();
-    expect(
-      photos.getByText("2 calls without confirmed cost"),
-    ).toBeInTheDocument();
+    expect(photos.getByText("2 calls without cost data")).toBeInTheDocument();
     expect(photos.getByText("1 operation pending")).toBeInTheDocument();
     expect(photos.getByText(/no fully priced operations yet/)).toBeVisible();
     expect(
@@ -441,9 +439,7 @@ describe("AiUsageScreen statement and feature strip", () => {
     // The total is a lower bound and says so.
     const total = within(statement());
     expect(total.getByText("US$0.00")).toBeInTheDocument();
-    expect(
-      total.getByText("2 calls without confirmed cost"),
-    ).toBeInTheDocument();
+    expect(total.getByText("2 calls without cost data")).toBeInTheDocument();
     expect(total.getByText("1 operation pending")).toBeInTheDocument();
     expect(await total.findAllByText("≈ ฿0.0000")).toHaveLength(2);
   });
@@ -503,9 +499,9 @@ describe("AiUsageScreen statement and feature strip", () => {
         locale: "en",
       });
       await screen.findByTestId("usage-estimate");
-      expect(breakdown().getByText("Not yet confirmed")).toBeInTheDocument();
+      expect(breakdown().getByText("Cost unavailable")).toBeInTheDocument();
       expect(
-        breakdown().getByText("1 call without confirmed cost"),
+        breakdown().getByText("1 call without cost data"),
       ).toBeInTheDocument();
       expect(breakdown().queryByText(/^US\$/)).toBeNull();
       expect(breakdown().queryByText(/฿/)).toBeNull();
@@ -540,8 +536,8 @@ describe("AiUsageScreen statement and feature strip", () => {
       });
       expect(await breakdown().findByText(baht)).toBeInTheDocument();
       expect(breakdown().getByText(usd)).toBeInTheDocument();
-      expect(breakdown().queryByText("Not yet confirmed")).toBeNull();
-      const unknown = breakdown().queryByText("1 call without confirmed cost");
+      expect(breakdown().queryByText("Cost unavailable")).toBeNull();
+      const unknown = breakdown().queryByText("1 call without cost data");
       if (unknownAttemptCount) expect(unknown).toBeInTheDocument();
       else expect(unknown).toBeNull();
     },
@@ -663,6 +659,20 @@ const props = {
 };
 
 describe("RecentActivity", () => {
+  it.each([
+    ["en", "Includes estimated cost"],
+    ["th", "รวมค่าใช้จ่ายโดยประมาณ"],
+  ] as const)("labels the recorded estimate in %s", async (locale, label) => {
+    state.query.mockResolvedValueOnce(
+      page([item("estimated", { hasEstimatedCost: true })]),
+    );
+    renderWithIntl(<RecentActivity {...props} args={{ period: "month" }} />, {
+      locale,
+    });
+    expect(await screen.findByText(label)).toBeVisible();
+    expect(screen.getByText("usd:200000")).toBeVisible();
+  });
+
   it("shows operation details in the organization timezone", async () => {
     state.query.mockResolvedValueOnce(
       page([
@@ -704,9 +714,7 @@ describe("RecentActivity", () => {
     expect(first).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("openai/gpt-6-luna-2026")).toBeVisible();
     expect(screen.getByText("Retries", { exact: false })).toBeVisible();
-    expect(
-      screen.getAllByText("1 call without confirmed cost"),
-    ).not.toHaveLength(0);
+    expect(screen.getAllByText("1 call without cost data")).not.toHaveLength(0);
     expect(screen.getAllByText("In progress")).not.toHaveLength(0);
     expect(screen.getAllByText("Organization")).not.toHaveLength(0);
     expect(state.query).toHaveBeenCalledWith(expect.anything(), {

@@ -65,6 +65,20 @@ describe("validated provider usage record", () => {
     expect(Object.isFrozen(UNKNOWN_USAGE)).toBe(true);
   });
 
+  it("accepts an estimated cost and requires both cost representations", () => {
+    const estimated = { ...reported, billingStatus: "ESTIMATED" };
+    expect(readProviderUsage(estimated)).toEqual({
+      ok: true,
+      value: estimated,
+    });
+    expect(
+      readProviderUsage({ ...UNKNOWN_USAGE, billingStatus: "ESTIMATED" }),
+    ).toMatchObject({ ok: false, error: { field: "billingStatus" } });
+    expect(
+      readProviderUsage({ ...estimated, costUsd: undefined }),
+    ).toMatchObject({ ok: false, error: { field: "costUsdNano" } });
+  });
+
   it.each([
     ["a fractional nano amount", { costUsdNano: 0.5 }, "costUsdNano"],
     ["a negative nano amount", { costUsdNano: -1 }, "costUsdNano"],
@@ -281,7 +295,7 @@ describe("metrics arithmetic", () => {
 });
 
 describe("operation projection shared by live finalization and rebuild", () => {
-  it("sums reported attempts and takes status and end from the last attempt", () => {
+  it("sums reported and estimated attempts and uses the last status and end time", () => {
     const attempts = [
       attempt(),
       attempt({
@@ -289,6 +303,7 @@ describe("operation projection shared by live finalization and rebuild", () => {
         startedAt: 2_100,
         finishedAt: 2_500,
         status: "SUCCEEDED",
+        billingStatus: "ESTIMATED",
         costUsdNano: 200_000,
       }),
     ];

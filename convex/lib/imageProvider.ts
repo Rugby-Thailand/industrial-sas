@@ -1,10 +1,13 @@
 import {
   UNKNOWN_USAGE,
   type Feature,
+  type Provider,
+  type ProviderUsage,
   type UsageFinish,
 } from "../model/aiUsage/usage";
+import { isArray, isRecord } from "../model/guards";
 import { ACCOUNTING_WRITE_BUDGET_MS, type AiUsagePort } from "./aiUsage";
-import { responseUsage } from "./providerUsage";
+import { openAiResponseUsage, responseUsage } from "./providerUsage";
 
 /**
  * Explicit bounds for the image provider call (BD-07). Every attempt,
@@ -27,8 +30,8 @@ export interface ImageProviderPolicy {
 }
 
 export const IMAGE_PROVIDER_POLICY: ImageProviderPolicy = Object.freeze({
-  attemptTimeoutMs: 40_000,
-  totalDeadlineMs: 55_000,
+  attemptTimeoutMs: 20_000,
+  totalDeadlineMs: 30_000,
   maxRetries: 1,
   minRetryBudgetMs: 10_000,
   maxResponseBytes: 256 * 1024,
@@ -127,22 +130,140 @@ async function readBoundedBody(
   return new TextDecoder().decode(bytes);
 }
 
-/** First choice's message content, "" when absent, or null if not JSON. */
-function envelopeContent(text: string): string | null {
-  let body: unknown;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    return null;
-  }
-  if (body === null || typeof body !== "object") return null;
-  const content = (body as { choices?: { message?: { content?: unknown } }[] })
-    .choices?.[0]?.message?.content;
+interface ImageProviderAdapter {
+  readonly provider: Provider;
+  readonly content: (body: unknown) => string | null;
+  readonly usage: (body: unknown) => ProviderUsage;
+}
+
+/** First choice's message content, or an empty string for an unreadable image. */
+function chatContent(body: unknown): string | null {
+  if (!isRecord(body)) return null;
+  const first = isArray(body.choices) ? body.choices[0] : null;
+  const content =
+    isRecord(first) && isRecord(first.message) ? first.message.content : null;
   return typeof content === "string" ? content : "";
 }
 
-/** The provider body as JSON for usage decoding only, or null. */
-function usageBody(text: string | typeof ABORTED | typeof TOO_LARGE): unknown {
+/**
+ * Text of the last assistant message of a completed response, "" for a
+ * refusal or missing text, or null when the response did not complete
+ * (e.g. `incomplete` after hitting a limit), so truncated output is never
+ * accepted. Parts are joined only within that one message.
+ */
+function responsesContent(body: unknown): string | null {
+  if (!isRecord(body) || Array.isArray(body)) return null;
+  if (body.status !== undefined && body.status !== "completed") return null;
+  if (!isArray(body.output)) return "";
+  const messages = body.output.filter(
+    (item) =>
+      isRecord(item) && item.type === "message" && isArray(item.content),
+  );
+  const last = messages.at(-1);
+  if (!isRecord(last) || !isArray(last.content)) return "";
+  if (last.status !== undefined && last.status !== "completed") return null;
+  const chunks: string[] = [];
+  for (const part of last.content) {
+    if (!isRecord(part)) continue;
+    if (part.type === "refusal") return "";
+    if (part.type === "output_text" && typeof part.text === "string")
+      chunks.push(part.text);
+  }
+  return chunks.join("");
+}
+
+const OPENROUTER: ImageProviderAdapter = {
+  provider: "OPENROUTER",
+  content: chatContent,
+  usage: responseUsage,
+};
+const OPENAI: ImageProviderAdapter = {
+  provider: "OPENAI",
+  content: responsesContent,
+  usage: openAiResponseUsage,
+};
+
+/** Select once per operation, so retries use the same provider and model. */
+export function imageProviderRequest({
+  prompt,
+  instruction,
+  imageUrl,
+  name,
+  schema,
+}: {
+  readonly prompt: string;
+  readonly instruction: string;
+  readonly imageUrl: string;
+  readonly name: string;
+  readonly schema: object;
+}) {
+  const preference = process.env.AI_IMAGE_PROVIDER?.trim();
+  const openAiKey = process.env.OPENAI_API_KEY?.trim();
+  const useOpenAi =
+    preference === "openai" ||
+    (preference !== "openrouter" && Boolean(openAiKey));
+  const key = useOpenAi ? openAiKey : process.env.OPENROUTER_API_KEY?.trim();
+  if (!key) return null;
+  const model = useOpenAi
+    ? process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-6-luna"
+    : process.env.OPENROUTER_MODEL?.trim() || "openai/gpt-6-luna";
+  const adapter = useOpenAi ? OPENAI : OPENROUTER;
+  const endpoint = useOpenAi
+    ? "https://api.openai.com/v1/responses"
+    : "https://openrouter.ai/api/v1/chat/completions";
+  const reasoning = { effort: "none" };
+  const jsonSchema = { name, strict: true, schema };
+  const body = useOpenAi
+    ? {
+        model,
+        store: false,
+        service_tier: "default",
+        reasoning,
+        input: [
+          { role: "developer", content: prompt },
+          {
+            role: "user",
+            content: [
+              { type: "input_text", text: instruction },
+              { type: "input_image", image_url: imageUrl },
+            ],
+          },
+        ],
+        text: { format: { type: "json_schema", ...jsonSchema } },
+      }
+    : {
+        model,
+        temperature: 0,
+        reasoning,
+        messages: [
+          { role: "system", content: prompt },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: instruction },
+              { type: "image_url", image_url: { url: imageUrl } },
+            ],
+          },
+        ],
+        response_format: { type: "json_schema", json_schema: jsonSchema },
+      };
+  const send = (signal: AbortSignal) =>
+    fetch(endpoint, {
+      method: "POST",
+      signal,
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  return { adapter, model, send };
+}
+
+/** Decode the bounded provider envelope once for both content and usage. */
+function parseEnvelope(
+  text: string | typeof ABORTED | typeof TOO_LARGE,
+): unknown {
   if (typeof text !== "string") return null;
   try {
     return JSON.parse(text);
@@ -197,6 +318,7 @@ export interface ImageProviderTracking {
 export async function requestImageProvider(
   send: (signal: AbortSignal) => Promise<Response>,
   options: {
+    readonly adapter?: ImageProviderAdapter;
     readonly policy?: ImageProviderPolicy;
     readonly now?: () => number;
     readonly tracking?: ImageProviderTracking;
@@ -204,6 +326,7 @@ export async function requestImageProvider(
   } = {},
 ): Promise<ImageProviderOutcome> {
   const policy = options.policy ?? IMAGE_PROVIDER_POLICY;
+  const adapter = options.adapter ?? OPENROUTER;
   const tracking = options.tracking;
   const now = options.now ?? Date.now;
   const started = now();
@@ -283,7 +406,12 @@ export async function requestImageProvider(
       const attemptNo = attempts + 1;
       if (tracking) {
         const begun = await untilAborted(
-          tracking.port.begin(tracking.feature, tracking.model, attemptNo),
+          tracking.port.begin(
+            tracking.feature,
+            tracking.model,
+            attemptNo,
+            adapter.provider,
+          ),
           total,
         );
         // Unsettled at the deadline: nothing was sent and nothing is awaited.
@@ -337,7 +465,7 @@ export async function requestImageProvider(
           // stalled or broken bodies record unknown cost, and never suppress
           // a retry that the status and remaining budget allow.
           usageResult = {
-            ...responseUsage(usageBody(text)),
+            ...adapter.usage(parseEnvelope(text)),
             httpStatus: response.status,
             status: "PROVIDER_ERROR",
           };
@@ -367,12 +495,13 @@ export async function requestImageProvider(
           };
           return fail("too_large");
         }
+        const body = parseEnvelope(text);
         usageResult = {
-          ...responseUsage(usageBody(text)),
+          ...adapter.usage(body),
           httpStatus: response.status,
           status: "UNREADABLE",
         };
-        const content = envelopeContent(text);
+        const content = adapter.content(body);
         if (content === null) return fail("malformed");
         if (!options.validateContent || options.validateContent(content))
           usageResult = { ...usageResult, status: "SUCCEEDED" };

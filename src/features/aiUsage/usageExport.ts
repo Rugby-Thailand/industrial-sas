@@ -177,6 +177,7 @@ export const USAGE_CSV_HEADERS = Object.freeze([
   "estimated_funding_fee_thb",
   "estimated_total_thb",
   "record_type",
+  "estimated_cost_usd",
 ] as const);
 
 /**
@@ -250,7 +251,7 @@ export async function exportUsage(
               a.cachedInputUnitCount,
               a.cacheWriteUnitCount,
               a.totalUnitCount,
-              a.costUsd,
+              a.billingStatus === "REPORTED" ? a.costUsd : undefined,
               a.costUsdNano,
               a.billingStatus,
               a.usageSource,
@@ -260,6 +261,7 @@ export async function exportUsage(
               baht?.fundingFee,
               baht?.withFundingFee,
               "ATTEMPT",
+              a.billingStatus === "ESTIMATED" ? a.costUsd : undefined,
             ]);
           }
         }
