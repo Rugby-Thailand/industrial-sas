@@ -1,5 +1,12 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -40,17 +47,27 @@ async function fixture(suite = "smoke", fail = "", descendants = false) {
     `#!/usr/bin/env node
 const fs=require('node:fs'),{spawn}=require('node:child_process');
 const directory=${JSON.stringify(directory)};
-const role=process.argv[2]==='exec'?'install':'build';
+const role=process.argv[1].endsWith('verify-playwright-browsers.mjs')?'verify':process.argv[2]==='exec'?'install':'build';
 const descendant=${descendants ? "spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'})" : "null"};
-fs.writeFileSync(directory+'/'+role+'.started',JSON.stringify({pid:process.pid,descendant:descendant?.pid,args:process.argv.slice(2),flag:process.env.CI_EXTERNAL_TYPECHECK,secret:process.env.SECRET_SENTINEL,preload:process.env.NODE_OPTIONS}));
+fs.writeFileSync(directory+'/'+role+'.started',JSON.stringify({pid:process.pid,descendant:descendant?.pid,args:process.argv.slice(2),flag:process.env.CI_EXTERNAL_TYPECHECK,secret:process.env.SECRET_SENTINEL,preload:process.env.NODE_OPTIONS,browserPath:process.env.PLAYWRIGHT_BROWSERS_PATH}));
 setInterval(()=>{if(fs.existsSync(directory+'/'+role+'.go')) process.exit(role===${JSON.stringify(fail)}?1:0)},20);
 `,
   );
   await chmod(pnpm, 0o755);
+  const scripts = join(directory, "scripts/ci");
+  await mkdir(scripts, { recursive: true });
+  await writeFile(
+    join(scripts, "verify-playwright-browsers.mjs"),
+    (await readFile(pnpm, "utf8")).replace(
+      "const fs=require('node:fs'),{spawn}=require('node:child_process');",
+      'import fs from "node:fs"; import { spawn } from "node:child_process";',
+    ),
+  );
   const child = spawn(
     process.execPath,
     [resolve("scripts/ci/prepare-browser-suite.mjs"), `--suite=${suite}`],
     {
+      cwd: directory,
       env: {
         PATH: `${directory}:${process.env.PATH}`,
         HOME: process.env.HOME,
@@ -141,7 +158,6 @@ describe.skipIf(process.platform === "win32")(
         "exec",
         "playwright",
         "install",
-        "--with-deps",
         "--only-shell",
         "chromium",
       ]);
@@ -157,25 +173,19 @@ describe.skipIf(process.platform === "win32")(
       expect(await world.closed, world.stderr()).toBe(0);
     });
 
-    it("keeps navigation build checking and installs all three browser engines", async () => {
+    it("keeps navigation build checking and verifies the three preinstalled engines", async () => {
       const world = await fixture("navigation");
-      const [build, install] = await Promise.all([
+      const [build, verify] = await Promise.all([
         world.started("build"),
-        world.started("install"),
+        world.started("verify"),
       ]);
       expect(build.args).toEqual(["build:navigation"]);
       expect(build.flag).toBeUndefined();
-      expect(install.args).toEqual([
-        "exec",
-        "playwright",
-        "install",
-        "--with-deps",
-        "--only-shell",
-        "chromium",
-        "firefox",
-        "webkit",
-      ]);
-      await Promise.all([world.complete("build"), world.complete("install")]);
+      expect(build.browserPath).toBeUndefined();
+      expect(verify.args).toEqual(["chromium", "firefox", "webkit"]);
+      expect(verify.browserPath).toBe("/ms-playwright");
+      expect(verify.secret).toBeUndefined();
+      await Promise.all([world.complete("build"), world.complete("verify")]);
       expect(await world.closed, world.stderr()).toBe(0);
     });
 

@@ -1,0 +1,148 @@
+diff --git a/dist/index.js b/dist/index.js
+index 4aaed44325732f08b6fa1857011e68e10134f9c9..09df92a8f3a45af3c598a5e929da7b32bc37fa9d 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -29,7 +29,9 @@ const authStorage = new AsyncLocalStorage();
+ const convexGlobalStorage = new AsyncLocalStorage();
+ class DatabaseFake {
+     _componentPath;
+-    _documents = {};
++    // Keep committed rows grouped by table, so a query scans only its table.
++    _documents = new Map();
++    _stringLookupByTable = new Map();
+     _storage = {};
+     _nextQueryId = 1;
+     _nextDocId = 10000;
+@@ -72,7 +74,7 @@ class DatabaseFake {
+                 return write;
+             }
+         }
+-        return this._documents[id] ?? null;
++        return this._documents.get(tableName ?? tableNameFromId(id))?.get(id) ?? null;
+     }
+     // Note that this is not the format the real backend
+     // uses for IDs.
+@@ -199,17 +201,22 @@ class DatabaseFake {
+             throw new Error("Transaction already committed or rolled back");
+         }
+         for (const [id, write] of Object.entries(lastWrites)) {
+-            const _id = id;
+-            if (this._writes.length === 0) {
+-                if (write === null) {
+-                    delete this._documents[_id];
+-                }
+-                else {
+-                    this._documents[_id] = write;
+-                }
++            if (this._writes.length !== 0) {
++                this._addWrite(id, write);
++                continue;
++            }
++            const tableName = tableNameFromId(id);
++            this._stringLookupByTable.delete(tableName);
++            let documents = this._documents.get(tableName);
++            if (write === null) {
++                documents?.delete(id);
+             }
+             else {
+-                this._addWrite(_id, write);
++                if (!documents) {
++                    documents = new Map();
++                    this._documents.set(tableName, documents);
++                }
++                documents.set(id, write);
+             }
+         }
+     }
+@@ -389,9 +396,29 @@ class DatabaseFake {
+             pageStatus,
+         };
+     }
+-    _iterateDocs(tableName, callback) {
++    _committedIdsMatchingString(tableName, field, value) {
++        let byField = this._stringLookupByTable.get(tableName);
++        if (!byField) {
++            byField = new Map();
++            this._stringLookupByTable.set(tableName, byField);
++        }
++        let byValue = byField.get(field);
++        if (!byValue) {
++            byValue = new Map();
++            for (const [id, document] of this._documents.get(tableName) ?? []) {
++                const key = document[field];
++                if (typeof key !== "string") continue;
++                const ids = byValue.get(key);
++                if (ids) ids.push(id);
++                else byValue.set(key, [id]);
++            }
++            byField.set(field, byValue);
++        }
++        return byValue.get(value) ?? [];
++    }
++    _iterateDocs(tableName, callback, committedIds = this._documents.get(tableName)?.keys()) {
+         const isInTable = (id) => tableNameFromId(id) === tableName;
+-        const ids = new Set(Object.keys(this._documents).filter(isInTable));
++        const ids = new Set(committedIds);
+         for (let i = 0; i < this._writes.length; i++) {
+             for (const id of Object.keys(this._writes[i]).filter(isInTable)) {
+                 ids.add(id);
+@@ -447,11 +474,20 @@ class DatabaseFake {
+                 }
+                 fieldPathsToSortBy = fields;
+                 validateIndexRangeExpression(source, fields);
++                const rangeFilters = source.range.map(compileRangeFilter);
++                // Narrow committed candidates by the last string equality.
++                // Pending writes and every original predicate still apply.
++                const equal = source.range.findLast((filter) =>
++                    filter.type === "Eq" && typeof filter.value === "string" &&
++                    !filter.fieldPath.includes("."));
++                const committedIds = equal === undefined
++                    ? undefined
++                    : this._committedIdsMatchingString(tableName, equal.fieldPath, equal.value);
+                 this._iterateDocs(tableName, (doc) => {
+-                    if (source.range.every((filter) => evaluateRangeFilter(doc, filter))) {
++                    if (rangeFilters.every((filter) => filter(doc))) {
+                         results.push(doc);
+                     }
+-                });
++                }, committedIds);
+                 break;
+             }
+             case "Search": {
+@@ -646,21 +682,29 @@ function evaluateFilter(document, filter) {
+     }
+     throw new Error(`not implemented: ${JSON.stringify(filter)}`);
+ }
+-function evaluateRangeFilter(document, expr) {
+-    const result = evaluateFieldPath(expr.fieldPath, document);
++function compileRangeFilter(expr) {
++    const getField = compileFieldPath(expr.fieldPath);
+     const value = evaluateValue(expr.value);
+     switch (expr.type) {
+         case "Eq":
+-            return compareValues(result, value) === 0;
++            return typeof value === "string"
++                ? (document) => getField(document) === value
++                : (document) => compareValues(getField(document), value) === 0;
+         case "Gt":
+-            return compareValues(result, value) > 0;
++            return (document) => compareValues(getField(document), value) > 0;
+         case "Gte":
+-            return compareValues(result, value) >= 0;
++            return (document) => compareValues(getField(document), value) >= 0;
+         case "Lt":
+-            return compareValues(result, value) < 0;
++            return (document) => compareValues(getField(document), value) < 0;
+         case "Lte":
+-            return compareValues(result, value) <= 0;
++            return (document) => compareValues(getField(document), value) <= 0;
++    }
++}
++function compileFieldPath(fieldPath) {
++    if (fieldPath.includes(".")) {
++        return (document) => evaluateFieldPath(fieldPath, document);
+     }
++    return (document) => document[fieldPath];
+ }
+ function evaluateValue(value) {
+     if (typeof value === "object" && value !== null && "$undefined" in value) {

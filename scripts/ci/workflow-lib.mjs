@@ -582,7 +582,7 @@ function releaseJobProblems(id, job, spec) {
     job?.defaults !== undefined ||
     browserInstalls.length !== 1 ||
     install?.run !==
-      "pnpm exec playwright install --with-deps --only-shell chromium" ||
+      "pnpm exec playwright install --only-shell chromium\nnode scripts/ci/verify-playwright-browsers.mjs chromium\n" ||
     install?.if !== undefined ||
     install?.env !== undefined ||
     install?.shell !== undefined ||
@@ -598,7 +598,7 @@ function releaseJobProblems(id, job, spec) {
       )
   )
     problems.push(
-      `${at}: exact headless Chromium installation must pass before the release controller`,
+      `${at}: exact headless Chromium installation and launch must pass before the release controller`,
     );
   const runner = steps.filter((step) =>
     String(step.run ?? "").includes("scripts/release/run.mjs"),
@@ -689,7 +689,7 @@ const isBuild = (step) =>
 
 // Vitest shards (T11): every project in contiguous native shards. Each shard
 // is gated by its own exit status and uploads only its own native JUnit file.
-export const TEST_SHARDS = 3;
+export const TEST_SHARDS = 5;
 const SHARD_JUNIT = `test-results/vitest-junit/shard-\${{ matrix.shard }}-${TEST_SHARDS}.xml`;
 export const VITEST_SHARD_COMMAND = [
   "pnpm exec vitest run",
@@ -791,7 +791,7 @@ const BROWSER_STEPS = Object.freeze([
     {
       id: "navigation-preparation",
       run: "node scripts/ci/prepare-browser-suite.mjs --suite=navigation",
-      if: "${{ matrix.suite == 'navigation' }}",
+      if: "${{ startsWith(matrix.suite, 'navigation-') }}",
       env: undefined,
       shell: undefined,
       "working-directory": undefined,
@@ -802,17 +802,16 @@ const BROWSER_STEPS = Object.freeze([
     (step) => runOf(step).includes("ci:clean-tree"),
     {
       run: "pnpm ci:clean-tree",
-      if: "${{ !cancelled() && ((matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success') || (matrix.suite == 'navigation' && steps.navigation-preparation.outcome == 'success')) }}",
+      if: "${{ !cancelled() && ((matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success') || (startsWith(matrix.suite, 'navigation-') && steps.navigation-preparation.outcome == 'success')) }}",
     },
   ],
   [
     "Chromium install",
     (step) =>
-      runOf(step) ===
-      "pnpm exec playwright install --with-deps --only-shell chromium",
+      runOf(step) === "pnpm exec playwright install --only-shell chromium",
     {
       id: "browsers",
-      run: "pnpm exec playwright install --with-deps --only-shell chromium",
+      run: "pnpm exec playwright install --only-shell chromium",
       if: "${{ matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2' }}",
     },
   ],
@@ -829,9 +828,12 @@ const BROWSER_STEPS = Object.freeze([
     "navigation suite",
     (step) => runOf(step).includes("test:e2e:navigation"),
     {
-      run: "pnpm test:e2e:navigation",
-      if: legAfter("navigation", "navigation-preparation"),
-      env: { PLAYWRIGHT_REQUIRE_BUILD: "1" },
+      run: "pnpm test:e2e:navigation --shard=${{ matrix.shard }}/2",
+      if: "${{ !cancelled() && startsWith(matrix.suite, 'navigation-') && steps.navigation-preparation.outcome == 'success' }}",
+      env: {
+        PLAYWRIGHT_REQUIRE_BUILD: "1",
+        NAVIGATION_REPORT_NAME: "${{ matrix.suite }}",
+      },
     },
   ],
   [
@@ -873,20 +875,28 @@ const BROWSER_STEPS = Object.freeze([
 function browserProblems(jobs) {
   const problems = [];
   const at = "quality.yml:browser";
+  const container = {
+    image:
+      "${{ startsWith(matrix.suite, 'navigation-') && 'mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e' || '' }}",
+    options: "--ipc=host",
+  };
+  if (!same(jobs.browser?.container, container))
+    problems.push(`${at}: navigation must use the pinned Playwright container`);
   const strategy = jobs.browser?.strategy ?? {};
   if (
     strategy["fail-fast"] !== "false" ||
     !same(strategy.matrix, {
       include: [
         { suite: "smoke", shard: "0" },
-        { suite: "navigation", shard: "0" },
+        { suite: "navigation-1", shard: "1" },
+        { suite: "navigation-2", shard: "2" },
         { suite: "workspace-1", shard: "1" },
         { suite: "workspace-2", shard: "2" },
       ],
     })
   )
     problems.push(
-      `${at}: matrix must be exactly smoke (0), navigation (0), workspace-1 (1), workspace-2 (2) with fail-fast false`,
+      `${at}: matrix must be exactly smoke (0), navigation-1 (1), navigation-2 (2), workspace-1 (1), workspace-2 (2) with fail-fast false`,
     );
   if (jobs.browser?.defaults !== undefined)
     problems.push(
