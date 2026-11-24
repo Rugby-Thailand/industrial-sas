@@ -4,7 +4,12 @@ import { runPolicy } from "./tests/e2e/support/policy";
 
 const port = 3265;
 const baseURL = `http://127.0.0.1:${port}`;
-const policy = runPolicy({ sensitive: false, outputName: "navigation" });
+const reportName = process.env.NAVIGATION_REPORT_NAME ?? "navigation";
+if (!/^navigation(?:-[12])?$/.test(reportName))
+  throw new Error(
+    "NAVIGATION_REPORT_NAME must be navigation, navigation-1 or navigation-2",
+  );
+const policy = runPolicy({ sensitive: false, outputName: reportName });
 if (
   process.env.PLAYWRIGHT_REQUIRE_BUILD === "1" &&
   !existsSync("scripts/navigation-guard-preview/.next/BUILD_ID")

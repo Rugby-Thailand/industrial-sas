@@ -175,16 +175,16 @@ describe("owned workflows", () => {
 
 describe("workflow policy rejects regressions", () => {
   it.each([
-    ["missing shard", "shard: [1, 2, 3]", "shard: [1, 2]"],
-    ["duplicate shard", "shard: [1, 2, 3]", "shard: [1, 2, 2]"],
+    ["missing shard", "shard: [1, 2, 3, 4, 5]", "shard: [1, 2, 3, 4]"],
+    ["duplicate shard", "shard: [1, 2, 3, 4, 5]", "shard: [1, 2, 3, 4, 4]"],
     [
       "fail-fast cancellation",
-      "      fail-fast: false\n      matrix:\n        shard: [1, 2, 3]",
-      "      fail-fast: true\n      matrix:\n        shard: [1, 2, 3]",
+      "      fail-fast: false\n      matrix:\n        shard: [1, 2, 3, 4, 5]",
+      "      fail-fast: true\n      matrix:\n        shard: [1, 2, 3, 4, 5]",
     ],
     [
       "mismatched total",
-      "--shard=${{ matrix.shard }}/3",
+      "--shard=${{ matrix.shard }}/5",
       "--shard=${{ matrix.shard }}/2",
     ],
     [
@@ -211,7 +211,7 @@ describe("workflow policy rejects regressions", () => {
     ],
     [
       "wrong report path",
-      "path: test-results/vitest-junit/shard-${{ matrix.shard }}-3.xml",
+      "path: test-results/vitest-junit/shard-${{ matrix.shard }}-5.xml",
       "path: test-results/vitest-junit/shard-${{ matrix.shard }}-2.xml",
     ],
   ])("rejects %s in native test shards", (_reason, from, to) => {
@@ -244,8 +244,8 @@ describe("workflow policy rejects regressions", () => {
     ],
     [
       "wrong shard total",
-      "--shard=${{ matrix.shard }}/2",
-      "--shard=${{ matrix.shard }}/3",
+      "test:e2e:workspace --shard=${{ matrix.shard }}/2",
+      "test:e2e:workspace --shard=${{ matrix.shard }}/3",
     ],
     [
       "shared shard report",
@@ -318,12 +318,18 @@ describe("workflow policy rejects regressions", () => {
 
   it("requires the navigation matrix leg and all three installed engines", () => {
     expectJobFailure("quality.yml", "browser", [
-      ["          - suite: navigation\n            shard: 0\n", ""],
+      ["          - suite: navigation-2\n            shard: 2\n", ""],
     ]);
     expectJobFailure("quality.yml", "browser", [
       [
         "node scripts/ci/prepare-browser-suite.mjs --suite=navigation",
         "node scripts/ci/prepare-browser-suite.mjs --suite=smoke",
+      ],
+    ]);
+    expectJobFailure("quality.yml", "browser", [
+      [
+        "@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e",
+        "",
       ],
     ]);
     const navigation = namedStep(
@@ -596,8 +602,8 @@ describe("workflow policy rejects regressions", () => {
     expect(
       problemsWith("quality.yml", [
         [
-          '          ref: ${{ github.sha }}\n          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "false"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile\n      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps --only-shell chromium\n      # Production',
-          '          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "true"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile --ignore-workspace\n      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps --only-shell chromium\n      # Production',
+          '          ref: ${{ github.sha }}\n          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "false"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile\n      - name: Install Playwright Chromium\n        run: |\n          pnpm exec playwright install --only-shell chromium\n          node scripts/ci/verify-playwright-browsers.mjs chromium\n      # Production',
+          '          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "true"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile --ignore-workspace\n      - name: Install Playwright Chromium\n        run: |\n          pnpm exec playwright install --only-shell chromium\n          node scripts/ci/verify-playwright-browsers.mjs chromium\n      # Production',
         ],
       ]),
     ).toEqual(
@@ -828,7 +834,7 @@ describe("workflow policy rejects regressions", () => {
           : "Release production";
       const runner = namedStep("quality.yml", title);
       const install =
-        "      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps --only-shell chromium\n";
+        "      - name: Install Playwright Chromium\n        run: |\n          pnpm exec playwright install --only-shell chromium\n          node scripts/ci/verify-playwright-browsers.mjs chromium\n";
       const runnerAt = owned["quality.yml"].indexOf(runner);
       const installAt = owned["quality.yml"].lastIndexOf(install, runnerAt);
       const block = owned["quality.yml"].slice(
@@ -839,10 +845,14 @@ describe("workflow policy rejects regressions", () => {
         block.replace(install, ""),
         `${install}${block}`,
         block.replace(" --only-shell", ""),
+        block.replace(
+          "          node scripts/ci/verify-playwright-browsers.mjs chromium\n",
+          "",
+        ),
         `${block.replace(install, "")}\n${install}`,
         block.replace(
-          "        run: pnpm exec playwright",
-          "        if: ${{ always() }}\n        run: pnpm exec playwright",
+          "        run: |",
+          "        if: ${{ always() }}\n        run: |",
         ),
         block.replace(
           runner,

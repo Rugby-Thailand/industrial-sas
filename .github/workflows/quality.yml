@@ -98,15 +98,13 @@ jobs:
         run: pnpm ci:clean-tree
 
   test:
-    name: Tests (${{ matrix.shard }}/3)
+    name: Tests (${{ matrix.shard }}/5)
     runs-on: ubuntu-24.04
-    # Large Convex search-parity fixtures exceed 15 minutes on shared runners.
-    # Keep the entire suite in the merge gate, with time for all continuations.
-    timeout-minutes: 30
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -118,11 +116,11 @@ jobs:
       - name: Vitest shard
         run: >-
           pnpm exec vitest run
-          --shard=${{ matrix.shard }}/3
+          --shard=${{ matrix.shard }}/5
           --reporter=default
           --reporter=github-actions
           --reporter=junit
-          --outputFile.junit=test-results/vitest-junit/shard-${{ matrix.shard }}-3.xml
+          --outputFile.junit=test-results/vitest-junit/shard-${{ matrix.shard }}-5.xml
       - name: Upload shard JUnit
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -130,25 +128,32 @@ jobs:
           name: vitest-junit-${{ matrix.shard }}
           # Re-running a failed shard replaces only its own report.
           overwrite: true
-          path: test-results/vitest-junit/shard-${{ matrix.shard }}-3.xml
+          path: test-results/vitest-junit/shard-${{ matrix.shard }}-5.xml
           retention-days: 7
           if-no-files-found: error
 
-  # Smoke, isolated navigation Next app and two workspace shards; all gate check.
+  # Smoke plus two shards each for navigation and workspace; all gate check.
   # Smoke and navigation own separate production builds. The Vite
   # workspace harness needs no Next.js build.
   browser:
     name: Browser (${{ matrix.suite }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 10
+    # WebKit needs extra OS libraries. Use the matching Playwright image for
+    # navigation; the hosted Ubuntu image already supports headless Chromium.
+    container:
+      image: ${{ startsWith(matrix.suite, 'navigation-') && 'mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e' || '' }}
+      options: --ipc=host
     strategy:
       fail-fast: false
       matrix:
         include:
           - suite: smoke
             shard: 0
-          - suite: navigation
-            shard: 0
+          - suite: navigation-1
+            shard: 1
+          - suite: navigation-2
+            shard: 2
           - suite: workspace-1
             shard: 1
           - suite: workspace-2
@@ -167,8 +172,8 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-
-      # Credential-free setup overlaps the verified build with browser install.
-      # The helper joins both processes before these tests or clean-tree run.
+      # Credential-free setup overlaps builds with browser installation or
+      # verification. Both processes finish before tests or clean-tree checks.
       - name: Production-mode build (credential-free)
         id: smoke-preparation
         if: ${{ matrix.suite == 'smoke' }}
@@ -177,25 +182,33 @@ jobs:
         run: node scripts/ci/prepare-browser-suite.mjs --suite=smoke
       - name: Navigation harness build (credential-free)
         id: navigation-preparation
-        if: ${{ matrix.suite == 'navigation' }}
+        if: ${{ startsWith(matrix.suite, 'navigation-') }}
+        env:
+          # The Actions container's mounted HOME belongs to its non-root user.
+          HOME: /root
         run: node scripts/ci/prepare-browser-suite.mjs --suite=navigation
       - name: Clean tree after build
-        if: ${{ !cancelled() && ((matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success') || (matrix.suite == 'navigation' && steps.navigation-preparation.outcome == 'success')) }}
-        run: pnpm ci:clean-tree
+        if: ${{ !cancelled() && ((matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success') || (startsWith(matrix.suite, 'navigation-') && steps.navigation-preparation.outcome == 'success')) }}
+        # The container runs as root against the runner-owned checkout.
+        run: >-
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory
+          GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" pnpm ci:clean-tree
       - name: Install Playwright Chromium
         id: browsers
         if: ${{ matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2' }}
-        run: pnpm exec playwright install --with-deps --only-shell chromium
+        run: pnpm exec playwright install --only-shell chromium
       - name: Anonymous smoke (desktop and mobile)
         if: ${{ !cancelled() && matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success' }}
         env:
           PLAYWRIGHT_REQUIRE_BUILD: "1"
         run: pnpm test:e2e
       - name: Navigation regressions (desktop engines and mobile Chromium)
-        if: ${{ !cancelled() && matrix.suite == 'navigation' && steps.navigation-preparation.outcome == 'success' }}
+        if: ${{ !cancelled() && startsWith(matrix.suite, 'navigation-') && steps.navigation-preparation.outcome == 'success' }}
         env:
           PLAYWRIGHT_REQUIRE_BUILD: "1"
-        run: pnpm test:e2e:navigation
+          NAVIGATION_REPORT_NAME: ${{ matrix.suite }}
+          HOME: /root
+        run: pnpm test:e2e:navigation --shard=${{ matrix.shard }}/2
       - name: Storage workspace (PR subset)
         if: ${{ !cancelled() && (matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2') && steps.browsers.outcome == 'success' }}
         env:
@@ -301,7 +314,9 @@ jobs:
       - name: Install release tools
         run: pnpm -C tools/release install --frozen-lockfile
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps --only-shell chromium
+        run: |
+          pnpm exec playwright install --only-shell chromium
+          node scripts/ci/verify-playwright-browsers.mjs chromium
       - name: Deploy and verify staging
         id: release
         env:
@@ -355,7 +370,9 @@ jobs:
       - name: Install release tools
         run: pnpm -C tools/release install --frozen-lockfile
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps --only-shell chromium
+        run: |
+          pnpm exec playwright install --only-shell chromium
+          node scripts/ci/verify-playwright-browsers.mjs chromium
       # Production Convex/Clerk deploy credentials stay in Vercel. The
       # controller takes the mandatory backup before any deployment.
       - name: Release production

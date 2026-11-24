@@ -184,12 +184,31 @@ async function install() {
     // Extract the verified in-memory bytes, never a reopened cache path.
     const archive = join(staging, `${asset.name}.zip`);
     writeFileSync(archive, bytes, { mode: 0o600, flag: "wx" });
-    execFileSync(
-      "unzip",
-      ["-q", "-j", archive, `${asset.name}/bun`, "-d", staging],
-      { stdio: ["ignore", "ignore", "inherit"], timeout: 60_000 },
-    );
     const binary = join(staging, "bun");
+    const entry = `${asset.name}/bun`;
+    const options = { stdio: ["ignore", "ignore", "inherit"], timeout: 60_000 };
+    try {
+      execFileSync(
+        "unzip",
+        ["-q", "-j", archive, entry, "-d", staging],
+        options,
+      );
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+      // The Playwright container has Python instead of the unzip executable.
+      execFileSync(
+        "python3",
+        [
+          "-I",
+          "-c",
+          "import shutil, sys, zipfile; z = zipfile.ZipFile(sys.argv[1]); shutil.copyfileobj(z.open(sys.argv[2]), open(sys.argv[3], 'xb'))",
+          archive,
+          entry,
+          binary,
+        ],
+        options,
+      );
+    }
     chmodSync(binary, 0o755);
     const problems = versionProblems(probeBun(binary));
     if (problems.length > 0) throw new Error(problems.join("; "));

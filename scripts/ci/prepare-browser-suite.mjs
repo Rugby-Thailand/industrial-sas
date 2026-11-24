@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Quality-only: join the anonymous build and locked browser installation.
+// Quality-only: join the anonymous build and browser preparation.
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,15 +24,22 @@ export async function prepareBrowserSuite({
   environment.CI = "1";
   environment.NEXT_TELEMETRY_DISABLED = "1";
   const buildArgs = [suite === "smoke" ? "build" : "build:navigation"];
-  const installArgs = [
-    "exec",
-    "playwright",
-    "install",
-    "--with-deps",
-    "--only-shell",
-    "chromium",
-    ...(suite === "navigation" ? ["firefox", "webkit"] : []),
-  ];
+  const browsers =
+    suite === "navigation"
+      ? {
+          command: "node",
+          args: [
+            "scripts/ci/verify-playwright-browsers.mjs",
+            "chromium",
+            "firefox",
+            "webkit",
+          ],
+          env: { PLAYWRIGHT_BROWSERS_PATH: "/ms-playwright" },
+        }
+      : {
+          command: "pnpm",
+          args: ["exec", "playwright", "install", "--only-shell", "chromium"],
+        };
   const owned = new Set();
   let canceled = false;
   const kill = (child) => {
@@ -61,25 +68,21 @@ export async function prepareBrowserSuite({
   const onInterrupt = () => terminate(130);
   signalSource.once("SIGTERM", onTerm);
   signalSource.once("SIGINT", onInterrupt);
-  function start(args, build = false) {
+  function start(label, command, args, overrides) {
     return new Promise((resolveResult) => {
       let child;
       try {
-        child = spawnImpl("pnpm", args, {
+        child = spawnImpl(command, args, {
           detached: true,
           stdio: "inherit",
           env: {
             ...environment,
-            ...(build && suite === "smoke"
-              ? { CI_EXTERNAL_TYPECHECK: "1" }
-              : {}),
+            ...overrides,
           },
         });
         owned.add(child);
       } catch {
-        console.log(
-          `[browser-preparation] ${build ? "build" : "install"}: spawn-failed`,
-        );
+        console.log(`[browser-preparation] ${label}: spawn-failed`);
         resolveResult(false);
         return;
       }
@@ -103,7 +106,7 @@ export async function prepareBrowserSuite({
         owned.delete(child);
         const result = canceled ? "canceled" : reason;
         console.log(
-          `[browser-preparation] ${build ? "build" : "install"}: ${result}; cleanup=${descendants ? "residual-group" : "not-needed"}; status=${status === null ? "none" : status}`,
+          `[browser-preparation] ${label}: ${result}; cleanup=${descendants ? "residual-group" : "not-needed"}; status=${status === null ? "none" : status}`,
         );
         resolveResult(ok && !canceled);
       };
@@ -117,8 +120,18 @@ export async function prepareBrowserSuite({
     // Do not short-circuit either child failure: both independent outcomes
     // finish before clean-tree checks or browser tests can start.
     const results = await Promise.all([
-      start(buildArgs, true),
-      start(installArgs),
+      start(
+        "build",
+        "pnpm",
+        buildArgs,
+        suite === "smoke" ? { CI_EXTERNAL_TYPECHECK: "1" } : {},
+      ),
+      start(
+        suite === "navigation" ? "verify" : "install",
+        browsers.command,
+        browsers.args,
+        browsers.env,
+      ),
     ]);
     return !canceled && results.every(Boolean);
   } finally {

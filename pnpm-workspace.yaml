@@ -28,3 +28,8 @@ ignoredBuiltDependencies:
   - msgpackr-extract
   - unrs-resolver
 strictDepBuilds: true
+
+# Keep integration fixtures using the emulator's query semantics while avoiding
+# repeated scans of unrelated tables and non-matching committed rows.
+patchedDependencies:
+  convex-test@0.0.54: patches/convex-test@0.0.54.patch
