@@ -164,6 +164,42 @@ describe("usage CSV export", () => {
     ]);
   });
 
+  it("exports the estimated provider cost under its own column and applies the funding fee", async () => {
+    const { source } = scripted(
+      [async () => pageOf([op("a1", "A")])],
+      [
+        async () => ({
+          ok: true,
+          value: [
+            {
+              ...attemptOf(500_000_000),
+              provider: "OPENAI",
+              billingStatus: "ESTIMATED",
+              costUsd: 0.5,
+            },
+          ],
+        }),
+      ],
+    );
+    const result = await exportUsage(
+      source,
+      usageExportScope(reportOf("A", [20362]), {}, estimateOf(10, 5)),
+      () => true,
+    );
+    if (result.kind !== "READY") throw new Error(result.kind);
+    const [header, row] = result.csv.replace(/^\ufeff/, "").split("\r\n");
+    const values = row!.split(",");
+    const at = (name: string) =>
+      JSON.parse(values[header!.split(",").indexOf(`"${name}"`)]!) as string;
+    expect(at("provider")).toBe("OPENAI");
+    expect(at("billing_status")).toBe("ESTIMATED");
+    expect(at("reported_cost_usd")).toBe("");
+    expect(at("estimated_cost_usd")).toBe("0.5");
+    expect(at("cost_usd_nano")).toBe("500000000");
+    expect(at("estimated_thb")).toBe("5");
+    expect(at("estimated_total_thb")).toBe("5.25");
+  });
+
   it("records the snapshot's sources, dates and statuses, never a zero fee", async () => {
     const header = (csv: string) =>
       csv

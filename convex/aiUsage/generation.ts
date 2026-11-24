@@ -1,11 +1,12 @@
 import { decodeProviderUsage } from "../lib/providerUsage";
-import type { ProviderUsage } from "../model/aiUsage/usage";
+import type { Provider, ProviderUsage } from "../model/aiUsage/usage";
 
 export const GENERATION_LOOKUP_TIMEOUT_MS = 10_000;
 
 export type GenerationLookup =
   | { readonly kind: "REPORTED"; readonly usage: ProviderUsage }
   | { readonly kind: "UNCONFIGURED" }
+  | { readonly kind: "UNSUPPORTED" }
   | { readonly kind: "UNAVAILABLE"; readonly httpStatus?: number };
 
 /**
@@ -15,8 +16,10 @@ export type GenerationLookup =
  * logged and the call never throws.
  */
 export async function lookupGeneration(
+  provider: Provider,
   providerGenerationId: string,
 ): Promise<GenerationLookup> {
+  if (provider !== "OPENROUTER") return { kind: "UNSUPPORTED" };
   const key = process.env.OPENROUTER_API_KEY?.trim();
   if (!key) return { kind: "UNCONFIGURED" };
   const controller = new AbortController(),

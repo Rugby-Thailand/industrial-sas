@@ -378,6 +378,7 @@ export const recent = queryWithOrg({
         status: row.status,
         attemptCount: row.attemptCount,
         knownCostUsdNano: row.knownCostUsdNano,
+        hasEstimatedCost: attempts.some((a) => a.billingStatus === "ESTIMATED"),
         unknownAttemptCount: row.unknownAttemptCount,
         durationMs: row.durationMs,
       });

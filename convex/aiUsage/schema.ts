@@ -1,7 +1,13 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
 import { byOrg, tenantFields } from "../lib/tenantTable";
-import { feature, status, usageFields, metricFields } from "./validators";
+import {
+  feature,
+  status,
+  usageFields,
+  metricFields,
+  provider,
+} from "./validators";
 
 const dimensions = {
   feature,
@@ -17,7 +23,7 @@ export const aiUsageTables = {
       ...dimensions,
       operationId: v.string(),
       attemptNo: v.number(),
-      provider: v.literal("OPENROUTER"),
+      provider,
       billingAccountRef: v.string(),
       startedAt: v.number(),
       finishedAt: v.optional(v.number()),

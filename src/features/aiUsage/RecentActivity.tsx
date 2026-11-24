@@ -280,6 +280,11 @@ export function RecentActivity({
                   ) : (
                     <span className="text-muted">—</span>
                   )}
+                  {item.hasEstimatedCost ? (
+                    <span className="block text-xs text-muted">
+                      {t("includesEstimatedCost")}
+                    </span>
+                  ) : null}
                   {item.unknownAttemptCount ? (
                     <span className="block text-xs text-warning">
                       {item.status === "PENDING"

@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { api } from "../../convex/_generated/api";
 import {
+  LOCATION_LABEL_PROMPT,
+  LOCATION_LABEL_SCHEMA,
+} from "../../convex/model/finishedGoods/locationImage";
+import {
   PUBLIC_API_ACTOR,
   createPublicApiWorld,
 } from "../fixtures/public-api-examples";
@@ -27,6 +31,8 @@ const provider = (content: unknown) =>
     { status: 200 },
   );
 beforeEach(() => {
+  vi.stubEnv("AI_IMAGE_PROVIDER", "");
+  vi.stubEnv("OPENAI_API_KEY", "");
   vi.stubEnv("OPENROUTER_API_KEY", "synthetic-secret-sentinel");
   vi.stubEnv("OPENROUTER_MODEL", "fixture-model");
   vi.stubGlobal("fetch", transport);
@@ -63,6 +69,7 @@ it("uses the authorized registered action, sends the location schema and returns
   const request = JSON.parse(String(transport.mock.calls[0]![1]?.body));
   expect(request).toMatchObject({
     model: "fixture-model",
+    reasoning: { effort: "none" },
     response_format: {
       type: "json_schema",
       json_schema: { name: "location_label", strict: true },
@@ -76,6 +83,64 @@ it("uses the authorized registered action, sends the location schema and returns
     positions: await ctx.db.query("storagePositions").collect(),
   }));
   expect(after).toEqual(before);
+});
+
+it("uses OpenAI Responses with the configured model, location prompt and strict schema", async () => {
+  vi.stubEnv("AI_IMAGE_PROVIDER", "openai");
+  vi.stubEnv("OPENAI_API_KEY", "fixture-openai-key");
+  vi.stubEnv("OPENAI_IMAGE_MODEL", "  fixture-direct-model  ");
+  const candidates = [{ code: "F1-L3-11", labelText: null }];
+  transport.mockResolvedValue(
+    Response.json({
+      output: [
+        {
+          type: "message",
+          content: [
+            { type: "output_text", text: JSON.stringify({ candidates }) },
+          ],
+        },
+      ],
+    }),
+  );
+  const w = await createPublicApiWorld(MODULES);
+  expect(
+    await w.t
+      .withIdentity(PUBLIC_API_ACTOR)
+      .action(api.finishedGoods.locationImage.extractLocationLabel, {
+        warehouseId: w.warehouses.alphaA,
+        imageDataUrl: image,
+      }),
+  ).toMatchObject({ value: { ok: true, candidates } });
+  expect(transport).toHaveBeenCalledOnce();
+  const [url, init] = transport.mock.calls[0]!;
+  expect(url).toBe("https://api.openai.com/v1/responses");
+  expect(JSON.parse(String(init?.body))).toEqual({
+    model: "fixture-direct-model",
+    store: false,
+    service_tier: "default",
+    reasoning: { effort: "none" },
+    input: [
+      { role: "developer", content: LOCATION_LABEL_PROMPT },
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: "Read the visible warehouse location labels in this photo.",
+          },
+          { type: "input_image", image_url: image },
+        ],
+      },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "location_label",
+        strict: true,
+        schema: LOCATION_LABEL_SCHEMA,
+      },
+    },
+  });
 });
 
 it.each(["foreign", "inactive"])(

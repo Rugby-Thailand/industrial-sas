@@ -16,7 +16,7 @@ import {
   refreshOperation,
   unwrap,
 } from "./projection";
-import { feature, finishFields } from "./validators";
+import { feature, finishFields, provider } from "./validators";
 
 export const begin = internalMutation({
   args: {
@@ -27,6 +27,7 @@ export const begin = internalMutation({
     feature,
     requestedModel: v.string(),
     attemptNo: v.number(),
+    provider: v.optional(provider),
   },
   handler: async (ctx, args) => {
     if (
@@ -92,7 +93,7 @@ export const begin = internalMutation({
       ...dimensions,
       utcDay,
       attemptNo: args.attemptNo,
-      provider: "OPENROUTER",
+      provider: args.provider ?? "OPENROUTER",
       billingAccountRef:
         process.env.AI_USAGE_BILLING_ACCOUNT_REF?.trim().slice(0, 80) ||
         "default",
@@ -141,15 +142,16 @@ export const finish = internalMutation({
     if (!event || args.result.status === "PENDING")
       throw new Error("AI_USAGE_INVALID");
     const reconcile = args.result.usageSource === "GENERATION_LOOKUP";
+    if (reconcile && event.provider !== "OPENROUTER") return;
     if (
       event.status !== "PENDING" &&
-      (!reconcile || event.billingStatus === "REPORTED")
+      (!reconcile || event.billingStatus !== "UNKNOWN")
     )
       return;
     const r = args.result;
     if (
-      (r.billingStatus === "REPORTED") !==
-        (r.costUsd !== undefined && r.costUsdNano !== undefined) ||
+      (r.billingStatus !== "UNKNOWN") !== (r.costUsdNano !== undefined) ||
+      (r.costUsd === undefined) !== (r.costUsdNano === undefined) ||
       (r.costUsd !== undefined &&
         (providerCostToNano(r.costUsd) === undefined ||
           r.costUsdNano !== providerCostToNano(r.costUsd)))
@@ -201,7 +203,12 @@ export const finish = internalMutation({
       .unique();
     if (!before) throw new Error("AI_USAGE_INVALID");
     await refreshOperation(ctx, before);
-    if (!reconcile && r.billingStatus === "UNKNOWN" && r.providerGenerationId)
+    if (
+      !reconcile &&
+      event.provider === "OPENROUTER" &&
+      r.billingStatus === "UNKNOWN" &&
+      r.providerGenerationId
+    )
       await ctx.scheduler.runAfter(
         60_000,
         internal.aiUsage.internal.reconcile,
@@ -284,13 +291,13 @@ export const reconcile = internalAction({
     );
     if (
       !e ||
-      e.billingStatus === "REPORTED" ||
+      e.billingStatus !== "UNKNOWN" ||
       !e.providerGenerationId ||
       args.retry > 2
     )
       return;
-    const usage = await lookupGeneration(e.providerGenerationId);
-    if (usage.kind === "UNCONFIGURED") return;
+    const usage = await lookupGeneration(e.provider, e.providerGenerationId);
+    if (usage.kind === "UNCONFIGURED" || usage.kind === "UNSUPPORTED") return;
     if (usage.kind === "REPORTED") {
       await ctx.runMutation(internal.aiUsage.internal.finish, {
         orgId: e.orgId,

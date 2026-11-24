@@ -28,7 +28,7 @@ export async function prepareLocationImage(
     if (bitmap.width * bitmap.height > 40_000_000) throw new Error("imageSize");
     const width = bitmap.width * area.width,
       height = bitmap.height * area.height;
-    const scale = Math.min(1, 2000 / Math.max(width, height));
+    const scale = Math.min(1, 1280 / Math.max(width, height));
     canvas.width = Math.max(1, Math.round(width * scale));
     canvas.height = Math.max(1, Math.round(height * scale));
     const context = canvas.getContext("2d");

@@ -1,5 +1,5 @@
 /**
- * OpenRouter usage decoding: the adapter boundary where a provider body
+ * Provider usage decoding: the adapter boundary where a provider body
  * becomes a validated domain usage record (`model/aiUsage/usage.ts`).
  *
  * This is the only place the provider's decimal USD cost is converted, and
@@ -97,5 +97,66 @@ export function decodeProviderUsage(
 /** A chat response's usage; unreadable accounting is UNKNOWN. */
 export function responseUsage(body: unknown): ProviderUsage {
   const decoded = decodeProviderUsage(body, "RESPONSE");
+  return decoded.ok ? decoded.value : UNKNOWN_USAGE;
+}
+
+/** OpenAI Standard prices as of 2026-11-23, in USD per million tokens. */
+const OPENAI_STANDARD_PRICES: ReadonlyMap<
+  string,
+  { input: number; cachedInput: number; cacheWrite: number; output: number }
+> = new Map([
+  [
+    "gpt-6-luna",
+    { input: 0.1, cachedInput: 0.01, cacheWrite: 0.125, output: 0.5 },
+  ],
+]);
+
+/** Decode OpenAI Responses usage and estimate cost at the standard rate. */
+export function openAiResponseUsage(body: unknown): ProviderUsage {
+  const root = record(body);
+  const usage = record(root.usage);
+  const actualModel = text(root.model);
+  const input = count(usage.input_tokens);
+  const output = count(usage.output_tokens);
+  const details = record(usage.input_tokens_details);
+  const rawCached = details.cached_tokens;
+  const cacheWrites = count(
+    details.cache_write_tokens === undefined ? 0 : details.cache_write_tokens,
+  );
+  const cached = count(rawCached);
+  const price =
+    actualModel === undefined
+      ? undefined
+      : OPENAI_STANDARD_PRICES.get(actualModel);
+  const cachedForCost = rawCached === undefined ? 0 : cached;
+  const cost =
+    price &&
+    input !== undefined &&
+    output !== undefined &&
+    cachedForCost !== undefined &&
+    cacheWrites !== undefined &&
+    cachedForCost + cacheWrites <= input
+      ? ((input - cachedForCost - cacheWrites) * price.input +
+          cacheWrites * price.cacheWrite +
+          cachedForCost * price.cachedInput +
+          output * price.output) /
+        1_000_000
+      : undefined;
+  const costUsdNano = providerCostToNano(cost);
+  const decoded = readProviderUsage({
+    ...UNKNOWN_USAGE,
+    providerGenerationId: text(root.id),
+    actualModel,
+    inputUnitCount: input,
+    outputUnitCount: output,
+    totalUnitCount: count(usage.total_tokens),
+    reasoningUnitCount: count(
+      record(usage.output_tokens_details).reasoning_tokens,
+    ),
+    cachedInputUnitCount: cached,
+    costUsd: costUsdNano === undefined ? undefined : cost,
+    costUsdNano,
+    billingStatus: costUsdNano === undefined ? "UNKNOWN" : "ESTIMATED",
+  });
   return decoded.ok ? decoded.value : UNKNOWN_USAGE;
 }

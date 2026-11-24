@@ -1,8 +1,10 @@
 import { waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { prepareJobTicketPhoto } from "./prepareJobTicketPhoto";
+import { prepareLocationImage } from "./prepareLocationImage";
 
 const jpeg = new Blob([new Uint8Array(100)], { type: "image/jpeg" });
+const aiJpeg = new Blob([new Uint8Array(40)], { type: "image/jpeg" });
 const webp = new Blob([new Uint8Array(60)], { type: "image/webp" });
 const file = () => new File(["photo"], "ticket.png", { type: "image/png" });
 const close = vi.fn();
@@ -43,8 +45,9 @@ function prepare(signal = new AbortController().signal) {
   return prepareJobTicketPhoto(file(), { signal, onAiReady });
 }
 
-it("dispatches the unchanged JPEG before WebP, decodes once, and stores only the smaller file", async () => {
+it("dispatches a 1280 px JPEG before encoding the 2000 px upload and decodes once", async () => {
   let finishWebp!: BlobCallback;
+  const sizes: [string | undefined, number, number][] = [];
   vi.mocked(HTMLCanvasElement.prototype.toBlob).mockImplementation(function (
     this: HTMLCanvasElement,
     callback,
@@ -52,9 +55,14 @@ it("dispatches the unchanged JPEG before WebP, decodes once, and stores only the
     quality,
   ) {
     encodings.push({ canvas: this, type });
+    sizes.push([type, this.width, this.height]);
     if (type === "image/jpeg") {
       expect(quality).toBe(0.85);
-      callback(jpeg);
+      if (this.width === 1280) callback(aiJpeg);
+      else {
+        expect(onAiReady).toHaveBeenCalledOnce();
+        callback(jpeg);
+      }
     } else {
       expect(onAiReady).toHaveBeenCalledOnce();
       expect(close).toHaveBeenCalledOnce();
@@ -66,8 +74,14 @@ it("dispatches the unchanged JPEG before WebP, decodes once, and stores only the
   const ai = onAiReady.mock.calls[0]![0];
   expect(ai.name).toBe("ticket.jpg");
   expect(ai.type).toBe("image/jpeg");
-  expect(ai.size).toBe(100);
-  expect(drawImage).toHaveBeenCalledExactlyOnceWith(bitmap, 0, 0, 2000, 1500);
+  expect(ai.size).toBe(40);
+  expect(sizes).toEqual([
+    ["image/jpeg", 1280, 960],
+    ["image/jpeg", 2000, 1500],
+    ["image/webp", 2000, 1500],
+  ]);
+  expect(drawImage).toHaveBeenNthCalledWith(1, bitmap, 0, 0, 1280, 960);
+  expect(drawImage).toHaveBeenNthCalledWith(2, bitmap, 0, 0, 2000, 1500);
   expect(createImageBitmap).toHaveBeenCalledOnce();
   finishWebp(webp);
   const stored = await preparing;
@@ -95,11 +109,18 @@ it.each([
 ] as const)(
   "keeps the original JPEG on a %s WebP result",
   async (_label, blob) => {
-    vi.mocked(HTMLCanvasElement.prototype.toBlob).mockImplementation(
-      (callback, type) => callback(type === "image/jpeg" ? jpeg : blob),
-    );
+    vi.mocked(HTMLCanvasElement.prototype.toBlob).mockImplementation(function (
+      this: HTMLCanvasElement,
+      callback,
+      type,
+    ) {
+      callback(
+        type === "image/jpeg" ? (this.width === 1280 ? aiJpeg : jpeg) : blob,
+      );
+    });
     const stored = await prepare();
-    expect(stored).toBe(onAiReady.mock.calls[0]![0]);
+    expect(stored.size).toBe(jpeg.size);
+    expect(onAiReady.mock.calls[0]![0].size).toBe(aiJpeg.size);
     expect(stored.type).toBe("image/jpeg");
   },
 );
@@ -112,6 +133,44 @@ it("keeps JPEG when the optional encoder throws", async () => {
     },
   );
   expect((await prepare()).type).toBe("image/jpeg");
+});
+
+it("stores the AI JPEG when the larger upload encode fails after dispatch", async () => {
+  let jpegCalls = 0;
+  vi.mocked(HTMLCanvasElement.prototype.toBlob).mockImplementation(
+    (callback, type) => {
+      if (type === "image/jpeg" && ++jpegCalls === 2) return callback(null);
+      callback(type === "image/jpeg" ? aiJpeg : webp);
+    },
+  );
+  const stored = await prepare();
+  expect(onAiReady).toHaveBeenCalledOnce();
+  expect(stored).toBe(onAiReady.mock.calls[0]![0]);
+});
+
+it("crops location photos before limiting the AI JPEG to 1280 px", async () => {
+  bitmap.width = 4000;
+  bitmap.height = 3000;
+  const crop = { x: 0.25, y: 0.25, width: 0.5, height: 0.25 };
+  expect(await prepareLocationImage(file(), { crop })).toMatch(
+    /^data:image\/jpeg;base64,/,
+  );
+  expect(drawImage).toHaveBeenCalledExactlyOnceWith(
+    bitmap,
+    1000,
+    750,
+    2000,
+    750,
+    0,
+    0,
+    1280,
+    480,
+  );
+  expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalledExactlyOnceWith(
+    expect.any(Function),
+    "image/jpeg",
+    0.85,
+  );
 });
 
 it.each([null, new Blob(["png"], { type: "image/png" })])(

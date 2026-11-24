@@ -11,7 +11,13 @@
  */
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { internalAction, internalMutation } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  type QueryCtx,
+} from "../_generated/server";
 import { lookupGeneration } from "./generation";
 import { refreshOperation } from "./projection";
 import { status, usageFields } from "./validators";
@@ -28,12 +34,33 @@ type RecoveryState =
   | "READY"
   | "RECOVERED";
 
-const attemptArgs = {
+const attemptKey = {
   orgId: v.id("organizations"),
   operationId: v.string(),
   attemptNo: v.number(),
-  providerGenerationId: v.string(),
 };
+const attemptArgs = { ...attemptKey, providerGenerationId: v.string() };
+
+function eventForAttempt(
+  ctx: QueryCtx,
+  args: { orgId: Id<"organizations">; operationId: string; attemptNo: number },
+) {
+  return ctx.db
+    .query("aiUsageEvents")
+    .withIndex("by_orgId_operationId_attemptNo", (q) =>
+      q
+        .eq("orgId", args.orgId)
+        .eq("operationId", args.operationId)
+        .eq("attemptNo", args.attemptNo),
+    )
+    .unique();
+}
+
+export const providerForAttempt = internalQuery({
+  args: attemptKey,
+  handler: async (ctx, args) =>
+    (await eventForAttempt(ctx, args))?.provider ?? null,
+});
 
 export const record = internalMutation({
   args: {
@@ -51,17 +78,10 @@ export const record = internalMutation({
       args.usage.costUsdNano === undefined
     )
       return { state: "INVALID" };
-    const event = await ctx.db
-      .query("aiUsageEvents")
-      .withIndex("by_orgId_operationId_attemptNo", (q) =>
-        q
-          .eq("orgId", args.orgId)
-          .eq("operationId", args.operationId)
-          .eq("attemptNo", args.attemptNo),
-      )
-      .unique();
+    const event = await eventForAttempt(ctx, args);
     if (!event) return { state: "NOT_FOUND" };
-    if (event.billingStatus === "REPORTED")
+    if (event.provider !== "OPENROUTER") return { state: "COST_UNAVAILABLE" };
+    if (event.billingStatus !== "UNKNOWN")
       return {
         state:
           event.providerGenerationId === args.providerGenerationId
@@ -130,7 +150,16 @@ export const attempt = internalAction({
       args.attemptNo < 1
     )
       return { state: "INVALID", applied: false };
-    const lookup = await lookupGeneration(args.providerGenerationId);
+    const provider = await ctx.runQuery(
+      internal.aiUsage.recovery.providerForAttempt,
+      {
+        orgId: args.orgId,
+        operationId: args.operationId,
+        attemptNo: args.attemptNo,
+      },
+    );
+    if (provider === null) return { state: "NOT_FOUND", applied: false };
+    const lookup = await lookupGeneration(provider, args.providerGenerationId);
     if (lookup.kind === "UNCONFIGURED")
       return { state: "PROVIDER_UNCONFIGURED", applied: false };
     if (lookup.kind !== "REPORTED")

@@ -20,6 +20,7 @@ const literals = <T extends string>(values: readonly T[]) =>
 
 export const feature = literals<Feature>(FEATURES);
 export const status = literals<UsageStatus>(USAGE_STATUSES);
+export const provider = v.union(v.literal("OPENROUTER"), v.literal("OPENAI"));
 
 export const usageFields = {
   providerGenerationId: v.optional(v.string()),
@@ -35,7 +36,11 @@ export const usageFields = {
   currency: v.literal("USD"),
   costUsd: v.optional(v.number()),
   costUsdNano: v.optional(v.number()),
-  billingStatus: v.union(v.literal("REPORTED"), v.literal("UNKNOWN")),
+  billingStatus: v.union(
+    v.literal("REPORTED"),
+    v.literal("ESTIMATED"),
+    v.literal("UNKNOWN"),
+  ),
   usageSource: v.union(v.literal("RESPONSE"), v.literal("GENERATION_LOOKUP")),
 };
 export const finishFields = {

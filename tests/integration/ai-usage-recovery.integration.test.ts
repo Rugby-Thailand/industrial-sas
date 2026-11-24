@@ -7,7 +7,11 @@ import {
   ACCOUNTING_WRITE_BUDGET_MS,
   createAiUsagePort,
 } from "../../convex/lib/aiUsage";
-import { responseUsage } from "../../convex/lib/providerUsage";
+import {
+  openAiResponseUsage,
+  responseUsage,
+} from "../../convex/lib/providerUsage";
+import type { Provider } from "../../convex/model/aiUsage/usage";
 import {
   createConvexTenantWorld,
   seedConvexAuthorization,
@@ -26,7 +30,7 @@ const ledger = () =>
     operations: await ctx.db.query("aiUsageOperations").collect(),
     summaries: await ctx.db.query("aiUsageDailySummaries").collect(),
   }));
-const begin = (operationId: string, attemptNo = 1) =>
+const begin = (operationId: string, attemptNo = 1, provider?: Provider) =>
   world.t.mutation(internal.aiUsage.internal.begin, {
     orgId: world.orgA,
     actorUserId: world.userA,
@@ -35,6 +39,7 @@ const begin = (operationId: string, attemptNo = 1) =>
     feature: "JOB_TICKET_SCAN",
     requestedModel: "openai/gpt-6-luna",
     attemptNo,
+    ...(provider === undefined ? {} : { provider }),
   });
 const generation = (id: string, cost: number) =>
   new Response(
@@ -350,6 +355,47 @@ describe("operator recovery of a lost finalization", () => {
         apply: true,
       }),
     ).toMatchObject({ state: "CONFLICT", applied: false });
+  });
+
+  it("skips scheduling and performing OpenRouter recovery for direct OpenAI attempts", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    const eventId = await begin("op-openai", 1, "OPENAI");
+    const args = {
+      orgId: world.orgA,
+      operationId: "op-openai",
+      attemptNo: 1,
+    };
+    await world.t.mutation(internal.aiUsage.internal.finish, {
+      ...args,
+      result: {
+        ...openAiResponseUsage({
+          model: "unpriced-model",
+          id: "resp-synthetic",
+        }),
+        status: "SUCCEEDED",
+      },
+    });
+    await world.t.finishAllScheduledFunctions(vi.runAllTimers);
+    // Also exercise both recovery entry points against an existing event.
+    await world.t.action(internal.aiUsage.internal.reconcile, {
+      eventId,
+      retry: 0,
+    });
+    expect(
+      await world.t.action(internal.aiUsage.recovery.attempt, {
+        ...args,
+        providerGenerationId: "resp-synthetic",
+        apply: true,
+      }),
+    ).toEqual({ state: "COST_UNAVAILABLE", applied: false });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect((await ledger()).events[0]).toMatchObject({
+      provider: "OPENAI",
+      providerGenerationId: "resp-synthetic",
+      billingStatus: "UNKNOWN",
+    });
   });
 
   it("changes nothing when the provider has no reported cost or no key", async () => {

@@ -224,6 +224,22 @@
             "type": "number"
           },
           "optional": false
+        },
+        "provider": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "OPENROUTER"
+              },
+              {
+                "type": "literal",
+                "value": "OPENAI"
+              }
+            ]
+          },
+          "optional": true
         }
       }
     },
@@ -385,6 +401,10 @@
                     {
                       "type": "literal",
                       "value": "REPORTED"
+                    },
+                    {
+                      "type": "literal",
+                      "value": "ESTIMATED"
                     },
                     {
                       "type": "literal",
@@ -616,6 +636,37 @@
       "type": "any"
     }
   },
+  "aiUsage/recovery:providerForAttempt": {
+    "kind": "query",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "operationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "attemptNo": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
   "aiUsage/recovery:record": {
     "kind": "mutation",
     "visibility": "internal",
@@ -774,6 +825,10 @@
                     {
                       "type": "literal",
                       "value": "REPORTED"
+                    },
+                    {
+                      "type": "literal",
+                      "value": "ESTIMATED"
                     },
                     {
                       "type": "literal",
