@@ -8,7 +8,7 @@ const modules = {
   decoder: `/@fs${resolve("src/features/finishedGoods/barcodeDecoder.ts")}`,
 };
 
-test("real encoders preserve the AI bytes, dispatch before WebP, and keep barcode readability", async ({
+test("real encoders preserve the 1280px AI JPEG bytes, dispatch before WebP, and keep barcode readability", async ({
   page,
 }) => {
   await page.goto(url);
@@ -22,7 +22,8 @@ test("real encoders preserve the AI bytes, dispatch before WebP, and keep barcod
       { type: "image/png" },
     );
     const baseline: File = await resizeImage(source);
-    const baselineBytes = new Uint8Array(await baseline.arrayBuffer());
+    const aiBaseline = await resizeImage(source, 1280);
+    const baselineBytes = new Uint8Array(await aiBaseline.arrayBuffer());
     let identicalAI = false;
     let aiDispatched = false;
     let webpAfterAI = false;
