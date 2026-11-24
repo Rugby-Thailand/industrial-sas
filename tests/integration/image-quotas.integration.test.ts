@@ -19,6 +19,8 @@ const modules = Object.fromEntries(
 );
 const transport = vi.fn<typeof fetch>();
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-24T04:27:00Z"));
   vi.stubEnv("OPENROUTER_API_KEY", "synthetic");
   vi.stubGlobal("fetch", transport);
   transport.mockReset().mockImplementation(async () =>
@@ -28,50 +30,72 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
 
-it.each([
-  ["ticket", 20],
-  ["location", 20],
-  ["ticket", 19],
-  ["location", 19],
-] as const)(
-  "%s with %i used units admits only remaining concurrent work before provider or billable attempts",
-  async (kind, count) => {
-    const w = await createPublicApiWorld(modules);
-    await w.t.run(async (ctx) => {
-      const actor = await ctx.db
-        .query("users")
-        .filter((q) => q.eq(q.field("clerkUserId"), PUBLIC_API_ACTOR.subject))
-        .unique();
-      if (!actor) throw new Error("actor missing");
-      await ctx.db.insert("actionQuotas", {
-        orgId: w.orgA,
-        actorUserId: actor._id,
-        key:
-          kind === "ticket"
-            ? "finishedGoods.jobTicket.ai"
-            : "finishedGoods.locationLabel.ai",
-        count,
-        windowStart: Date.now() - (Date.now() % 600_000),
-      });
+async function seedQuota(
+  w: Awaited<ReturnType<typeof createPublicApiWorld>>,
+  key: string,
+  count: number,
+) {
+  return w.t.run(async (ctx) => {
+    const actor = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkUserId"), PUBLIC_API_ACTOR.subject))
+      .unique();
+    if (!actor) throw new Error("actor missing");
+    return ctx.db.insert("actionQuotas", {
+      orgId: w.orgA,
+      actorUserId: actor._id,
+      key,
+      count,
+      windowStart: Date.now() - (Date.now() % 600_000),
     });
+  });
+}
+
+it("reads 51 Job Ticket photos in one window despite an exhausted legacy quota", async () => {
+  const w = await createPublicApiWorld(modules);
+  const quotaId = await seedQuota(w, "finishedGoods.jobTicket.ai", 20);
+  transport.mockImplementation(async () =>
+    Response.json({
+      choices: [{ message: { content: '{"factory_order":"FO-1"}' } }],
+    }),
+  );
+  const client = w.t.withIdentity(PUBLIC_API_ACTOR);
+
+  for (let index = 0; index < 51; index++) {
+    const result = await client.action(
+      api.finishedGoods.jobScans.extractJobTicket,
+      {
+        warehouseId: w.warehouses.alphaA,
+        imageUrl: "data:image/jpeg;base64,YWJj",
+      },
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      value: { ok: true, mock: false, fields: { factoryOrder: "FO-1" } },
+    });
+  }
+  expect(transport).toHaveBeenCalledTimes(51);
+  const quotas = await w.t.run((ctx) => ctx.db.query("actionQuotas").collect());
+  expect(quotas).toMatchObject([{ _id: quotaId, count: 20 }]);
+});
+
+it.each([20, 19])(
+  "location photos with %i used units admit only remaining concurrent work before provider or billable attempts",
+  async (count) => {
+    const w = await createPublicApiWorld(modules);
+    const quotaId = await seedQuota(w, "finishedGoods.locationLabel.ai", count);
     const invoke = () =>
-      kind === "ticket"
-        ? w.t
-            .withIdentity(PUBLIC_API_ACTOR)
-            .action(api.finishedGoods.jobScans.extractJobTicket, {
-              warehouseId: w.warehouses.alphaA,
-              imageUrl: "data:image/jpeg;base64,YWJj",
-            })
-        : w.t
-            .withIdentity(PUBLIC_API_ACTOR)
-            .action(api.finishedGoods.locationImage.extractLocationLabel, {
-              warehouseId: w.warehouses.alphaA,
-              imageDataUrl: "data:image/jpeg;base64,YWJj",
-            });
+      w.t
+        .withIdentity(PUBLIC_API_ACTOR)
+        .action(api.finishedGoods.locationImage.extractLocationLabel, {
+          warehouseId: w.warehouses.alphaA,
+          imageDataUrl: "data:image/jpeg;base64,YWJj",
+        });
     const results = await Promise.all(Array.from({ length: 4 }, invoke));
     const allowed = results.filter((result) => result.ok && result.value.ok);
     expect(allowed).toHaveLength(20 - count);
@@ -101,11 +125,7 @@ it.each([
     for (const attempt of attempts) expect(attempt.costUsdNano).toBeUndefined();
     for (const operation of operations)
       expect(operation.unknownAttemptCount).toBe(1);
-    const quotas = await w.t.run((ctx) =>
-      ctx.db.query("actionQuotas").collect(),
-    );
-    expect(
-      quotas.find((row) => row.key.startsWith("finishedGoods."))?.count,
-    ).toBe(20);
+    const quota = await w.t.run((ctx) => ctx.db.get("actionQuotas", quotaId));
+    expect(quota?.count).toBe(20);
   },
 );
