@@ -183,6 +183,9 @@ jobs:
       - name: Navigation harness build (credential-free)
         id: navigation-preparation
         if: ${{ startsWith(matrix.suite, 'navigation-') }}
+        env:
+          # The Actions container's mounted HOME belongs to its non-root user.
+          HOME: /root
         run: node scripts/ci/prepare-browser-suite.mjs --suite=navigation
       - name: Clean tree after build
         if: ${{ !cancelled() && ((matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success') || (startsWith(matrix.suite, 'navigation-') && steps.navigation-preparation.outcome == 'success')) }}
@@ -201,6 +204,7 @@ jobs:
         env:
           PLAYWRIGHT_REQUIRE_BUILD: "1"
           NAVIGATION_REPORT_NAME: ${{ matrix.suite }}
+          HOME: /root
         run: pnpm test:e2e:navigation --shard=${{ matrix.shard }}/2
       - name: Storage workspace (PR subset)
         if: ${{ !cancelled() && (matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2') && steps.browsers.outcome == 'success' }}

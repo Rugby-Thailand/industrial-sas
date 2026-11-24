@@ -792,7 +792,7 @@ const BROWSER_STEPS = Object.freeze([
       id: "navigation-preparation",
       run: "node scripts/ci/prepare-browser-suite.mjs --suite=navigation",
       if: "${{ startsWith(matrix.suite, 'navigation-') }}",
-      env: undefined,
+      env: { HOME: "/root" },
       shell: undefined,
       "working-directory": undefined,
     },
@@ -833,6 +833,7 @@ const BROWSER_STEPS = Object.freeze([
       env: {
         PLAYWRIGHT_REQUIRE_BUILD: "1",
         NAVIGATION_REPORT_NAME: "${{ matrix.suite }}",
+        HOME: "/root",
       },
     },
   ],
