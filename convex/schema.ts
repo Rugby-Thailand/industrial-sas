@@ -1462,6 +1462,11 @@ const schema = defineSchema({
       "by_orgId_warehouseId_customerId_voided_createdAt",
       byOrg("warehouseId", "customerId", "voided", "createdAt"),
     )
+    /** Customer workspace jobs filter: live scans with or without a mapped location. */
+    .index(
+      "by_orgId_warehouseId_customerId_voided_mapped_createdAt",
+      byOrg("warehouseId", "customerId", "voided", "mapped", "createdAt"),
+    )
     /**
      * Legacy review stream: rows with neither a link decision nor a v2 review
      * classification. Backfill drains it; live saves never enter it.

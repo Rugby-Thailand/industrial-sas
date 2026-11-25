@@ -88,6 +88,8 @@ export async function canAccessWarehouse(
 export async function allowedCustomerWarehouses(
   ctx: TenantFunctionContext,
   start?: CustomerWarehouseStart,
+  /** Narrow the inventory to this one warehouse when the member may access it. */
+  only?: Id<"warehouses">,
 ): Promise<AllowedCustomerWarehouses> {
   const grants = await grantedPermissionsAmong(ctx, [
     NAVIGATION_PERMISSION.storageLayouts,
@@ -106,6 +108,21 @@ export async function allowedCustomerWarehouses(
       orgWide: ctx.tenant.membership.scopeMode === "ORG_WIDE",
       warehouses: [],
       byId: new Map(),
+      complete: true,
+    };
+  }
+
+  if (only !== undefined) {
+    const warehouse = (await canAccessWarehouse(ctx, only))
+      ? await ctx.tenantDb.get<Doc<"warehouses">>("warehouses", only)
+      : null;
+    const warehouses = warehouse ? [warehouse] : [];
+    return {
+      hasWarehouseRead,
+      hasWarehouseManage,
+      orgWide: ctx.tenant.membership.scopeMode === "ORG_WIDE",
+      warehouses,
+      byId: new Map(warehouses.map((row) => [row._id, row])),
       complete: true,
     };
   }

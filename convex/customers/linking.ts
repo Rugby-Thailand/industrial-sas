@@ -252,7 +252,7 @@ function collectReviewScans(
   }
 }
 
-async function readPendingScansSummary(
+export async function readPendingScansSummary(
   ctx: TenantFunctionContext,
   budget: number,
 ) {
@@ -706,7 +706,7 @@ export const listCustomerProductsPage = queryWithOrg({
   },
 });
 
-function customerProductRange(
+export function customerProductRange(
   ctx: TenantFunctionContext,
   customerId: Id<"customers">,
   warehouseId: Id<"warehouses">,
@@ -721,7 +721,7 @@ function customerProductRange(
   );
 }
 
-function customerJobRange(
+export function customerJobRange(
   ctx: TenantFunctionContext,
   customerId: Id<"customers">,
   warehouseId: Id<"warehouses">,

@@ -138,6 +138,15 @@ export const getCustomer = queryWithOrg({
       customerId,
     );
     if (!row) return null;
+    // Tax details belong to customer administration: read-only members get
+    // the record without them (workspace contract, permission matrix).
+    const grants = await grantedPermissionsAmong(ctx, [
+      NAVIGATION_PERMISSION.customerManage,
+    ]);
+    if (!grants.includes(NAVIGATION_PERMISSION.customerManage)) {
+      const { taxId: _taxId, ...visible } = customerDetail(row);
+      return visible;
+    }
     return {
       ...customerDetail(row),
       ...(row.taxId === undefined

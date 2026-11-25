@@ -1043,6 +1043,96 @@ export const customerPath = (customerId: string): string =>
 export const customerEditPath = (customerId: string): string =>
   `${customerPath(customerId)}/edit`;
 
+/** Customer workspace URL state (workspace-contract.md § URL state). */
+export const CUSTOMER_WORKSPACE_SECTIONS = [
+  "overview",
+  "jobs",
+  "products",
+  "stock",
+  "details",
+] as const;
+export type CustomerWorkspaceSection =
+  (typeof CUSTOMER_WORKSPACE_SECTIONS)[number];
+export type CustomerWorkspaceJobFilter = "all" | "mapped" | "unmapped";
+export interface CustomerWorkspaceUrlState {
+  readonly section: CustomerWorkspaceSection;
+  /** A warehouse ID, or "all" permitted warehouses. */
+  readonly warehouse: string;
+  /** Meaningful only for the jobs section. */
+  readonly filter: CustomerWorkspaceJobFilter;
+}
+const WAREHOUSE_SECTIONS: readonly CustomerWorkspaceSection[] = [
+  "jobs",
+  "products",
+  "stock",
+];
+
+/**
+ * Normalized workspace state. Members without warehouse data see only the
+ * overview and details; the caller replaces a URL whose normalized form differs.
+ */
+export function readCustomerWorkspaceUrl(
+  params: ParamReader,
+  { canViewWarehouseData }: { readonly canViewWarehouseData: boolean },
+): CustomerWorkspaceUrlState {
+  const rawSection = params.get("section");
+  const known = (CUSTOMER_WORKSPACE_SECTIONS as readonly string[]).includes(
+    rawSection ?? "",
+  )
+    ? (rawSection as CustomerWorkspaceSection)
+    : "overview";
+  const section =
+    !canViewWarehouseData && WAREHOUSE_SECTIONS.includes(known)
+      ? "overview"
+      : known;
+  const rawWarehouse = params.get("warehouse")?.trim() ?? "";
+  const warehouse =
+    canViewWarehouseData && /^[A-Za-z0-9_-]{1,64}$/.test(rawWarehouse)
+      ? rawWarehouse
+      : "all";
+  const rawFilter = params.get("filter");
+  const filter =
+    section === "jobs" && (rawFilter === "mapped" || rawFilter === "unmapped")
+      ? rawFilter
+      : "all";
+  return { section, warehouse, filter };
+}
+
+/** Defaults (overview, all warehouses, all jobs) are omitted. */
+export function customerWorkspacePath(
+  customerId: string,
+  state: Partial<CustomerWorkspaceUrlState> = {},
+): string {
+  const params = new URLSearchParams();
+  if (state.section && state.section !== "overview")
+    params.set("section", state.section);
+  if (state.warehouse && state.warehouse !== "all")
+    params.set("warehouse", state.warehouse);
+  if (state.section === "jobs" && state.filter && state.filter !== "all")
+    params.set("filter", state.filter);
+  const query = params.toString();
+  return query
+    ? `${customerPath(customerId)}?${query}`
+    : customerPath(customerId);
+}
+
+/** Saved job records searched by ticket number in the job's warehouse. */
+export const jobScanRecordSearchPath = (
+  warehouseId: string,
+  factoryOrder: string,
+): string =>
+  `${ROUTES.jobScanRecords}?${new URLSearchParams({
+    warehouseId,
+    scans: JSON.stringify({
+      filter: "ALL",
+      search: factoryOrder.slice(0, 200),
+    }),
+  })}`;
+
+/** The job scan page with a customer context (workspace-contract.md § Scan). */
+export const customerJobScanPath = (customerId: string): string =>
+  `${ROUTES.jobScan}?${new URLSearchParams({ customer: customerId })}`;
+
 export const customerNewPath = (options?: {
   readonly prefill?: string;
 }): string => {
