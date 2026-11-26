@@ -33,8 +33,23 @@ type Page = {
   scanCursor?: string;
   scanned: number;
 };
-type UnitSpec = { code?: string; lot?: string; retired?: boolean };
-type ProductSpec = { name: string; sku?: string; units: UnitSpec[] };
+type UnitSpec = {
+  code?: string;
+  lot?: string;
+  retired?: boolean;
+  retirementReason?: string;
+  status?:
+    "AWAITING_MEASUREMENT" | "AWAITING_PLACEMENT" | "RESERVED" | "STORED";
+  updatedAt?: number;
+};
+type ProductSpec = {
+  name: string;
+  sku?: string;
+  units: UnitSpec[];
+  updatedAt?: number;
+  customerReference?: string;
+  linkCustomer?: boolean;
+};
 type RequestReads = {
   paginate: number;
   takes: Array<{ table: string; limit: number }>;
@@ -45,14 +60,34 @@ type RequestReads = {
 const MAX_UNIT_DOCS_PER_REQUEST = 10 * 51 + 50;
 
 /** Products are listed newest first; units are listed in index (desc) order. */
-async function seed(products: ProductSpec[]) {
+async function seed(
+  products: ProductSpec[],
+  options?: { roleA?: "ORG_ADMIN" | "WAREHOUSE_MANAGER" },
+) {
   const world = await createConvexTenantWorld();
-  await seedConvexAuthorization(world, { roleA: "ORG_ADMIN" });
+  await seedConvexAuthorization(world, {
+    roleA: options?.roleA ?? "ORG_ADMIN",
+  });
   const ids = await world.t.run(async (ctx) => {
+    const needsCustomer = products.some((spec) => spec.linkCustomer);
+    const customerId = needsCustomer
+      ? await ctx.db.insert("customers", {
+          orgId: world.orgA,
+          code: "CUST-0001",
+          name: "Acme Customer",
+          normalizedName: "acme customer",
+          status: "ACTIVE",
+          version: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          createdByUserId: world.userA,
+          updatedByUserId: world.userA,
+        })
+      : undefined;
     const ids: string[] = [];
     for (let i = products.length - 1; i >= 0; i--) {
       const spec = products[i]!;
-      const updatedAt = products.length - i;
+      const updatedAt = spec.updatedAt ?? products.length - i;
       const productId = await ctx.db.insert("finishedGoodsProducts", {
         orgId: world.orgA,
         warehouseId: world.warehouses.alphaA,
@@ -62,6 +97,12 @@ async function seed(products: ProductSpec[]) {
         storageFormat: "PALLET",
         storageCondition: "ANY",
         status: "ACTIVE",
+        ...(spec.customerReference !== undefined
+          ? { customerReference: spec.customerReference }
+          : {}),
+        ...(spec.linkCustomer && customerId
+          ? { customerId, customerLinkSource: "MANUAL" as const }
+          : {}),
         createdAt: updatedAt,
         updatedAt,
         createdByUserId: world.userA,
@@ -70,6 +111,7 @@ async function seed(products: ProductSpec[]) {
       ids[i] = productId;
       for (let j = spec.units.length - 1; j >= 0; j--) {
         const unit = spec.units[j]!;
+        const unitUpdatedAt = unit.updatedAt ?? spec.units.length - j;
         await ctx.db.insert("finishedGoodsPallets", {
           orgId: world.orgA,
           warehouseId: world.warehouses.alphaA,
@@ -77,10 +119,17 @@ async function seed(products: ProductSpec[]) {
           code: unit.code ?? `U-${i}-${j}`,
           quantity: 1,
           lot: unit.lot ?? "plain",
-          status: "AWAITING_MEASUREMENT",
-          ...(unit.retired ? { retiredAt: 1 } : {}),
-          createdAt: spec.units.length - j,
-          updatedAt: spec.units.length - j,
+          status: unit.status ?? "AWAITING_MEASUREMENT",
+          ...(unit.retired
+            ? {
+                retiredAt: 1,
+                ...(unit.retirementReason
+                  ? { retirementReason: unit.retirementReason }
+                  : {}),
+              }
+            : {}),
+          createdAt: unitUpdatedAt,
+          updatedAt: unitUpdatedAt,
           createdByUserId: world.userA,
           updatedByUserId: world.userA,
         });
@@ -123,7 +172,11 @@ async function reference(world: ConvexTenantWorld, search: string) {
       const text =
         `${product.name} ${product.sku} ` +
         units
-          .filter((unit) => unit.retiredAt === undefined)
+          .filter(
+            (unit) =>
+              unit.retiredAt === undefined &&
+              !["CANCELLED", "REPLACED"].includes(unit.status),
+          )
           .map((unit) => `${unit.code} ${unit.lot ?? ""} `)
           .join("");
       if (text.toLocaleLowerCase().includes(needle)) matches.push(product._id);
@@ -267,16 +320,15 @@ const units = (count: number, at: Record<number, UnitSpec> = {}) =>
   Array.from({ length: count }, (_, i) => at[i] ?? {});
 
 describe("product search batches bounded unit probes", () => {
-  it("continues both native split ranges while a large product waits for its unit pages", async () => {
+  it("continues native product split ranges while a large product suspends mid-keyset unit scan", async () => {
     const { world, ids } = await seed([
-      { name: "Large", units: units(120, { 115: { lot: "needle" } }) },
+      // 560 units exceeds one request's 510-row unit budget, forcing suspension
+      // while the product native split range still has a pending right half.
+      { name: "Large", units: units(560, { 555: { lot: "needle" } }) },
       { name: "Direct needle", units: [{}] },
     ]);
     const documents = await world.t.run(async (ctx) => ({
       products: await ctx.db.query("finishedGoodsProducts").collect(),
-      units: (await ctx.db.query("finishedGoodsPallets").collect())
-        .filter((row) => row.productId === ids[0])
-        .sort((a, b) => b.updatedAt - a.updatedAt),
     }));
     const nativeCalls: Array<{
       table: string;
@@ -290,9 +342,9 @@ describe("product search batches bounded unit probes", () => {
         cursor: options.cursor,
         endCursor: options.endCursor,
       });
-      const product = table === "finishedGoodsProducts";
-      const middle = product ? "product-middle" : "unit-middle";
-      const end = product ? "product-end" : "unit-end";
+      expect(table).toBe("finishedGoodsProducts");
+      const middle = "product-middle";
+      const end = "product-end";
       if (!options.cursor && !options.endCursor)
         return {
           page: [],
@@ -303,17 +355,13 @@ describe("product search batches bounded unit probes", () => {
         };
       if (!options.cursor && options.endCursor === middle)
         return {
-          page: product
-            ? documents.products.filter((row) => row._id === ids[0])
-            : documents.units.slice(0, 50),
+          page: documents.products.filter((row) => row._id === ids[0]),
           isDone: true,
           continueCursor: middle,
         };
       expect(options).toMatchObject({ cursor: middle, endCursor: end });
       return {
-        page: product
-          ? documents.products.filter((row) => row._id === ids[1])
-          : documents.units.slice(50),
+        page: documents.products.filter((row) => row._id === ids[1]),
         isDone: true,
         continueCursor: end,
       };
@@ -345,11 +393,9 @@ describe("product search batches bounded unit probes", () => {
     expect(nativeCalls.map(({ table }) => table)).toEqual([
       "finishedGoodsProducts",
       "finishedGoodsProducts",
-      "finishedGoodsPallets",
-      "finishedGoodsPallets",
-      "finishedGoodsPallets",
       "finishedGoodsProducts",
     ]);
+    expect(log.length).toBeGreaterThanOrEqual(3);
     expectBoundedRequests(log);
   });
 
@@ -537,5 +583,406 @@ describe("product search batches bounded unit probes", () => {
       scanCursor: JSON.stringify({ ...outer, raw: JSON.stringify(inner) }),
     });
     expect(tampered.value.status).toBe("reset");
+  });
+
+  it.each([
+    { unitsPerProduct: 1, maxCalls: 6, maxTotalUnitDocs: 105 },
+    { unitsPerProduct: 49, maxCalls: 15, maxTotalUnitDocs: 5_145 },
+    { unitsPerProduct: 50, maxCalls: 15, maxTotalUnitDocs: 5_250 },
+    { unitsPerProduct: 51, maxCalls: 25, maxTotalUnitDocs: 5_460 },
+    { unitsPerProduct: 52, maxCalls: 25, maxTotalUnitDocs: 5_670 },
+  ])(
+    "keeps 105×$unitsPerProduct late-lot search within call and unit-doc budgets",
+    async ({ unitsPerProduct, maxCalls, maxTotalUnitDocs }) => {
+      const products: ProductSpec[] = Array.from({ length: 105 }, (_, i) => ({
+        name: `Product ${i}`,
+        units: units(
+          unitsPerProduct,
+          i === 104
+            ? { [unitsPerProduct - 1]: { lot: "late-boundary-lot" } }
+            : {},
+        ),
+      }));
+      const { world, ids } = await seed(products);
+      const log: RequestReads[] = [];
+      const result = await settle(
+        world,
+        { search: "late-boundary-lot", pageSize: 20 },
+        log,
+      );
+      const totalUnitDocs = log.reduce(
+        (sum, entry) => sum + (entry.docs.finishedGoodsPallets ?? 0),
+        0,
+      );
+      expect(result.status).toBe("ready");
+      expect(result.page.map((row) => row._id)).toEqual([ids[104]]);
+      expectBoundedRequests(log);
+      expect(log.length).toBeLessThanOrEqual(maxCalls);
+      expect(totalUnitDocs).toBeLessThanOrEqual(maxTotalUnitDocs);
+    },
+    30_000,
+  );
+
+  it("matches Thai text, equal timestamps, cancelled/replaced units, and deep boundary crossings against reference", async () => {
+    const equalTsUnits = (
+      count: number,
+      at: Record<number, UnitSpec> = {},
+      timestamp = 1_700_000_000_000,
+    ) =>
+      Array.from({ length: count }, (_, i) => ({
+        updatedAt: timestamp,
+        ...(at[i] ?? {}),
+      }));
+    const retiredPrefix = Object.fromEntries(
+      Array.from({ length: 55 }, (_, i) => [
+        i,
+        {
+          lot: "ghost-status-needle",
+          retired: true,
+          retirementReason:
+            i % 2 === 0
+              ? "Cancelled"
+              : "Replaced by preparation batch revision 2",
+        },
+      ]),
+    );
+    const { world, ids } = await seed([
+      // 125 units sharing one updatedAt: crosses 50→51 and 100→101 in descending _creationTime order.
+      {
+        name: "Equal ts cross 51",
+        units: equalTsUnits(125, {
+          50: { lot: "ท้าย-ขอบ" },
+          51: { code: "หัว-ต่อ" },
+        }),
+      },
+      {
+        name: "Equal ts cross 101",
+        units: equalTsUnits(125, {
+          100: { lot: "ท้าย-ขอบ" },
+          101: { code: "หัว-ต่อ" },
+        }),
+      },
+      {
+        name: "Equal ts deep last",
+        units: equalTsUnits(125, { 124: { lot: "ล็อต-ลึก-พิเศษ" } }),
+      },
+      // Crosses from product SKU across 55 retired (cancelled/replaced) units into unit 55.
+      {
+        name: "Status skip cross",
+        sku: "SKU-ท้าย-ขอบ",
+        units: units(60, {
+          ...retiredPrefix,
+          55: { code: "หัว-ต่อ" },
+        }),
+      },
+      // Only retired/cancelled/replaced units contain the needle: must not match.
+      {
+        name: "Only cancelled replaced",
+        units: units(60, {
+          ...retiredPrefix,
+          56: { lot: "ghost-status-needle", retired: true },
+        }),
+      },
+      // Thai product name + Thai lot across probe boundary.
+      {
+        name: "สินค้าไทย",
+        units: units(55, { 54: { lot: "ล็อต-ลึก-พิเศษ" } }),
+      },
+      ...filler(10),
+    ]);
+    for (const query of [
+      "ขอบ หัว-ต่อ",
+      "ล็อต-ลึก-พิเศษ",
+      "สินค้าไทย",
+      "ghost-status-needle",
+    ]) {
+      const expected = await reference(world, query);
+      for (const pageSize of [20, 50, 100] as const) {
+        const result = await traverse(world, query, pageSize);
+        expect(result.rows).toEqual(expected);
+        expect(new Set(result.rows).size).toBe(result.rows.length);
+        expectBoundedRequests(result.log);
+      }
+    }
+    expect((await traverse(world, "ขอบ หัว-ต่อ")).rows).toEqual([
+      ids[0],
+      ids[1],
+      ids[3],
+    ]);
+    expect((await traverse(world, "ghost-status-needle")).rows).toEqual([]);
+  });
+
+  it("preserves sorted search results across page sizes for large products", async () => {
+    const products: ProductSpec[] = Array.from({ length: 26 }, (_, i) => ({
+      name: `Sorted ${String(25 - i).padStart(2, "0")}`,
+      units: units(
+        i % 2 === 0 ? 55 : 2,
+        i % 3 === 0 ? { [i % 2 === 0 ? 53 : 1]: { lot: "sort-hit" } } : {},
+      ),
+    }));
+    const { world } = await seed(products);
+    const expectedIds = await reference(world, "sort-hit");
+    expect(expectedIds.length).toBeGreaterThan(5);
+    for (const sort of [
+      "name:asc",
+      "name:desc",
+      "quantity:asc",
+      "quantity:desc",
+    ]) {
+      const log: RequestReads[] = [];
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      for (let p = 0; p < 10; p++) {
+        const res = await settle(
+          world,
+          {
+            search: "sort-hit",
+            pageSize: 20,
+            filters: { ...newFilters(), sort },
+            ...(cursor ? { cursor } : {}),
+          },
+          log,
+        );
+        expect(res.status).toBe("ready");
+        seen.push(...res.page.map((row) => row._id));
+        if (res.isDone) break;
+        cursor = res.continueCursor;
+      }
+      expect(new Set(seen)).toEqual(new Set(expectedIds));
+      expect(seen).toHaveLength(expectedIds.length);
+      expectBoundedRequests(log);
+    }
+  });
+
+  it("resets incompatible v2 cursors, malformed v3 cursors, cross-warehouse cursors, and concurrent product deletion cleanly", async () => {
+    const products: ProductSpec[] = Array.from({ length: 45 }, (_, i) => ({
+      name: `Compat ${i}`,
+      units: units(55, i % 2 === 0 ? { 54: { lot: "compat-hit" } } : {}),
+    }));
+    const { world, ids } = await seed(products);
+    const expected = await reference(world, "compat-hit");
+    expect(expected).toHaveLength(23);
+
+    // 1. Capture a real page-1 continueCursor and a mid-scan scanCursor.
+    const firstScan = await request(world, {
+      warehouseId: world.warehouses.alphaA,
+      tab: "products",
+      search: "compat-hit",
+      filters: newFilters(),
+      locale: "en",
+      pageSize: 20,
+    });
+    expect(firstScan.value.status).toBe("scanning");
+    const firstPage = await settle(
+      world,
+      { search: "compat-hit", pageSize: 20 },
+      [],
+    );
+    expect(firstPage.status).toBe("ready");
+    expect(firstPage.isDone).toBe(false);
+
+    // 2. Simulate an old product-text-v2 cursor during deployment (both scanCursor and continueCursor).
+    for (const [field, cursorStr] of [
+      ["scanCursor", firstScan.value.scanCursor!],
+      ["cursor", firstPage.continueCursor],
+    ] as const) {
+      const outer = JSON.parse(cursorStr);
+      const inner = JSON.parse(outer.raw);
+      const v2Scope = JSON.stringify([
+        world.orgA,
+        world.userA,
+        ["product-text-v2", world.warehouses.alphaA, "compat-hit"],
+      ]);
+      const legacyInner = {
+        scope: v2Scope,
+        productRange: inner.productRange,
+        products: inner.products,
+        productsDone: inner.productsDone,
+        unitRange: {},
+      };
+      const reset = await request(world, {
+        warehouseId: world.warehouses.alphaA,
+        tab: "products",
+        search: "compat-hit",
+        filters: newFilters(),
+        locale: "en",
+        pageSize: 20,
+        [field]: JSON.stringify({ ...outer, raw: JSON.stringify(legacyInner) }),
+      });
+      expect(reset.value.status).toBe("reset");
+    }
+
+    // 3. Fresh traversal after reset has exact expected order with no gaps or duplicates.
+    const fresh = await traverse(world, "compat-hit", 20);
+    expect(fresh.rows).toEqual(expected);
+    expect(new Set(fresh.rows).size).toBe(expected.length);
+
+    // 4. Malformed v3 unitPos/tail cursors reset instead of trusting invalid state.
+    const outerScan = JSON.parse(firstScan.value.scanCursor!);
+    const innerScan = JSON.parse(outerScan.raw);
+    for (const mutated of [
+      { ...innerScan, products: [], unitPos: { u: 1, t: 1, i: "x" }, tail: "" },
+      {
+        ...innerScan,
+        products: [ids[0]],
+        unitPos: { u: 1, t: 1, i: "x" },
+        tail: undefined,
+      },
+      {
+        ...innerScan,
+        products: [ids[0]],
+        unitPos: { u: "bad", t: 1, i: "x" },
+        tail: "",
+      },
+      { ...innerScan, unitRange: {} },
+    ]) {
+      const res = await request(world, {
+        warehouseId: world.warehouses.alphaA,
+        tab: "products",
+        search: "compat-hit",
+        filters: newFilters(),
+        locale: "en",
+        pageSize: 20,
+        scanCursor: JSON.stringify({
+          ...outerScan,
+          raw: JSON.stringify(mutated),
+        }),
+      });
+      expect(res.value.status).toBe("reset");
+    }
+
+    // 5. Cross-warehouse cursor resets when ORG_WIDE member switches warehouse.
+    await world.t.run(async (ctx) => {
+      const membership = await ctx.db
+        .query("memberships")
+        .withIndex("by_orgId_userId", (q) =>
+          q.eq("orgId", world.orgA).eq("userId", world.userA),
+        )
+        .unique();
+      await ctx.db.patch("memberships", membership!._id, {
+        scopeMode: "ORG_WIDE",
+      });
+      await ctx.db.insert("finishedGoodsSummaryReadiness", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        version: 1,
+        ready: true,
+        generation: 1,
+        continuationKey: crypto.randomUUID(),
+      });
+    });
+    const crossWarehouse = await request(world, {
+      warehouseId: world.warehouses.bravoA,
+      tab: "products",
+      search: "compat-hit",
+      filters: newFilters(),
+      locale: "en",
+      pageSize: 20,
+      cursor: firstPage.continueCursor,
+    });
+    expect(crossWarehouse.value.status).toBe("reset");
+
+    // 6. Concurrent write mid-scan (generation advance) restarts cleanly and sees the live unit.
+    const midScan = await request(world, {
+      warehouseId: world.warehouses.alphaA,
+      tab: "products",
+      search: "midscan-added-lot",
+      filters: newFilters(),
+      locale: "en",
+      pageSize: 20,
+    });
+    expect(midScan.value.status).toBe("scanning");
+    await world.t.run(async (ctx) => {
+      const targetUnit = await ctx.db
+        .query("finishedGoodsPallets")
+        .withIndex("by_orgId_warehouseId_productId_updatedAt", (q) =>
+          q
+            .eq("orgId", world.orgA)
+            .eq("warehouseId", world.warehouses.alphaA)
+            .eq("productId", ids[0] as never),
+        )
+        .order("desc")
+        .first();
+      await ctx.db.patch(targetUnit!._id, { lot: "midscan-added-lot" });
+      await ctx.db.insert("finishedGoodsChangeShards", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.alphaA,
+        shard: 0,
+        count: 1,
+      });
+    });
+    const afterMidScanWrite = await settle(
+      world,
+      {
+        search: "midscan-added-lot",
+        pageSize: 20,
+        scanCursor: midScan.value.scanCursor,
+      },
+      [],
+    );
+    expect(afterMidScanWrite.status).toBe("ready");
+    expect(afterMidScanWrite.page.map((row) => row._id)).toEqual([ids[0]]);
+
+    // 7. Concurrent deletion of a queued product resets cleanly on continuation.
+    const nextQueuedId = JSON.parse(JSON.parse(firstPage.continueCursor).raw)
+      .products[0] as string | undefined;
+    expect(nextQueuedId).toBeTruthy();
+    await world.t.run(async (ctx) => {
+      await ctx.db.delete(nextQueuedId as never);
+    });
+    const afterDelete = await request(world, {
+      warehouseId: world.warehouses.alphaA,
+      tab: "products",
+      search: "compat-hit",
+      filters: newFilters(),
+      locale: "en",
+      pageSize: 20,
+      cursor: firstPage.continueCursor,
+    });
+    expect(afterDelete.value.status).toBe("reset");
+    const recovered = await traverse(world, "compat-hit", 20);
+    expect(recovered.rows).toEqual(
+      expected.filter((id) => id !== nextQueuedId),
+    );
+  });
+
+  it("enforces customer field visibility on large-product search results", async () => {
+    const spec: ProductSpec[] = [
+      {
+        name: "Linked product",
+        customerReference: "CUST-REF-42",
+        linkCustomer: true,
+        units: units(55, { 54: { lot: "cust-vis-hit" } }),
+      },
+    ];
+    const admin = await seed(spec, { roleA: "ORG_ADMIN" });
+    const adminPage = await settle(admin.world, { search: "cust-vis-hit" }, []);
+    expect(adminPage.page).toHaveLength(1);
+    expect(adminPage.page[0]).toMatchObject({
+      _id: admin.ids[0],
+      customerReference: "CUST-REF-42",
+      customerLinkSource: "MANUAL",
+    });
+    expect(
+      (adminPage.page[0] as Record<string, unknown>).customerId,
+    ).toBeTruthy();
+
+    const manager = await seed(spec, { roleA: "WAREHOUSE_MANAGER" });
+    const managerPage = await settle(
+      manager.world,
+      { search: "cust-vis-hit" },
+      [],
+    );
+    expect(managerPage.page).toHaveLength(1);
+    expect(managerPage.page[0]).toMatchObject({
+      _id: manager.ids[0],
+      customerReference: "CUST-REF-42",
+    });
+    expect(
+      (managerPage.page[0] as Record<string, unknown>).customerId,
+    ).toBeUndefined();
+    expect(
+      (managerPage.page[0] as Record<string, unknown>).customerLinkSource,
+    ).toBeUndefined();
   });
 });
