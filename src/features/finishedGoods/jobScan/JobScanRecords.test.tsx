@@ -1148,6 +1148,45 @@ it("explicit location Cancel consumes its step before the next Back", async () =
   }
 });
 
+it("shows the verified destination details before confirming a location change", async () => {
+  mocks.resolveLocation.mockResolvedValueOnce(
+    querySuccess({
+      ok: true,
+      location: {
+        locationId: "named-a",
+        code: "DOCK NORTH",
+        name: "Receiving bay",
+        buildingId: "building-a",
+        buildingName: "Building A",
+        floorId: "floor-a",
+        floorNumber: 0,
+        layoutPending: true,
+      },
+    }),
+  );
+  const user = userEvent.setup();
+  renderWithIntl(<JobScanRecordsScreen />, { locale: "en", workspace: false });
+  await user.click(
+    screen.getByRole("button", { name: "Set location for FO001" }),
+  );
+  const picker = within(screen.getByRole("dialog", { name: "Set location" }));
+  await user.click(picker.getByRole("button", { name: "Scan code" }));
+  const camera = within(
+    await screen.findByRole("dialog", { name: "Scan code" }),
+  );
+  await user.click(camera.getByRole("button", { name: "Scan test location" }));
+  const review = await screen.findByRole("dialog", {
+    name: "Review location change for 1 ticket",
+  });
+  expect(review).toHaveTextContent("Dock → DOCK NORTH");
+  expect(review).toHaveAccessibleDescription(
+    expect.stringContaining(
+      "Building A · Floor 0 · Receiving bay · Location recorded · Layout pending",
+    ),
+  );
+  expect(mocks.assign).not.toHaveBeenCalled();
+});
+
 it("requires review and blocks a stale multi-ticket location snapshot without writing", async () => {
   const user = userEvent.setup();
   const view = renderWithIntl(<JobScanRecordsScreen />, {

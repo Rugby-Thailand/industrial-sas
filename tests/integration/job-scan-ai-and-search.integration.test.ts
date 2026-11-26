@@ -248,6 +248,22 @@ describe("job-scan AI search and edit actions", () => {
     ],
     ["Set part name to Gear and start a new scan", "Gear and start a new scan"],
     [
+      "Set part name to Gear and start a fresh barcode/QR scan",
+      "Gear and start a fresh barcode/QR scan",
+    ],
+    [
+      "Set part name to Gear and have the scanner read the next ticket",
+      "Gear and have the scanner read the next ticket",
+    ],
+    [
+      "Set part name to Gear and read the next barcode",
+      "Gear and read the next barcode",
+    ],
+    [
+      "แก้ชื่อสินค้าเป็น กล่อง และช่วยใช้กล้องอ่านบาร์โค้ดใบงานถัดไป",
+      "กล่อง และช่วยใช้กล้องอ่านบาร์โค้ดใบงานถัดไป",
+    ],
+    [
       "แก้ชื่อสินค้าเป็น กล่อง และเริ่มการสแกนใหม่",
       "กล่อง และเริ่มการสแกนใหม่",
     ],

@@ -354,10 +354,14 @@ const ENGLISH_ACTION_TARGET = String.raw`(?:records?|tickets?|jobs?|scans?|dialo
 const THAI_LIFECYCLE_VERB = String.raw`(?:ปิด|เปิด(?:ใหม่)?|ล็อก|ปลดล็อก|ระงับ|พัก|จบ|สิ้นสุด|ส่งกลับ|คืนค่า|กู้คืน|รับรอง|ปฏิเสธ|รีเฟรช|โหลดใหม่|ออกจาก|สลับ|เปลี่ยน(?:ไป)?)`;
 const THAI_ACTION_TARGET = String.raw`(?:(?:ใบ)?งาน|รายการ(?:สแกน)?|การสแกน|ตั๋ว|หน้าต่าง|หน้าจอ|หน้าเว็บ|หน้านี้|หน้า|เมนู|กล้อง|แอป|ระบบ|บัญชี|คลัง(?:สินค้า)?|อาคาร|ชั้น|โซน|พาเลท|บาร์โค้ด|qr\b|คิวอาร์)`;
 const RECORD_ACTION_END = String.raw`(?=\s*(?:$|[,;.!?，；。！？\r\n])|${RECORD_FOLLOW_UP})`;
-const SCAN_ACTION_OBJECT = String.raw`(?:re[- ]?)?scan(?:ning|s|ners?)?\b`;
-// Recognize both the verb ("start scanning") and the action as an object
-// ("start a new scan"). Only inspect words within the same clause.
-const SCAN_ACTION = String.raw`(?:re[- ]?)?scan\b|(?:start|restart|begin|commence|initiate|launch|trigger|open|resume|continue|keep|stop|finish|retry|repeat|run|perform|make|do)\s+(?:(?!(?:and|or|then)\b)[\p{L}\p{M}\p{N}'’_-]+\s+){0,8}${SCAN_ACTION_OBJECT}|(?:(?:เริ่ม(?:ต้น)?|ลอง|เปิด|ทำ|หยุด)\s*(?:การ\s*)?)?สแกน`;
+const SCAN_ACTION_OBJECT = String.raw`(?:(?:re[- ]?)?scan(?:ning|s|ners?)?|barcodes?|qr(?:\s+codes?)?|cameras?|readers?|tickets?|labels?|codes?)\b`;
+// A follow-up can name the scan, the device, or the code it should read.
+// Match the verb and object within the same clause, including mixed code names.
+const SCAN_ACTION = [
+  String.raw`(?:re[- ]?)?scan\b`,
+  String.raw`(?:start|restart|begin|commence|initiate|launch|trigger|open|resume|continue|keep|stop|finish|retry|repeat|run|perform|make|do|read|decode|capture|acquire|detect|have|ask|let|get|tell|instruct|use|operate)\s+(?:(?!(?:and|or|then|for|of)\b)[\p{L}\p{M}\p{N}'’_/-]+\s+){0,8}${SCAN_ACTION_OBJECT}`,
+  String.raw`(?:(?:เริ่ม(?:ต้น)?|ลอง|เปิด|ทำ|หยุด)\s*(?:การ\s*)?)?สแกน|(?:ใช้|เปิด|ปิด|ตั้งค่า)\s*(?:กล้อง|มือถือ|โทรศัพท์|เครื่องอ่าน|เครื่องสแกน)|(?:อ่าน|ถอดรหัส)\s*(?:รหัส|บาร์โค้ด|คิวอาร์|qr\b|ใบงาน)`,
+].join("|");
 const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b`,
   SCAN_ACTION,

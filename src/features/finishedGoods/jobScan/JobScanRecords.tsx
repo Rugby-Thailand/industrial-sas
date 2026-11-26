@@ -325,6 +325,17 @@ function Records({
       ? t("changeLocation")
       : t("setLocation")
     : t("setSelectedLocation");
+  const destination = remapReview?.location;
+  const destinationDetails = [
+    destination?.buildingName,
+    destination?.floorNumber !== undefined
+      ? t("floorNumber", { number: destination.floorNumber })
+      : undefined,
+    destination?.name !== destination?.code ? destination?.name : undefined,
+    destination?.layoutPending ? t("layoutPending") : undefined,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const allVisibleSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selected.includes(id));
   const someVisibleSelected = visibleIds.some((id) => selected.includes(id));
@@ -907,7 +918,12 @@ function Records({
               <DialogTitle>
                 {t("remapReviewTitle", { count: remapReview.records.length })}
               </DialogTitle>
-              <DialogDescription>{t("locationNotStock")}</DialogDescription>
+              <DialogDescription className="break-words">
+                {destinationDetails && (
+                  <span className="mb-1 block">{destinationDetails}</span>
+                )}
+                <span className="block">{t("locationNotStock")}</span>
+              </DialogDescription>
             </DialogHeader>
             <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-lg border border-border text-sm">
               {remapReview.records.map((record) => (
