@@ -125,7 +125,7 @@ export function JobScanRecordAssist({
   enabled: boolean;
   interpret: (prompt: string) => Promise<JobScanEditProposal | null>;
   onClose: () => void;
-  onManualEdit: () => void;
+  onManualEdit: (completion: { settle: () => void; close: () => void }) => void;
 }) {
   const t = useTranslations("JobScan");
   const convex = useConvex();
@@ -173,13 +173,18 @@ export function JobScanRecordAssist({
     [warehouseId, record.id],
   );
 
-  function closeEditor(next = onClose) {
+  function closeEditor() {
     if (op.busy || closing.current) return;
     guard.requestTransition(() => {
       closing.current = true;
       request.current?.abort();
-      editorCompletion.current?.complete(next);
+      editorCompletion.current?.complete(onClose);
     });
+  }
+
+  function finishManualSave() {
+    closing.current = true;
+    editorCompletion.current?.complete(onClose);
   }
 
   async function propose() {
@@ -342,8 +347,15 @@ export function JobScanRecordAssist({
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => closeEditor(onManualEdit)}
-                disabled={!enabled || Boolean(pendingCommand)}
+                onClick={() =>
+                  onManualEdit({
+                    settle: guard.settle,
+                    close: finishManualSave,
+                  })
+                }
+                disabled={
+                  !enabled || asking || op.busy || Boolean(pendingCommand)
+                }
               >
                 {t("editRecord")}
               </Button>

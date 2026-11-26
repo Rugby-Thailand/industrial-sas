@@ -158,6 +158,11 @@ describe("job-scan AI search and edit actions", () => {
       "กล่อง กรุณาส่งออกใบงานนี้",
     ],
     ["Change product name from Old to New", "from Old to New"],
+    [
+      "Set part name to Widget and create another scan",
+      "Widget and create another scan",
+    ],
+    ["แก้ชื่อสินค้าเป็น กล่อง แล้วสร้างใบงานใหม่", "กล่อง แล้วสร้างใบงานใหม่"],
   ])(
     "returns manual edit when the model copies an unsupported clause in %s",
     async (prompt, partName) => {
@@ -236,6 +241,11 @@ describe("job-scan AI search and edit actions", () => {
       "Find product name Widget and export the results",
       "Widget and export the results",
     ],
+    [
+      "Find product name Widget and move the records to A-01",
+      "Widget and move the records to A-01",
+    ],
+    ["หาชื่อสินค้า Widget และย้ายใบงานไป A-01", "Widget และย้ายใบงานไป A-01"],
     ["หาชื่อสินค้า Widget และส่งออกผลลัพธ์", "Widget และส่งออกผลลัพธ์"],
   ])(
     "returns manual search when the model absorbs an unsupported filter in %s",

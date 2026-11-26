@@ -55,10 +55,14 @@ export function JobScanRecordEditor({
   record,
   warehouseId,
   onClose,
+  onSaveSuccess,
+  onSaved = onClose,
 }: {
   record: Record;
   warehouseId: string;
   onClose: () => void;
+  onSaveSuccess?: () => void;
+  onSaved?: () => void;
 }) {
   const t = useTranslations("JobScan");
   const draftScope = useId();
@@ -99,11 +103,14 @@ export function JobScanRecordEditor({
     live && live.version > record.version ? live : record;
   const stale = conflict || current.version !== baseline.version;
   const close = () => {
-    if (!op.busy && !closing.current)
-      guard.requestTransition(() => {
-        closing.current = true;
-        completion.current?.complete(onClose);
-      });
+    if (op.busy || closing.current) return;
+    closing.current = true;
+    const reset = () => {
+      closing.current = false;
+    };
+    // The shared owner guards this editor's draft and preserves its underlay.
+    // Native Back can arrive after this own entry has already been consumed.
+    if (!completion.current?.completeOwned?.(onClose, reset)) onClose();
   };
   async function commit() {
     if (
@@ -145,9 +152,10 @@ export function JobScanRecordEditor({
         }
         op.clearRequests();
         guard.settle();
+        onSaveSuccess?.();
         op.complete(() => {
           closing.current = true;
-          completion.current?.complete(onClose);
+          completion.current?.complete(onSaved);
         });
       },
     );

@@ -161,6 +161,9 @@ function Records({
   const [editing, setEditing] = useState<RecordPage["items"][number] | null>(
     null,
   );
+  const finishManualEdit = useRef<
+    { settle: () => void; close: () => void } | undefined
+  >(undefined);
   const [assisting, setAssisting] = useState<
     RecordPage["items"][number] | null
   >(null);
@@ -662,23 +665,35 @@ function Records({
             return outcome.ok && outcome.value.ok ? outcome.value.value : null;
           }}
           onClose={() => setAssisting(null)}
-          onManualEdit={() => {
-            setAssisting(null);
+          onManualEdit={(completion) => {
             const record = records?.find(
               (record) => record.id === assisting.id,
             );
-            if (record && actionable) setEditing(record);
+            if (record && actionable) {
+              finishManualEdit.current = completion;
+              setEditing(record);
+            }
           }}
         />
       )}
       {editing && (
         <JobScanRecordEditor
-          key={editing.id}
+          key={`manual:${editing.id}`}
           warehouseId={warehouseId}
           record={
             records?.find((record) => record.id === editing.id) ?? editing
           }
-          onClose={() => setEditing(null)}
+          onClose={() => {
+            finishManualEdit.current = undefined;
+            setEditing(null);
+          }}
+          onSaveSuccess={() => finishManualEdit.current?.settle()}
+          onSaved={() => {
+            const finish = finishManualEdit.current;
+            finishManualEdit.current = undefined;
+            setEditing(null);
+            finish?.close();
+          }}
         />
       )}
       <Dialog

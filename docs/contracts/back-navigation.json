@@ -8992,15 +8992,28 @@
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:editing",
       "policy": "overlay",
-      "expectation": "The selected saved record renders the exact dirty/pending-aware JobScanRecordEditor Dialog through its record prop; the underlying records list remains retained.",
+      "expectation": "The selected saved record renders the dirty/pending-aware JobScanRecordEditor Dialog. When opened from AI edit, Cancel and native Back restore its untouched prompt. A successful save consumes the manual entry before completing the earlier AI entry.",
       "integration": "delegated-overlay",
       "tests": [
-        "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx"
+        "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
       ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
           "name": "guards dirty ticket Cancel and keeps the correction when dismissal is canceled"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "manual correction %s restores the retained AI prompt without discarding it"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "discarding a dirty manual correction retains the earlier AI draft"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "saving a manual correction from AI consumes both dialogs before the next Back"
         }
       ]
     },
@@ -9008,7 +9021,7 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:assisting",
       "policy": "overlay",
       "integration": "delegated-overlay",
-      "expectation": "A manager's exact saved-record selection opens the shared AI correction Dialog with its own retained request and versioned review. Manual correction replaces the consumed foreground and the records list retains its criteria.",
+      "expectation": "A manager's saved-record selection opens the AI correction Dialog. The prompt remains available beneath review or manual correction. Cancel restores it, while a successful correction settles the draft and consumes both entries.",
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
       ],
@@ -9016,6 +9029,14 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
           "name": "keeps the existing record actions beside AI edit and limits writes to managers"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "manual correction %s restores the retained AI prompt without discarding it"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "saving a manual correction from AI consumes both dialogs before the next Back"
         }
       ]
     },
@@ -9189,14 +9210,19 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecordAssist.tsx#JobScanRecordAssist:$overlay:Dialog:controlled",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "The shared AI edit Dialog guards its prompt draft and retains it behind the owned change review. A successful save settles the draft and consumes both entries before returning to records.",
+      "expectation": "The shared AI edit Dialog guards its draft and retains it behind the change review or manual editor. A successful save settles the draft and consumes both entries before returning to records.",
       "tests": [
-        "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx"
+        "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
       ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
           "name": "reviews both values, saves the same version atomically and consumes both dialogs before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "discarding a dirty manual correction retains the earlier AI draft"
         }
       ]
     },

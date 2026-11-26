@@ -310,9 +310,9 @@ const THAI_SEARCH_FIELD = String.raw`(?:ชื่อสินค้า|ชื่
 const ENGLISH_SEARCH_CLAUSE = String.raw`(?:${ENGLISH_SEARCH_FIELD}|\b(?:building|floors?|(?:storage\s+)?format|(?:factory\s+|customer\s+)?(?:quantity|qty|count)|(?:delivery|manufacturing|production)\s+date)\b)`;
 const THAI_SEARCH_CLAUSE = String.raw`(?:${THAI_SEARCH_FIELD}|อาคาร|ชั้น|รูปแบบ|ประเภทการจัดเก็บ|จำนวน|วันที่ส่ง|วันส่ง|วันที่ผลิต|วันผลิต)`;
 const QUOTED_LITERAL = /"([^"\r\n]+)"|“([^”\r\n]+)”/gu;
-const UNSUPPORTED_RECORD_ACTION = String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ)`;
+const UNSUPPORTED_RECORD_ACTION = String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก)`;
 const UNSUPPORTED_SEARCH_ACTION = new RegExp(
-  String.raw`(?:^|[,;.!?]\s*|\s+(?:and|then)\s+|\s*[&+]\s*|\s*(?:และ|แล้ว|พร้อมทั้ง|จากนั้น)\s*)(?:${UNSUPPORTED_RECORD_ACTION})`,
+  String.raw`(?:^|[,;.!?]\s*|\s+(?:and|then)\s+|\s*[&+]\s*|\s*(?:และ|แล้ว|พร้อมทั้ง|จากนั้น)\s*)(?:${UNSUPPORTED_RECORD_ACTION}|(?:please\s+)?(?:move|set|change|update|edit|assign|remap|transfer)\b|ย้าย|แก้(?:ไข)?|เปลี่ยน|ระบุ)`,
   "u",
 );
 
@@ -972,6 +972,7 @@ const EDIT_CLAUSE_START = [
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_DATE_LABELS})(?=\s*[\d๐-๙]+[/.-])`,
   MOVE_VERB.source.slice(1),
   UNSUPPORTED_RECORD_ACTION,
+  String.raw`(?:please\s+)?(?:move|assign|remap|transfer)\s+(?:(?:this|the|all|another)\s+)?(?:records?|scans?|jobs?|tickets?)\b|ย้าย(?:ใบงาน|งาน|รายการ)`,
 ].join("|");
 // Unquoted sentence breaks, semicolons, and explicit sequencing words start another
 // clause. Commas and conjunctions also occur in names, so use their next word

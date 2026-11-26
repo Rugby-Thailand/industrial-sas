@@ -1,6 +1,8 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
+import { trackAppHistory } from "@/lib/browser/appHistory";
 import { getFunctionName } from "convex/server";
 import type { ComponentProps, ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -8,6 +10,7 @@ import { renderWithIntl } from "@tests/fixtures/intl-render";
 import {
   finishedGoodsWorkspace,
   querySuccess,
+  writeSuccess,
 } from "@tests/fixtures/finished-goods-ui";
 import { JobScanRecordsScreen } from "./JobScanRecords";
 
@@ -16,9 +19,10 @@ const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   action: vi.fn(),
   resolve: vi.fn(),
+  save: vi.fn(),
 }));
 vi.mock("convex/react", () => ({
-  useMutation: () => vi.fn(),
+  useMutation: () => mocks.save,
   useConvex: () => ({ action: mocks.action, query: mocks.resolve }),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) => {
     if (args === "skip") return;
@@ -75,6 +79,7 @@ const row = {
 beforeEach(() => {
   mocks.list.mockClear();
   mocks.action.mockReset();
+  mocks.save.mockReset().mockResolvedValue(writeSuccess("scan-a"));
   mocks.resolve.mockReset();
   mocks.resolve.mockResolvedValue(
     querySuccess({ ok: false, error: { code: "LOCATION_NOT_FOUND" } }),
@@ -259,6 +264,10 @@ it("keeps the existing record actions beside AI edit and limits writes to manage
     "FO12345",
   );
   await user.click(editor.getAllByRole("button", { name: /^Cancel$/ })[0]!);
+  const assist = within(
+    await screen.findByRole("dialog", { name: "Edit with AI" }),
+  );
+  await user.click(assist.getByRole("button", { name: "Cancel" }));
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
@@ -268,4 +277,125 @@ it("keeps the existing record actions beside AI edit and limits writes to manage
     screen.queryByRole("button", { name: "Edit FO12345 with AI" }),
   ).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "AI search" })).toBeInTheDocument();
+});
+
+const origin = "/th/finished-goods/scan?warehouse=one#camera";
+const recordsPath = "/en/finished-goods/scan/records?warehouse=one#records";
+const editPrompt = "Set part name to Widget";
+
+async function openManualEditorFromAi() {
+  window.history.replaceState({ __NA: true }, "", origin);
+  const stop = trackAppHistory();
+  window.history.pushState({ __NA: true }, "", recordsPath);
+  const view = renderWithIntl(
+    <NavigationGuardProvider>
+      <JobScanRecordsScreen />
+    </NavigationGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  const user = userEvent.setup();
+  await user.click(
+    screen.getByRole("button", { name: "Edit FO12345 with AI" }),
+  );
+  await user.type(
+    screen.getByRole("textbox", { name: "What should change?" }),
+    editPrompt,
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Correct ticket details" }),
+  );
+  const editor = within(
+    await screen.findByRole("dialog", { name: "Correct saved job ticket" }),
+  );
+  return {
+    editor,
+    user,
+    cleanup: () => {
+      view.unmount();
+      stop();
+    },
+  };
+}
+
+it.each(["Cancel", "native Back"])(
+  "manual correction %s restores the retained AI prompt without discarding it",
+  async (dismissal) => {
+    const { editor, user, cleanup } = await openManualEditorFromAi();
+    try {
+      if (dismissal === "Cancel") {
+        await user.click(editor.getAllByRole("button", { name: "Cancel" })[0]!);
+      } else {
+        act(() => window.history.back());
+      }
+      expect(
+        await screen.findByRole("textbox", { name: "What should change?" }),
+      ).toHaveValue(editPrompt);
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Correct ticket details" }),
+        ).toHaveFocus();
+      });
+      expect(
+        screen.queryByRole("dialog", { name: "Discard changes?" }),
+      ).not.toBeInTheDocument();
+      expect(mocks.save).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+    }
+  },
+);
+
+it("discarding a dirty manual correction retains the earlier AI draft", async () => {
+  const { editor, user, cleanup } = await openManualEditorFromAi();
+  try {
+    await user.type(editor.getByRole("textbox", { name: "Job No." }), "X");
+    await user.click(editor.getAllByRole("button", { name: "Cancel" })[0]!);
+    const confirmation = within(
+      await screen.findByRole("dialog", { name: "Discard changes?" }),
+    );
+    await user.click(
+      confirmation.getByRole("button", { name: "Keep editing" }),
+    );
+    expect(editor.getByRole("textbox", { name: "Job No." })).toHaveValue(
+      "FO12345X",
+    );
+    act(() => window.history.back());
+    const dismiss = within(
+      await screen.findByRole("dialog", { name: "Discard changes?" }),
+    );
+    await user.click(dismiss.getByRole("button", { name: "Discard changes" }));
+    expect(
+      await screen.findByRole("textbox", { name: "What should change?" }),
+    ).toHaveValue(editPrompt);
+    expect(mocks.save).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+  }
+});
+
+it("saving a manual correction from AI consumes both dialogs before the next Back", async () => {
+  const { editor, user, cleanup } = await openManualEditorFromAi();
+  try {
+    const job = editor.getByRole("textbox", { name: "Job No." });
+    await user.clear(job);
+    await user.type(job, "FO99999");
+    await user.click(editor.getByRole("button", { name: "Save correction" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(mocks.save).toHaveBeenCalledOnce();
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe(recordsPath);
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe(origin),
+    );
+  } finally {
+    cleanup();
+  }
 });
