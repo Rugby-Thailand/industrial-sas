@@ -1506,6 +1506,9 @@ describe("parseJobScanEditProposal", () => {
     "refresh the page",
     "quit this form",
     "log out",
+    "end my session",
+    "terminate my session",
+    "lock me out",
   ])(
     "requires quotes to treat follow-up command %s as literal text",
     (command) => {

@@ -223,7 +223,15 @@ describe("job-scan AI search and edit actions", () => {
     ["แก้ชื่อสินค้าเป็น กล่อง และรีเฟรชหน้านี้", "กล่อง และรีเฟรชหน้านี้"],
     ["Set part name to Gear and go back", "Gear and go back"],
     ["Set part name to Gear and log out", "Gear and log out"],
+    ["Set part name to Gear and end my session", "Gear and end my session"],
+    [
+      "Set part name to Gear and terminate my session",
+      "Gear and terminate my session",
+    ],
+    ["Set part name to Gear and sign me out", "Gear and sign me out"],
     ["Set part name to Gear and sign off", "Gear and sign off"],
+    ["แก้ชื่อสินค้าเป็น กล่อง และล็อกเอาต์", "กล่อง และล็อกเอาต์"],
+    ["แก้ชื่อสินค้าเป็น กล่อง และจบเซสชัน", "กล่อง และจบเซสชัน"],
     ["แก้ชื่อสินค้าเป็น กล่อง และออกจากระบบ", "กล่อง และออกจากระบบ"],
     ["Set part name to Gear and take a photo", "Gear and take a photo"],
     ["แก้ชื่อสินค้าเป็น กล่อง และแนบรูป", "กล่อง และแนบรูป"],
@@ -460,6 +468,7 @@ describe("job-scan AI search and edit actions", () => {
     ["หาใบงานที่อยู่ A1 และทำการปิดใบงานนี้", "A1 และทำการปิดใบงานนี้"],
     ["Find jobs at location A1 and close", "A1 and close"],
     ["Find jobs at location A1 and log out", "A1 and log out"],
+    ["Find jobs at location A1 and end my session", "A1 and end my session"],
     [
       "Find jobs at location A1 and refresh the page",
       "A1 and refresh the page",
@@ -1822,6 +1831,11 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
         await ctx.db.patch(ids.partMatchesCodeOnly, {
           productBarcodeText: "Receiving bay",
         });
+        if (search === "maß") {
+          await ctx.db.patch(ids.unmappedBoxShortPrefix, {
+            productBarcodeText: search,
+          });
+        }
       });
       await buildIndex(fixture);
       for (const ready of [true, false]) {
@@ -1865,6 +1879,16 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
             ? [ids.southPalletF2, ids.prefixFoPalletF2]
             : [ids.prefixFoPalletF2],
         );
+        if (search === "maß") {
+          expect(
+            await listAll(fixture, {
+              filter: "ALL",
+              search,
+              exactCode: true,
+              pageSize: 1,
+            }),
+          ).toEqual([ids.unmappedBoxShortPrefix, ids.exactFoPalletF2]);
+        }
       }
     },
   );

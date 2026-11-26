@@ -115,15 +115,19 @@ export function jobScanTextMatches(
 }
 /** Whole code equality. The current location takes precedence over captured text. */
 export function jobScanExactCodeMatches(
-  scan: Pick<Scan, (typeof JOB_SCAN_EXACT_CODE_FIELDS)[number]>,
+  scan: Pick<Scan, (typeof JOB_SCAN_EXACT_CODE_FIELDS)[number] | "locationId">,
   needle: string,
   locationNeedle: string,
+  registeredLocationId?: Id<"locations">,
 ) {
   const location = scan.locationCode || scan.locationText;
   return (
     normalizeJobScanSearch(scan.factoryOrder) === needle ||
     normalizeJobScanSearch(scan.productBarcodeText) === needle ||
     (location !== undefined &&
+      (!registeredLocationId ||
+        !scan.locationId ||
+        scan.locationId === registeredLocationId) &&
       normalizeJobScanLocationScan(location) === locationNeedle)
   );
 }

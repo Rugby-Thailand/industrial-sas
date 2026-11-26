@@ -1271,12 +1271,14 @@ export const listJobScans = queryWithOrg({
     const exactFactoryOrder =
       searchField === "factoryOrder" &&
       isSavedFactoryOrderCode(requestedNeedle);
+    const exact =
+      Boolean(requestedNeedle) && !searchField && args.exactCode === true;
     const locationCode =
-      searchField === "location"
+      searchField === "location" || exact
         ? normalizeJobLocationCode(args.search ?? "")
         : null;
-    // Registered codes may be any human label. Use the registration index
-    // to distinguish a complete code from a partial location search.
+    // Registration has its own case normalization and preserves width.
+    // Resolve the scanned or requested code against that same warehouse index.
     const registeredLocation = locationCode
       ? await ctx.tenantDb
           .byIndex<Doc<"locations">>("locations", "by_orgId_warehouseId_code", [
@@ -1285,15 +1287,20 @@ export const listJobScans = queryWithOrg({
           ])
           .first()
       : null;
-    const needle = registeredLocation
+    const registeredSearchNeedle = registeredLocation
       ? normalizeJobScanSearch(registeredLocation.code)
-      : requestedNeedle;
+      : null;
+    const needle = exact
+      ? requestedNeedle
+      : (registeredSearchNeedle ?? requestedNeedle);
     const exactLocationAddress =
       searchField === "location" && isSavedLocationAddress(needle);
-    const exact = Boolean(needle) && !searchField && args.exactCode === true;
-    const scannedLocationCode = exact
-      ? normalizeJobScanLocationScan(args.search ?? "")
-      : "";
+    const locationCodeNeedle =
+      registeredLocation || exact
+        ? normalizeJobScanLocationScan(
+            registeredLocation?.code ?? args.search ?? "",
+          )
+        : "";
     const buildingNeedle =
       args.facets?.building !== undefined
         ? normalizeJobScanSearch(args.facets.building)
@@ -1342,7 +1349,7 @@ export const listJobScans = queryWithOrg({
     const criteriaScope =
       exact || searchField || hasFacets || args.locationId !== undefined
         ? {
-            ...(exact ? { exactCode: true, scannedLocationCode } : {}),
+            ...(exact ? { exactCode: true, locationCodeNeedle } : {}),
             ...(searchField ? { searchField } : {}),
             ...(registeredLocation
               ? { registeredLocationId: registeredLocation._id }
@@ -1425,7 +1432,15 @@ export const listJobScans = queryWithOrg({
         scan.storageFormat !== storageFormatFacet
       )
         return false;
-      if (exact && !jobScanExactCodeMatches(scan, needle, scannedLocationCode))
+      if (
+        exact &&
+        !jobScanExactCodeMatches(
+          scan,
+          needle,
+          locationCodeNeedle,
+          registeredLocation?._id,
+        )
+      )
         return false;
       let resolvedParents: Awaited<ReturnType<typeof parents>> | undefined;
       const getParents = async () => (resolvedParents ??= await parents(scan));
@@ -1455,11 +1470,11 @@ export const listJobScans = queryWithOrg({
       if (searchField === "location") {
         const code = scan.locationCode || scan.locationText;
         if (registeredLocation) {
-          // Folded text only generates index candidates. Compare the code
-          // just as registration does, and honor any stored location ID.
+          // The registry resolved the input alias. Match the stored code and
+          // respect the assigned identity when the row has one.
           return (
             (!scan.locationId || scan.locationId === registeredLocation._id) &&
-            normalizeJobLocationCode(code ?? "") === registeredLocation.code
+            normalizeJobScanLocationScan(code ?? "") === locationCodeNeedle
           );
         }
         if (exactLocationAddress)
@@ -1481,8 +1496,12 @@ export const listJobScans = queryWithOrg({
     // Needles of 3+ code points: trigram postings propose candidates in
     // newest-first order; each is re-read and matched by `accept`, exactly as
     // the scan below would. Unready warehouses and short needles keep it.
+    // An alias like maß can map to MASS. Barcode/order matching still uses
+    // the scan itself, so a single index needle cannot propose both sets.
+    const singleSearchNeedle =
+      !exact || !registeredSearchNeedle || registeredSearchNeedle === needle;
     const index =
-      needle && indexableNeedle(needle)
+      singleSearchNeedle && needle && indexableNeedle(needle)
         ? await jobScanSearchIndex(ctx.tenantDb, args.warehouseId)
         : null;
     if (index)
