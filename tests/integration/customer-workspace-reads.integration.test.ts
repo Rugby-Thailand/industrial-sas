@@ -408,7 +408,7 @@ describe("customer workspace reads", () => {
       allowed(
         await world.actorA.query(workspace.getCustomerWorkspace, {
           customerId: world.customerId,
-          warehouseId,
+          ...(warehouseId ? { warehouseId } : {}),
         }),
       ) as Workspace;
     const all = await read();
@@ -794,6 +794,33 @@ describe("customer workspace reads", () => {
       warehousesComplete: true,
       scopeAvailable: true,
       latestJobs: [],
+    });
+    await world.t.run((ctx) =>
+      ctx.db.insert("customerAliases", {
+        orgId: world.orgA,
+        customerId: world.customerId,
+        alias: "Ticket name",
+        normalizedAlias: "ticket name",
+        approvedAt: 1,
+        approvedByUserId: world.userA,
+      }),
+    );
+    const aliases = await catalogueOnly.query(
+      api.customers.linking.listCustomerAliasesPage,
+      { customerId: world.customerId },
+    );
+    expect(allowed(aliases)).toEqual({
+      items: [],
+      isDone: true,
+      continueCursor: "",
+    });
+    const oldActivity = await catalogueOnly.query(
+      api.customers.linking.getCustomerActivity,
+      { customerId: world.customerId },
+    );
+    expect(allowed(oldActivity)).toMatchObject({
+      aliases: [],
+      hasMoreAliases: false,
     });
     const noWarehouseData = {
       canViewWarehouseData: false,

@@ -513,16 +513,16 @@ export const getCustomerActivity = queryWithOrg({
     );
     if (!customer) return null;
 
-    const [aliasRows, allowed] = await Promise.all([
-      ctx.tenantDb
-        .byIndex<Doc<"customerAliases">>(
-          "customerAliases",
-          "by_orgId_customerId_normalizedAlias",
-          [{ field: "customerId", value: customer._id }],
-        )
-        .take(CUSTOMER_ALIASES_PREVIEW_LIMIT + 1),
-      allowedCustomerWarehouses(ctx),
-    ]);
+    const allowed = await allowedCustomerWarehouses(ctx);
+    const aliasRows = allowed.hasWarehouseRead
+      ? await ctx.tenantDb
+          .byIndex<Doc<"customerAliases">>(
+            "customerAliases",
+            "by_orgId_customerId_normalizedAlias",
+            [{ field: "customerId", value: customer._id }],
+          )
+          .take(CUSTOMER_ALIASES_PREVIEW_LIMIT + 1)
+      : [];
 
     const hasMoreAliases = aliasRows.length > CUSTOMER_ALIASES_PREVIEW_LIMIT;
     const aliases = aliasRows
@@ -638,6 +638,13 @@ export const listCustomerAliasesPage = queryWithOrg({
       customerId,
     );
     if (!customer) return null;
+
+    const grants = await grantedPermissionsAmong(ctx, [
+      NAVIGATION_PERMISSION.storageLayouts,
+    ]);
+    if (!grants.includes(NAVIGATION_PERMISSION.storageLayouts)) {
+      return { items: [], isDone: true, continueCursor: "" };
+    }
 
     const page = await ctx.tenantDb
       .byIndex<Doc<"customerAliases">>(
