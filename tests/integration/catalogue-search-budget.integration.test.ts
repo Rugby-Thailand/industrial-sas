@@ -1,5 +1,7 @@
+import type { Id } from "../../convex/_generated/dataModel";
 import type { GenericMutationCtx } from "convex/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { getDocumentSize } from "convex/values";
 import * as catalogue from "../../convex/finishedGoods/catalogue";
 import { prepare } from "../../convex/finishedGoods/summaryMaintenance";
 import type { DataModel } from "../../convex/schema";
@@ -12,9 +14,8 @@ import { newFilters } from "../../src/features/finishedGoods/catalogueFilters";
 import { measured } from "../fixtures/query-read-stats";
 
 /**
- * Product-tab search evaluates many products per request: small products are
- * read completely by a bounded unit probe, and only products with more raw unit
- * rows than one page continue through the single native page a query may use.
+ * Product search uses native pages for products and bounded descending index
+ * reads for unit text. Each continuation carries its position and text tail.
  * Each case compares against a reference that joins every product's live unit
  * text in index order, which is the search's defined substring semantics.
  */
@@ -51,13 +52,13 @@ type ProductSpec = {
   linkCustomer?: boolean;
 };
 type RequestReads = {
+  unitBytes: number;
   paginate: number;
   takes: Array<{ table: string; limit: number }>;
   docs: Record<string, number>;
 };
 
-/** Raw unit rows one request may read: probe budget plus one native page. */
-const MAX_UNIT_DOCS_PER_REQUEST = 10 * 51 + 50;
+const MAX_UNIT_DOCS_PER_REQUEST = 510;
 
 /** Products are listed newest first; units are listed in index (desc) order. */
 async function seed(
@@ -84,7 +85,7 @@ async function seed(
           updatedByUserId: world.userA,
         })
       : undefined;
-    const ids: string[] = [];
+    const ids: Id<"finishedGoodsProducts">[] = [];
     for (let i = products.length - 1; i >= 0; i--) {
       const spec = products[i]!;
       const updatedAt = spec.updatedAt ?? products.length - i;
@@ -191,13 +192,21 @@ async function request(
   args: unknown,
   nativePage?: (table: string, options: unknown) => unknown,
 ) {
-  const reads: RequestReads = { paginate: 0, takes: [], docs: {} };
+  const reads: RequestReads = {
+    unitBytes: 0,
+    paginate: 0,
+    takes: [],
+    docs: {},
+  };
   const count = (table: string, value: unknown) => {
     const docs = Array.isArray(value)
       ? value.length
       : value && typeof value === "object" && "page" in value
         ? (value as { page: unknown[] }).page.length
         : 0;
+    if (table === "finishedGoodsPallets" && Array.isArray(value)) {
+      for (const unit of value) reads.unitBytes += getDocumentSize(unit);
+    }
     reads.docs[table] = (reads.docs[table] ?? 0) + docs;
     return value;
   };
@@ -302,7 +311,7 @@ function expectBoundedRequests(log: RequestReads[]) {
     expect(
       reads.takes
         .filter((take) => take.table === "finishedGoodsPallets")
-        .every((take) => take.limit <= 51),
+        .every((take) => take.limit <= 8),
     ).toBe(true);
     expect(reads.docs.finishedGoodsPallets ?? 0).toBeLessThanOrEqual(
       MAX_UNIT_DOCS_PER_REQUEST,
@@ -414,11 +423,10 @@ describe("product search batches bounded unit probes", () => {
         units: units(70, { ...retiredPrefix, 65: { lot: "late-needle" } }),
       },
       ...filler(25, 3),
-      // Exactly one page: the probe proves exhaustion.
+      // Exercise both sides of the former 50-unit boundary.
       { name: "Fifty", units: units(50, { 49: { lot: "late-needle" } }) },
-      // One raw row over a page; the probe's extra row holds the match.
       { name: "Fifty one", units: units(51, { 50: { lot: "late-needle" } }) },
-      // Third native page, and only after a large non-matching product.
+      // A late match follows a large non-matching product.
       { name: "Large miss", units: units(51) },
       {
         name: "Hundred one",
@@ -449,18 +457,17 @@ describe("product search batches bounded unit probes", () => {
     expectBoundedRequests(ghost.log);
   });
 
-  it("matches substrings that cross name, unit, retired-row and native-page boundaries", async () => {
+  it("matches substrings that cross name, unit, retired-row and request boundaries", async () => {
     const { world, ids } = await seed([
-      // Crosses native unit pages 2 and 3 (raw rows 100 and 101), so the
-      // text tail must survive a request boundary.
+      // A request can consume 63 complete eight-row slices before yielding.
       {
         name: "Page boundary",
-        units: units(120, {
-          99: { lot: "tail-end" },
-          100: { code: "head-start" },
+        units: units(512, {
+          503: { lot: "tail-end" },
+          504: { code: "head-start" },
         }),
       },
-      // Crosses raw rows 50 and 51: inside the probe's extra row.
+      // A match at the former 50-row boundary.
       {
         name: "Probe edge",
         units: units(60, {
@@ -497,7 +504,7 @@ describe("product search batches bounded unit probes", () => {
     expectBoundedRequests(crossing.log);
     const retiredText = await traverse(world, "head-hidden");
     expect(retiredText.rows).toEqual([]);
-  });
+  }, 30_000);
 
   it("keeps direct and descendant matches in source order across full pages", async () => {
     const products: ProductSpec[] = Array.from({ length: 70 }, (_, i) => {
@@ -620,7 +627,7 @@ describe("product search batches bounded unit probes", () => {
       expect(log.length).toBeLessThanOrEqual(maxCalls);
       expect(totalUnitDocs).toBeLessThanOrEqual(maxTotalUnitDocs);
     },
-    30_000,
+    120_000,
   );
 
   it("matches Thai text, equal timestamps, cancelled/replaced units, and deep boundary crossings against reference", async () => {
@@ -712,6 +719,59 @@ describe("product search batches bounded unit probes", () => {
     expect((await traverse(world, "ghost-status-needle")).rows).toEqual([]);
   });
 
+  it("finishes a late match when imported units share both index timestamps", async () => {
+    // At this timestamp the in-memory backend's fractional clock increment rounds
+    // back to the same value. This models creation times preserved by an import.
+    const clock = vi.spyOn(Date, "now").mockReturnValue(2 ** 44);
+    try {
+      const { world, ids } = await seed([
+        {
+          name: "Imported",
+          units: Array.from({ length: 130 }, (_, i) => ({
+            code: "IMPORTED-" + i,
+            updatedAt: 10,
+          })),
+        },
+      ]);
+      const inOrder = await world.t.run((ctx) =>
+        ctx.db
+          .query("finishedGoodsPallets")
+          .withIndex("by_orgId_warehouseId_productId_updatedAt", (q) =>
+            q
+              .eq("orgId", world.orgA)
+              .eq("warehouseId", world.warehouses.alphaA)
+              .eq("productId", ids[0]!),
+          )
+          .order("desc")
+          .collect(),
+      );
+      expect(new Set(inOrder.map((unit) => unit._creationTime)).size).toBe(1);
+      const needle = inOrder.at(-1)!.code + " plain";
+      expect((await traverse(world, needle)).rows).toEqual([ids[0]]);
+      expect((await traverse(world, "no imported lot matches")).rows).toEqual(
+        [],
+      );
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("yields between large lots before reaching the transaction byte limit", async () => {
+    const lot = "ก".repeat(32_768);
+    const { world, ids } = await seed([
+      {
+        name: "Large lots",
+        units: Array.from({ length: 180 }, (_, i) => ({
+          lot: i === 179 ? lot + "deep-size-match" : lot,
+        })),
+      },
+    ]);
+    const result = await traverse(world, "deep-size-match");
+    expect(result.rows).toEqual([ids[0]]);
+    expect(result.log.length).toBeGreaterThan(1);
+    for (const reads of result.log)
+      expect(reads.unitBytes).toBeLessThan(9 * 1024 * 1024);
+  }, 30_000);
   it("preserves sorted search results across page sizes for large products", async () => {
     const products: ProductSpec[] = Array.from({ length: 26 }, (_, i) => ({
       name: `Sorted ${String(25 - i).padStart(2, "0")}`,
@@ -752,7 +812,7 @@ describe("product search batches bounded unit probes", () => {
       expect(seen).toHaveLength(expectedIds.length);
       expectBoundedRequests(log);
     }
-  });
+  }, 30_000);
 
   it("resets incompatible v2 cursors, malformed v3 cursors, cross-warehouse cursors, and concurrent product deletion cleanly", async () => {
     const products: ProductSpec[] = Array.from({ length: 45 }, (_, i) => ({
@@ -944,7 +1004,7 @@ describe("product search batches bounded unit probes", () => {
     expect(recovered.rows).toEqual(
       expected.filter((id) => id !== nextQueuedId),
     );
-  });
+  }, 30_000);
 
   it("enforces customer field visibility on large-product search results", async () => {
     const spec: ProductSpec[] = [

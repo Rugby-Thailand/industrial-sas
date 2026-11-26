@@ -973,6 +973,76 @@ describe("a checked index range", () => {
     });
   });
 
+  it("bounds ties by ID only after tenant, declared fields and creation time", async () => {
+    const world = await createConvexTenantWorld();
+    await world.t.run(async (ctx) => {
+      const warehouse = await ctx.db.get("warehouses", world.warehouses.alphaA);
+      expect(warehouse).not.toBeNull();
+      const code = { field: "code", value: warehouse!.code };
+      const time = { field: "_creationTime", value: warehouse!._creationTime };
+      const bound = { value: world.warehouses.alphaA, inclusive: true };
+      const exact = { field: "_id", lower: bound, upper: bound };
+      const db = access(world, ctx);
+      expect(
+        await db.byIndex(TABLE, BY_CODE, [code, time], exact).take(5),
+      ).toEqual([warehouse]);
+      expect(
+        await db
+          .byIndex(TABLE, BY_CODE, [code, time], {
+            field: "_id",
+            upper: { ...bound, inclusive: false },
+          })
+          .take(5, "desc"),
+      ).toEqual([]);
+
+      const cases = [
+        { terms: [code], range: exact },
+        { terms: [time], range: exact },
+        { terms: [code, { ...time, value: Infinity }], range: exact },
+        { terms: [code, time], range: undefined },
+        {
+          terms: [code, time],
+          range: { ...exact, lower: { ...bound, value: 0 } },
+        },
+      ];
+      const port = createMutationTenantStorage(ctx, REQUEST_ID);
+      for (const { terms, range } of cases) {
+        expect(
+          (
+            await denial(async () =>
+              db.byIndex(TABLE, BY_CODE, terms, range).take(1),
+            )
+          ).code,
+        ).toBe("INVALID_INDEX_QUERY");
+        expect(
+          (
+            await denial(async () =>
+              port.indexedBatch!(
+                TABLE,
+                BY_CODE,
+                [{ field: "orgId", value: world.orgA }, ...terms],
+                1,
+                range,
+              ),
+            )
+          ).code,
+        ).toBe("INVALID_INDEX_QUERY");
+      }
+      expect(
+        (
+          await denial(async () =>
+            db
+              .byIndex(TABLE, BY_CODE, [code, time], {
+                field: "_id",
+                upper: { value: world.orgB, inclusive: false },
+              })
+              .take(1),
+          )
+        ).code,
+      ).toBe("INVALID_INDEX_QUERY");
+    });
+  });
+
   it("matches an omitted optional field only through an explicit missing term", async () => {
     const world = await createConvexTenantWorld();
     const warehouseId = world.warehouses.alphaA;

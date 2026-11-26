@@ -3,7 +3,7 @@ import {
   signCatalogueCursor,
   verifyCatalogueCursor,
 } from "../lib/signedCatalogueCursor";
-import { compareValues, v } from "convex/values";
+import { getDocumentSize, v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import {
   queryWithOrg,
@@ -28,7 +28,13 @@ import {
   canReadCustomers,
   projectProductCustomerFields,
 } from "../customers/warehouseScope";
-import { TENANT_INDEX_TIEBREAKER, type TenantIndexPage } from "../lib/tenantDb";
+import {
+  TENANT_INDEX_ID_SUFFIX,
+  TENANT_INDEX_TIEBREAKER,
+  type TenantIndexPage,
+  type TenantIndexEquality,
+  type TenantIndexRange,
+} from "../lib/tenantDb";
 
 const READ = "masterData.storageLayout.read";
 const range = v.object({ min: v.string(), max: v.string() });
@@ -196,14 +202,12 @@ function unitFilter(unit: UnitRow): FilterRow {
     updatedAt: unit.updatedAt,
   };
 }
-/** Raw unit rows read by one bounded descending keyset slice of a product. */
-const SEARCH_UNIT_PAGE = 50;
-/** A bounded slice reads one extra raw row: fewer rows proves exhaustion. */
-const SEARCH_UNIT_PROBE = SEARCH_UNIT_PAGE + 1;
-/** Products in one native product chunk, and so the most pending products. */
+// Eight maximum-size Convex documents still leave room for the rest of the
+// query. Stop before starting another slice after reading 512 KiB of units.
+const SEARCH_UNIT_SLICE = 8;
+const SEARCH_UNIT_BYTE_BUDGET = 512 * 1024;
+const SEARCH_UNIT_ROW_BUDGET = 510;
 const SEARCH_PRODUCT_CHUNK = 20;
-/** Raw unit rows that bounded unit slices may read in one request (10 slices). */
-const SEARCH_PROBE_ROW_BUDGET = 10 * SEARCH_UNIT_PROBE;
 
 type UnitKeysetPosition = {
   /** Last consumed raw unit's `updatedAt`. */
@@ -226,27 +230,6 @@ function validUnitPosition(value: unknown): value is UnitKeysetPosition {
     pos.i.length > 0 &&
     pos.i.length <= 64
   );
-}
-
-/** Descending order of `by_orgId_warehouseId_productId_updatedAt` (with `_creationTime`, `_id` tie-breakers). */
-function compareUnitsDesc(
-  a: Doc<"finishedGoodsPallets">,
-  b: Doc<"finishedGoodsPallets">,
-) {
-  return (
-    compareValues(b.updatedAt, a.updatedAt) ||
-    compareValues(b._creationTime, a._creationTime) ||
-    compareValues(b._id, a._id)
-  );
-}
-
-/** True when `row` (at the same `updatedAt`) is strictly after `pos` in descending index order. */
-function afterDescUnitPosition(
-  row: Doc<"finishedGoodsPallets">,
-  pos: UnitKeysetPosition,
-) {
-  if (row._creationTime !== pos.t) return row._creationTime < pos.t;
-  return compareValues(row._id, pos.i) < 0;
 }
 
 /** Search products and their unit text without loading every unit.
@@ -310,71 +293,68 @@ async function readSearchedProducts(
   const trimTail = (text: string) =>
     needle.length > 1 ? text.slice(-(needle.length - 1)) : "";
 
-  /** Read up to `sliceLimit` raw units in descending index order strictly after `after`. */
+  // A compound cursor splits the remaining index into three disjoint ranges.
+  // Read each in the database's descending order, including imported ID ties.
   const readUnitSlice = async (
     productId: string,
     after: UnitKeysetPosition | undefined,
-    sliceLimit: number,
-  ): Promise<{
-    rows: Doc<"finishedGoodsPallets">[];
-    full: boolean;
-    read: number;
-  }> => {
-    const baseEquality = [
+  ) => {
+    const prefix = [
       { field: "warehouseId", value: warehouseId },
       { field: "productId", value: productId },
-    ] as const;
-    if (!after) {
-      const rows = [
-        ...(await ctx.tenantDb
-          .byIndex<Doc<"finishedGoodsPallets">>(
-            "finishedGoodsPallets",
-            "by_orgId_warehouseId_productId_updatedAt",
-            baseEquality,
-          )
-          .take(sliceLimit, "desc")),
-      ].sort(compareUnitsDesc);
-      return { rows, full: rows.length >= sliceLimit, read: rows.length };
-    }
-    // Include rows at `updatedAt === after.u` with `_creationTime <= after.t`
-    // so equal `updatedAt` and exact `_creationTime` ties are neither skipped
-    // nor repeated, then continue strictly below `after.u`.
-    const sameRaw = await ctx.tenantDb
-      .byIndex<Doc<"finishedGoodsPallets">>(
-        "finishedGoodsPallets",
-        "by_orgId_warehouseId_productId_updatedAt",
-        [...baseEquality, { field: "updatedAt", value: after.u }],
-        {
-          field: TENANT_INDEX_TIEBREAKER,
-          upper: { value: after.t, inclusive: true },
-        },
-      )
-      .take(sliceLimit, "desc");
-    const same = [...sameRaw]
-      .sort(compareUnitsDesc)
-      .filter((row) => afterDescUnitPosition(row, after));
-    if (sameRaw.length >= sliceLimit) {
-      return { rows: same, full: true, read: sameRaw.length };
-    }
-    const remaining = sliceLimit - sameRaw.length;
-    const older = [
-      ...(await ctx.tenantDb
+    ];
+    const take = (
+      terms: TenantIndexEquality,
+      count: number,
+      range?: TenantIndexRange,
+    ) =>
+      ctx.tenantDb
         .byIndex<Doc<"finishedGoodsPallets">>(
           "finishedGoodsPallets",
           "by_orgId_warehouseId_productId_updatedAt",
-          baseEquality,
-          {
-            field: "updatedAt",
-            upper: { value: after.u, inclusive: false },
-          },
+          terms,
+          range,
         )
-        .take(remaining, "desc")),
-    ].sort(compareUnitsDesc);
-    return {
-      rows: [...same, ...older],
-      full: older.length >= remaining,
-      read: sameRaw.length + older.length,
-    };
+        .take(count, "desc");
+    if (!after) return take(prefix, SEARCH_UNIT_SLICE);
+    const updated = [...prefix, { field: "updatedAt", value: after.u }];
+    const created = [
+      ...updated,
+      { field: TENANT_INDEX_TIEBREAKER, value: after.t },
+    ];
+    const below = (
+      field: string,
+      value: number | string,
+    ): TenantIndexRange => ({
+      field,
+      upper: { value, inclusive: false },
+    });
+    const rows = [
+      ...(await take(
+        created,
+        SEARCH_UNIT_SLICE,
+        below(TENANT_INDEX_ID_SUFFIX, after.i),
+      )),
+    ];
+    if (rows.length < SEARCH_UNIT_SLICE) {
+      rows.push(
+        ...(await take(
+          updated,
+          SEARCH_UNIT_SLICE - rows.length,
+          below(TENANT_INDEX_TIEBREAKER, after.t),
+        )),
+      );
+    }
+    if (rows.length < SEARCH_UNIT_SLICE) {
+      rows.push(
+        ...(await take(
+          prefix,
+          SEARCH_UNIT_SLICE - rows.length,
+          below("updatedAt", after.u),
+        )),
+      );
+    }
+    return rows;
   };
 
   /** Stream live unit text after `initialTail`; returns the trimmed tail or a match. */
@@ -405,6 +385,7 @@ async function readSearchedProducts(
   let tail: string | undefined = state.tail;
   let nativeUsed = false;
   let unitRows = 0;
+  let unitBytes = 0;
   while (output.length < limit) {
     if (!queue.length) {
       if (productsDone || nativeUsed) break;
@@ -451,27 +432,22 @@ async function readSearchedProducts(
     }
     let suspended = false;
     while (!found) {
-      // Reserve a full slice so this request's unit reads stay bounded.
       if (
-        unitRows > 0 &&
-        unitRows + SEARCH_UNIT_PROBE > SEARCH_PROBE_ROW_BUDGET
+        unitRows + SEARCH_UNIT_SLICE > SEARCH_UNIT_ROW_BUDGET ||
+        unitBytes >= SEARCH_UNIT_BYTE_BUDGET
       ) {
         suspended = true;
         break;
       }
-      const slice = await readUnitSlice(
-        product._id,
-        unitPos,
-        SEARCH_UNIT_PROBE,
-      );
-      unitRows += slice.read;
-      const scanned = scanUnits(currentTail, slice.rows);
+      const rows = await readUnitSlice(product._id, unitPos);
+      unitRows += rows.length;
+      for (const unit of rows) unitBytes += getDocumentSize(unit);
+      const scanned = scanUnits(currentTail, rows);
       found = scanned.found;
       currentTail = scanned.tail;
       if (found) break;
-      if (!slice.full) break;
-      const last = slice.rows.at(-1);
-      if (!last) throw new Error("CATALOGUE_READ_CAPACITY_EXCEEDED");
+      if (rows.length < SEARCH_UNIT_SLICE) break;
+      const last = rows[rows.length - 1]!;
       unitPos = {
         u: last.updatedAt,
         t: last._creationTime,
