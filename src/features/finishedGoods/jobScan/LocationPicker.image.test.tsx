@@ -232,7 +232,7 @@ it.each([
       expect(within(qr).getByText("F2-L28-1")).toBeVisible();
       expect(activeTracks.size).toBe(0);
     };
-    fireEvent.click(screen.getByRole("button", { name: action, exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: action }));
     const close = await screen.findByRole("button", { name: "Close Photo AI" });
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     await waitFor(() => expect(activeTracks.size).toBe(cameraActive ? 1 : 0));

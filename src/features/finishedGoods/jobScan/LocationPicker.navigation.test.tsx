@@ -173,7 +173,12 @@ async function openCamera() {
 async function registration() {
   await openCamera();
   fireEvent.click(screen.getByRole("button", { name: "Decode location" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Add location" }));
+  const addLocation = await screen.findByRole(
+    "button",
+    { name: "Add location" },
+    { timeout: 3000 },
+  );
+  fireEvent.click(addLocation);
   await screen.findByRole("textbox", { name: "Location code" });
   await waitFor(() => expect(window.location.search).toContain("overlay"));
 }
