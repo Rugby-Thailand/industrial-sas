@@ -163,6 +163,14 @@ describe("job-scan AI search and edit actions", () => {
       "Widget and create another scan",
     ],
     ["แก้ชื่อสินค้าเป็น กล่อง แล้วสร้างใบงานใหม่", "กล่อง แล้วสร้างใบงานใหม่"],
+    [
+      "Change product name to Blue Box and also create a new job",
+      "Blue Box and also create a new job",
+    ],
+    [
+      "แก้ชื่อสินค้าเป็น กล่อง แล้วก็ช่วยสร้างใบงานใหม่",
+      "กล่อง แล้วก็ช่วยสร้างใบงานใหม่",
+    ],
   ])(
     "returns manual edit when the model copies an unsupported clause in %s",
     async (prompt, partName) => {
@@ -247,6 +255,14 @@ describe("job-scan AI search and edit actions", () => {
     ],
     ["หาชื่อสินค้า Widget และย้ายใบงานไป A-01", "Widget และย้ายใบงานไป A-01"],
     ["หาชื่อสินค้า Widget และส่งออกผลลัพธ์", "Widget และส่งออกผลลัพธ์"],
+    [
+      "Find product name Blue Box and also move this job to A01",
+      "Blue Box and also move this job to A01",
+    ],
+    [
+      "หาชื่อสินค้า กล่อง และก็ช่วยย้ายใบงานไป A01",
+      "กล่อง และก็ช่วยย้ายใบงานไป A01",
+    ],
   ])(
     "returns manual search when the model absorbs an unsupported filter in %s",
     async (prompt, search) => {
@@ -265,6 +281,37 @@ describe("job-scan AI search and edit actions", () => {
         value: {
           ok: false,
           error: { code: "UNSUPPORTED", fallback: "MANUAL_SEARCH" },
+        },
+      });
+    },
+  );
+
+  it.each([
+    ["หาสินค้า Outer 131", "Outer 131", undefined],
+    ["หาใบงานที่อยู่ ข้างเสา C12", "ข้างเสา C12", "location"],
+    ["หาใบงานที่อยู่ F2-L12-1", "F2-L12-1", "location"],
+  ])(
+    "accepts the Thai prototype search %s",
+    async (prompt, search, searchField) => {
+      const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
+      transport.mockResolvedValueOnce(
+        openRouterOk(JSON.stringify(searchPayload({ search }))),
+      );
+      const result = await world.t
+        .withIdentity(PUBLIC_API_ACTOR)
+        .action(api.finishedGoods.jobScans.interpretJobScanSearch, {
+          warehouseId: world.warehouses.alphaA,
+          prompt,
+        });
+      expect(result).toMatchObject({
+        ok: true,
+        value: {
+          ok: true,
+          value: {
+            filter: "ALL",
+            search,
+            ...(searchField ? { searchField } : {}),
+          },
         },
       });
     },
@@ -1362,11 +1409,14 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
     const fixture = await seedListFixture();
     const { world, ids } = fixture;
     const search = "F2-L12-1";
+    const savedLabel = "ข้างเสา C12";
     await world.t.run(async (ctx) => {
       await ctx.db.patch(ids.exactFoPalletF2, { locationCode: search });
       await ctx.db.patch(ids.prefixFoPalletF2, { partName: search });
       await ctx.db.patch(ids.southPalletF2, { productBarcodeText: search });
       await ctx.db.patch(ids.legacyZoneOnlyPalletF2, { locationText: search });
+      await ctx.db.patch(ids.unmappedBoxShort, { locationText: savedLabel });
+      await ctx.db.patch(ids.unmappedBoxShortPrefix, { partName: savedLabel });
     });
     await buildIndex(fixture);
     for (const ready of [true, false]) {
@@ -1381,6 +1431,13 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
       expect(
         await listAll(fixture, { ...args, searchField: "location" }),
       ).toEqual([ids.exactFoPalletF2]);
+      expect(
+        await listAll(fixture, {
+          ...args,
+          search: savedLabel,
+          searchField: "location",
+        }),
+      ).toEqual([ids.unmappedBoxShort]);
       expect(await listAll(fixture, { ...args, exactCode: true })).toEqual([
         ids.southPalletF2,
         ids.exactFoPalletF2,
