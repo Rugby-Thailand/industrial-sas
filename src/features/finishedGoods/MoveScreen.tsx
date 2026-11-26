@@ -388,6 +388,16 @@ function ActiveMove({
     `${actorScope}:move-command`,
   );
   const base = { warehouseId, palletId: detail.pallet._id, moveId: move._id };
+  function changeScanMode(enabled: boolean) {
+    setScanMode(enabled);
+    setPhysicalConfirmed(false);
+    op.setError("");
+  }
+  function changeReturnScanMode(enabled: boolean) {
+    setReturnScanMode(enabled);
+    setReturnAcknowledged(false);
+    op.setError("");
+  }
   async function command(
     kind: "start" | "complete" | "cancel" | "return" | "issue",
   ) {
@@ -518,6 +528,23 @@ function ActiveMove({
     op.setError("");
     setIdentified({ code: code.trim(), method });
   }
+  const enableScanMode = () => {
+    if (!scanMode) changeScanMode(true);
+  };
+  const alternateScanAction = (
+    <Button
+      type="button"
+      variant="outline"
+      className="min-h-12 w-full whitespace-normal"
+      aria-expanded={scanMode}
+      disabled={op.busy}
+      onClick={() => changeScanMode(!scanMode)}
+    >
+      {scanMode
+        ? t("copy.use-checkbox-instead")
+        : t("copy.enter-code-optional")}
+    </Button>
+  );
   return (
     <PageContainer actionInset="responsive">
       <Heading
@@ -620,6 +647,54 @@ function ActiveMove({
                 : t("copy.pick-up-this-pallet")}
             </h2>
             {inTransit ? (
+              <DestinationScanner
+                storageFormat={
+                  detail.pallet.storageFormat ?? detail.product?.storageFormat
+                }
+                cameraLabel={t("copy.scan-qr-optional")}
+                alternateAction={alternateScanAction}
+                showManualEntry={scanMode}
+                onCameraOpen={enableScanMode}
+                onCode={verify}
+                busy={op.busy}
+                verified={move.destinationVerifiedForCurrentUser}
+                expectedLocation={
+                  move.targetDestination?.supportPalletId
+                    ? (move.targetDestination.supportCode ?? "")
+                    : (move.targetDestination?.locationName ?? "")
+                }
+                expectedCode={
+                  move.targetDestination?.supportPalletId
+                    ? move.targetDestination.supportCode
+                    : move.targetDestination?.locationCode
+                }
+                purpose={
+                  move.targetDestination?.supportPalletId
+                    ? "SUPPORT"
+                    : "DESTINATION"
+                }
+                showVerificationErrors={false}
+                verificationError={op.error}
+              />
+            ) : (
+              <DestinationScanner
+                storageFormat={
+                  detail.pallet.storageFormat ?? detail.product?.storageFormat
+                }
+                cameraLabel={t("copy.scan-qr-optional")}
+                alternateAction={alternateScanAction}
+                showManualEntry={scanMode}
+                onCameraOpen={enableScanMode}
+                onCode={identify}
+                busy={op.busy}
+                verified={!!identified}
+                expectedLocation={detail.pallet.code}
+                showVerificationErrors={false}
+                verificationError={op.error}
+                purpose="PALLET"
+              />
+            )}
+            {inTransit ? (
               move.targetDestination &&
               move.targetPlacement &&
               move.targetPlacement.mode !== "LOCATION_ONLY" ? (
@@ -679,69 +754,6 @@ function ActiveMove({
                   : t("copy.tick-after-pickup-both-spaces-stay-reserved")}
               </p>
             </StickyActionBar>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full bg-transparent"
-              aria-expanded={scanMode}
-              disabled={op.busy}
-              onClick={() => {
-                setScanMode(!scanMode);
-                setPhysicalConfirmed(false);
-                op.setError("");
-              }}
-            >
-              {scanMode
-                ? t("copy.use-checkbox-instead")
-                : t("copy.scan-qr-optional")}
-            </Button>
-            {scanMode && (
-              <div>
-                {inTransit ? (
-                  <DestinationScanner
-                    storageFormat={
-                      detail.pallet.storageFormat ??
-                      detail.product?.storageFormat
-                    }
-                    onCode={verify}
-                    busy={op.busy}
-                    verified={move.destinationVerifiedForCurrentUser}
-                    expectedLocation={
-                      move.targetDestination?.supportPalletId
-                        ? (move.targetDestination.supportCode ?? "")
-                        : (move.targetDestination?.locationName ?? "")
-                    }
-                    expectedCode={
-                      move.targetDestination?.supportPalletId
-                        ? move.targetDestination.supportCode
-                        : move.targetDestination?.locationCode
-                    }
-                    purpose={
-                      move.targetDestination?.supportPalletId
-                        ? "SUPPORT"
-                        : "DESTINATION"
-                    }
-                    showVerificationErrors={false}
-                    verificationError={op.error}
-                  />
-                ) : (
-                  <DestinationScanner
-                    storageFormat={
-                      detail.pallet.storageFormat ??
-                      detail.product?.storageFormat
-                    }
-                    onCode={identify}
-                    busy={op.busy}
-                    verified={!!identified}
-                    expectedLocation={detail.pallet.code}
-                    showVerificationErrors={false}
-                    verificationError={op.error}
-                    purpose="PALLET"
-                  />
-                )}
-              </div>
-            )}
           </Panel>
         ) : null}
       </div>
@@ -830,79 +842,73 @@ function ActiveMove({
                   placement={move.sourcePlacement}
                 />
               ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={op.busy}
-                aria-expanded={returnScanMode}
-                onClick={() => {
-                  setReturnScanMode(!returnScanMode);
-                  setReturnAcknowledged(false);
-                  op.setError("");
+              <DestinationScanner
+                storageFormat={
+                  detail.pallet.storageFormat ?? detail.product?.storageFormat
+                }
+                purpose={
+                  move.sourceDestination?.supportPalletId ? "SUPPORT" : "SOURCE"
+                }
+                expectedLocation={
+                  move.sourceDestination?.supportPalletId
+                    ? (move.sourceDestination.supportCode ?? "")
+                    : (move.sourceDestination?.locationName ?? "")
+                }
+                expectedCode={
+                  move.sourceDestination?.supportPalletId
+                    ? move.sourceDestination.supportCode
+                    : move.sourceDestination?.locationCode
+                }
+                cameraLabel={t("copy.scan-source-qr-optional")}
+                alternateAction={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12 w-full whitespace-normal"
+                    disabled={op.busy}
+                    aria-expanded={returnScanMode}
+                    onClick={() => changeReturnScanMode(!returnScanMode)}
+                  >
+                    {returnScanMode
+                      ? t("copy.use-checkbox-instead")
+                      : t("copy.enter-code-optional")}
+                  </Button>
+                }
+                showManualEntry={returnScanMode}
+                onCameraOpen={() => {
+                  if (!returnScanMode) changeReturnScanMode(true);
                 }}
-              >
-                {returnScanMode
-                  ? t("copy.use-checkbox-instead")
-                  : t("copy.scan-source-qr-optional")}
-              </Button>
-              {returnScanMode && (
-                <div>
-                  <DestinationScanner
-                    storageFormat={
-                      detail.pallet.storageFormat ??
-                      detail.product?.storageFormat
-                    }
-                    purpose={
-                      move.sourceDestination?.supportPalletId
-                        ? "SUPPORT"
-                        : "SOURCE"
-                    }
-                    expectedLocation={
-                      move.sourceDestination?.supportPalletId
-                        ? (move.sourceDestination.supportCode ?? "")
-                        : (move.sourceDestination?.locationName ?? "")
-                    }
-                    expectedCode={
-                      move.sourceDestination?.supportPalletId
-                        ? move.sourceDestination.supportCode
-                        : move.sourceDestination?.locationCode
-                    }
-                    busy={op.busy}
-                    verified={!!returnCode}
-                    showVerificationErrors={false}
-                    verificationError={op.error}
-                    onCode={async (code, method) => {
-                      const accepted = move.sourceDestination?.supportPalletId
-                        ? [
-                            move.sourceDestination.supportCode,
-                            `ISAS:PALLET:1:${move.sourceDestination.supportPalletId}`,
-                          ]
-                        : [
-                            move.sourceDestination?.locationQrValue,
-                            move.sourceDestination?.locationCode,
-                            move.sourcePlacement?.qrValue,
-                            move.sourcePlacement?.positionCode,
-                          ];
-                      if (
-                        !accepted.some(
-                          (c) =>
-                            c === code ||
-                            (method === "MANUAL" &&
-                              c?.toUpperCase() === code.trim().toUpperCase()),
-                        )
-                      ) {
-                        op.setError(
-                          t("copy.this-code-does-not-match-the-source"),
-                        );
-                        throw new Error("SOURCE_MISMATCH");
-                      }
-                      op.setError("");
-                      setReturnCode({ code, method });
-                    }}
-                  />
-                </div>
-              )}
+                busy={op.busy}
+                verified={!!returnCode}
+                showVerificationErrors={false}
+                verificationError={op.error}
+                onCode={async (code, method) => {
+                  const accepted = move.sourceDestination?.supportPalletId
+                    ? [
+                        move.sourceDestination.supportCode,
+                        `ISAS:PALLET:1:${move.sourceDestination.supportPalletId}`,
+                      ]
+                    : [
+                        move.sourceDestination?.locationQrValue,
+                        move.sourceDestination?.locationCode,
+                        move.sourcePlacement?.qrValue,
+                        move.sourcePlacement?.positionCode,
+                      ];
+                  if (
+                    !accepted.some(
+                      (c) =>
+                        c === code ||
+                        (method === "MANUAL" &&
+                          c?.toUpperCase() === code.trim().toUpperCase()),
+                    )
+                  ) {
+                    op.setError(t("copy.this-code-does-not-match-the-source"));
+                    throw new Error("SOURCE_MISMATCH");
+                  }
+                  op.setError("");
+                  setReturnCode({ code, method });
+                }}
+              />
               <Acknowledgement
                 checked={returnAcknowledged}
                 onChange={setReturnAcknowledged}

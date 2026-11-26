@@ -226,6 +226,20 @@ describe("DestinationScanner", () => {
     await waitFor(() => expect(onCode).toHaveBeenCalledTimes(2));
   });
 
+  it("explains why an already verified destination cannot be scanned when manual entry is collapsed", () => {
+    renderIntl(
+      <DestinationScanner
+        onCode={vi.fn()}
+        expectedLocation="FG-1"
+        verified
+        showManualEntry={false}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Start camera" })).toBeDisabled();
+    expect(screen.getByText("Destination verified")).toBeVisible();
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
   it("stops active camera on verified state and does not offer storage confirmation", async () => {
     const stop = vi.fn();
     const onCode = vi.fn();

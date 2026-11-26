@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   decode: vi.fn<(...args: unknown[]) => Promise<string[]>>(),
   stop: vi.fn(),
   start: vi.fn(),
+  state: "UNAVAILABLE",
 }));
 vi.mock("./barcodeImage", async (original) => ({
   ...(await original<typeof BarcodeImage>()),
@@ -23,7 +24,7 @@ vi.mock("./barcodeImage", async (original) => ({
 vi.mock("./useBarcodeCamera", () => ({
   useBarcodeCamera: () => ({
     videoRef: { current: null },
-    state: "UNAVAILABLE",
+    state: mocks.state,
     error: "UNAVAILABLE",
     torchAvailable: false,
     torchOn: false,
@@ -35,6 +36,7 @@ vi.mock("./useBarcodeCamera", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.state = "UNAVAILABLE";
   mocks.decode.mockReset().mockResolvedValue(["F2-L28-1"]);
   URL.createObjectURL = vi.fn(() => "blob:barcode-fixture");
   URL.revokeObjectURL = vi.fn();
@@ -102,6 +104,41 @@ it("pauses the camera without closing the location session and applies the image
   expect(onCode).toHaveBeenCalledOnce();
   expect(mocks.stop).toHaveBeenCalled();
   expect(onClose).not.toHaveBeenCalled();
+});
+
+it("returns directly to the live camera when scanning again after image review", async () => {
+  const onStart = vi.fn();
+  const { onCode, onClose } = setup({ onStart });
+  select();
+  fireEvent.click(await screen.findByRole("button", { name: "Scan again" }));
+  expect(onStart).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("button", { name: "Start camera" })).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Use scanned code(s)" }),
+  ).toBeNull();
+  expect(onCode).not.toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it("keeps the reviewed image until the previous camera startup has settled", async () => {
+  mocks.state = "STARTING";
+  const onStart = vi.fn();
+  const { rerender, onCode } = setup({ onStart });
+  select();
+  const again = await screen.findByRole("button", { name: "Scan again" });
+  expect(again).toBeDisabled();
+  fireEvent.click(again);
+  expect(
+    screen.getByRole("button", { name: "Use scanned code(s)" }),
+  ).toBeEnabled();
+  expect(onStart).not.toHaveBeenCalled();
+  mocks.state = "OFF";
+  rerender(
+    <BarcodeCameraBox mode="LOCATION" onCode={onCode} onStart={onStart} />,
+  );
+  fireEvent.click(again);
+  expect(onStart).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("button", { name: "Start camera" })).toBeNull();
 });
 
 it("cancels a pending image before switching back to the camera", async () => {

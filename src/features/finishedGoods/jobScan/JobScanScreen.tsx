@@ -364,7 +364,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     undoneCodes.current.clear();
     setTickets(next.tickets);
     setLastWrite(describeIntake(current, next.tickets, next.written));
-    setFeedback(t("barcodeAdded", { field: t(field), code: value }));
+    setFeedback(undefined);
   }
 
   function undoLastScan() {
@@ -820,7 +820,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                 onCode={onBarcode}
                 closeControl={false}
                 presentation="fullscreen"
-                feedback={feedback}
+                feedback={feedback ?? (lastWrite ? "" : undefined)}
                 progress={
                   <ScanProgress
                     tickets={tickets}
@@ -829,7 +829,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                   />
                 }
                 actions={
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <>
                     <Button
                       type="button"
                       variant="outline"
@@ -842,9 +842,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                       {t("photoAi")}
                     </Button>
                     <DialogClose asChild>
-                      <Button type="button">{t("cameraDone")}</Button>
+                      <Button type="button" className="ml-auto">
+                        {t("cameraDone")}
+                      </Button>
                     </DialogClose>
-                  </div>
+                  </>
                 }
               />
             )}

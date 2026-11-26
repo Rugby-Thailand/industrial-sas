@@ -344,6 +344,35 @@ test("image controls fit narrow screens in both languages and themes", async ({
   }
 });
 
+test("Scan again resumes one live camera from a reviewed image without accepting its code", async ({
+  page,
+}) => {
+  await installCamera(page);
+  await page.getByRole("button", { name: "Scan code", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByText("Point the camera at a barcode or QR code."),
+  ).toBeVisible();
+  await choose(page, ["F2-L28-18"], true);
+  const again = dialog.getByRole("button", { name: "Scan again" });
+  await expect(again).toBeEnabled();
+  expect(await activeCameraTracks(page)).toBe(0);
+  await again.click();
+  await expect(
+    dialog.getByText("Point the camera at a barcode or QR code."),
+  ).toBeVisible();
+  expect(await activeCameraTracks(page)).toBe(1);
+  await expect(
+    dialog.getByRole("button", { name: "Use scanned code(s)" }),
+  ).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => activeCameraTracks(page)).toBe(0);
+  await expect(
+    page.getByRole("heading", { name: "Where are we?" }),
+  ).toBeVisible();
+});
+
 test("the location camera fills the viewport through rotation and Back releases its live track", async ({
   page,
 }) => {

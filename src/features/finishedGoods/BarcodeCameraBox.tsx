@@ -52,6 +52,7 @@ export function BarcodeCameraBox({
   onClose?: () => void;
   /** An explicit Start or Retry attempt, after disabled/startup gates pass. */
   onStart?: () => void;
+  /** An empty status leaves the dock to the caller’s progress announcement. */
   feedback?: string | undefined;
   videoLabel?: string;
   startOnMount?: boolean;
@@ -116,6 +117,8 @@ export function BarcodeCameraBox({
     if (camera) start();
     else setCamera(true);
   }
+  const status =
+    feedback ?? (camera && state === "ACTIVE" ? t("pointCamera") : undefined);
   return (
     <div className={fullscreen ? fullscreenCameraLayoutClass : "space-y-3"}>
       <CameraFrame
@@ -182,9 +185,9 @@ export function BarcodeCameraBox({
                     : "cameraError",
             )}
           />
-        ) : feedback || (camera && state === "ACTIVE") ? (
+        ) : status ? (
           <p role="status" aria-live="polite" className="min-h-5 text-sm">
-            {feedback ?? t("pointCamera")}
+            {status}
           </p>
         ) : null}
         {camera && retry && (
@@ -210,12 +213,16 @@ export function BarcodeCameraBox({
             {t("startCamera")}
           </Button>
         )}
+        {progress}
         <BarcodeImagePicker
           key={`${imageSession}:${imageTarget}:${disabled}`}
           target={imageTarget}
           initialReview={initialImageReview}
           onReviewChange={onImageReviewChange}
           compact={presentation === "expanded"}
+          liveView={fullscreen && camera && !retry}
+          actions={actions}
+          onScanAgain={scanDisabled ? undefined : open}
           onReadWithAi={
             onReadWithAi
               ? (file, crop) => {
@@ -242,8 +249,6 @@ export function BarcodeCameraBox({
             else for (const code of codes) onCode(code);
           }}
         />
-        {progress}
-        {actions}
         {children?.({ stopCamera: close })}
       </div>
     </div>

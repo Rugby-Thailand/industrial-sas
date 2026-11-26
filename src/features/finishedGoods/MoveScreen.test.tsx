@@ -188,7 +188,9 @@ beforeEach(() => {
 });
 function enterCode(label: string, value: string) {
   if (!screen.queryByRole("textbox", { name: label }))
-    fireEvent.click(screen.getByRole("button", { name: "Scan QR (optional)" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enter code (optional)" }),
+    );
   fireEvent.change(screen.getByRole("textbox", { name: label }), {
     target: { value },
   });
@@ -254,7 +256,9 @@ describe("stored pallet movement", () => {
     currentDetail = active("IN_TRANSIT");
     renderMove();
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.click(screen.getByRole("button", { name: "Scan QR (optional)" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enter code (optional)" }),
+    );
     expect(screen.getByRole("checkbox")).not.toBeChecked();
     fireEvent.click(screen.getByRole("checkbox"));
     expect(
@@ -566,10 +570,12 @@ describe("stored pallet movement", () => {
   it("requires the pallet QR for a camera read while still accepting the QR payload", async () => {
     currentDetail = active();
     renderMove();
-    fireEvent.click(screen.getByRole("button", { name: "Scan QR (optional)" }));
     const start = screen.getByRole("button", { name: "Start move" });
-    fireEvent.click(screen.getByRole("checkbox", { name: /Picked up/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
+    const pickup = screen.getByRole("checkbox", { name: /Picked up/ });
+    fireEvent.click(pickup);
+    expect(start).toBeEnabled();
+    expect(screen.queryByRole("textbox", { name: "Pallet code" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Scan QR (optional)" }));
     const camera = screen.getByRole("dialog", { name: "Scan Pallet code" });
     expect(within(camera).getByText(/P-001/)).toBeVisible();
     act(() => mocks.cameraCode!("P-001"));
@@ -591,6 +597,9 @@ describe("stored pallet movement", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
     await screen.findByText("Pallet identified");
+    expect(pickup).not.toBeChecked();
+    expect(start).toBeDisabled();
+    fireEvent.click(pickup);
     fireEvent.click(start);
     await waitFor(() => expect(callsFor("startMove")).toHaveLength(1));
     expect(callsFor("startMove")[0]?.[1]).toMatchObject({
@@ -630,6 +639,41 @@ describe("stored pallet movement", () => {
       physicalConfirmed: true,
     });
   });
+  it("opens the destination camera on the first tap and still requires physical placement", async () => {
+    currentDetail = active("IN_TRANSIT");
+    const view = renderMove();
+    const complete = screen.getByRole("button", {
+      name: "Confirm move complete",
+    });
+    expect(
+      screen.queryByRole("textbox", { name: "Destination code" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Scan QR (optional)" }));
+    const camera = await screen.findByRole("dialog", {
+      name: "Scan Destination code",
+    });
+    expect(within(camera).getByText(/Expected destination/)).toBeVisible();
+    act(() => mocks.cameraCode!(finishedGoodDestination.locationQrValue));
+    await waitFor(() => expect(camera).not.toBeInTheDocument());
+    expect(callsFor("verifyMoveDestination")[0]?.[1]).toMatchObject({
+      code: finishedGoodDestination.locationQrValue,
+      method: "SCAN",
+    });
+    currentDetail = {
+      ...currentDetail,
+      activeMove: {
+        ...currentDetail.activeMove!,
+        destinationVerifiedForCurrentUser: true,
+      },
+    };
+    view.refresh();
+    expect(complete).toBeDisabled();
+    expect(callsFor("completeMove")).toHaveLength(0);
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /shown position and orientation/ }),
+    );
+    expect(complete).toBeEnabled();
+  });
   it("blocks another operator from mutating a move", () => {
     currentDetail = active("IN_TRANSIT");
     currentDetail = {
@@ -645,6 +689,36 @@ describe("stored pallet movement", () => {
       screen.queryByRole("button", { name: "Return to source" }),
     ).not.toBeInTheDocument();
   });
+  it("opens the source camera on the first tap and closes back to the physical return", async () => {
+    currentDetail = active("IN_TRANSIT");
+    stopTracking = trackAppHistory();
+    renderMove();
+    fireEvent.click(screen.getByRole("button", { name: "Return to source" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).queryByRole("textbox", { name: "Source code" }),
+    ).toBeNull();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Scan source QR (optional)" }),
+    );
+    const camera = await screen.findByRole("dialog", {
+      name: "Scan Source code",
+    });
+    fireEvent.click(
+      within(camera).getByRole("button", { name: "Close camera" }),
+    );
+    await waitFor(() => expect(camera).not.toBeInTheDocument());
+    expect(dialog).toBeVisible();
+    expect(
+      within(dialog).getByRole("textbox", { name: "Source code" }),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Confirm returned" }),
+    ).toBeDisabled();
+    await traverse("back");
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(callsFor("returnMove")).toHaveLength(0);
+  });
   it("offers a verified physical return, never cancel after pickup", async () => {
     currentDetail = active("IN_TRANSIT");
     stopTracking = trackAppHistory();
@@ -659,7 +733,7 @@ describe("stored pallet movement", () => {
     });
     expect(confirm).toBeDisabled();
     fireEvent.click(
-      within(dialog).getByRole("button", { name: "Scan source QR (optional)" }),
+      within(dialog).getByRole("button", { name: "Enter code (optional)" }),
     );
     fireEvent.change(
       within(dialog).getByRole("textbox", { name: "Source code" }),
@@ -667,7 +741,7 @@ describe("stored pallet movement", () => {
     );
     const sourceEntry = window.location.search;
     fireEvent.click(
-      within(dialog).getByRole("button", { name: "Start camera" }),
+      within(dialog).getByRole("button", { name: "Scan source QR (optional)" }),
     );
     const camera = await screen.findByRole("dialog", {
       name: "Scan Source code",
@@ -1098,10 +1172,12 @@ it("closes the move camera before leaving, restores it on Forward, and retains t
     "/en/finished-goods/pallets/pallet-a/move?kept=yes#position",
   );
   renderMove();
-  fireEvent.click(screen.getByRole("button", { name: "Scan QR (optional)" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Enter code (optional)" }),
+  );
   const manual = screen.getByRole("textbox", { name: "Pallet code" });
   fireEvent.change(manual, { target: { value: "P-001" } });
-  const opener = screen.getByRole("button", { name: "Start camera" });
+  const opener = screen.getByRole("button", { name: "Scan QR (optional)" });
   opener.focus();
   fireEvent.click(opener);
   await screen.findByRole("dialog", { name: "Scan Pallet code" });
