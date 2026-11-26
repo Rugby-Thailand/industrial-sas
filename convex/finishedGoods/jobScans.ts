@@ -1,9 +1,14 @@
 import { customerLinkArg } from "../customers/validators";
-import type { ImageProviderOutcome as JobTicketProviderOutcome } from "../lib/imageProvider";
+import type {
+  ImageProviderOutcome as JobTicketProviderOutcome,
+  ImageProviderPolicy,
+} from "../lib/imageProvider";
 import {
   imageProviderRequest,
   requestImageProvider as requestJobTicketProvider,
+  strictOpenRouterChatAdapter,
 } from "../lib/imageProvider";
+import { OPENROUTER_CHAT_URL } from "../lib/searchProvider";
 export {
   IMAGE_PROVIDER_POLICY as JOB_TICKET_PROVIDER_POLICY,
   requestImageProvider as requestJobTicketProvider,
@@ -19,6 +24,7 @@ import {
   actionWithOrg,
   mutationWithOrg,
   queryWithOrg,
+  type TenantActionFunctionContext,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { inventoryWriter } from "../lib/inventoryWriter";
@@ -26,18 +32,26 @@ import { writeOutcomeValidator } from "../lib/writeEnvelope";
 import { command, created, failure, stamp } from "./commands";
 import { ATTACHMENT_GRACE_MS } from "./attachments";
 import {
+  MAX_JOB_SCAN_AI_CONTENT_LENGTH,
   MAX_JOB_SCAN_ITEMS,
   JOB_TICKET_JSON_SCHEMA,
   JOB_TICKET_PROMPT,
+  jobScanEditRequestBody,
+  jobScanSearchRequestBody,
   jobTicketError,
   jobTicketDetailError,
+  parseJobScanEditContent,
+  parseJobScanSearchContent,
   parseJobTicket,
+  validJobScanAiPrompt,
+  type JobScanInterpretResult,
 } from "../model/finishedGoods/jobScans";
 
 import { jobLocationReader } from "./jobScanLocations";
 import { boundedRecordPage } from "../lib/boundedRecordPage";
 import {
   indexableNeedle,
+  jobScanExactCodeMatches,
   jobScanNameMatches,
   jobScanSearchIndex,
   jobScanTextMatches,
@@ -72,8 +86,8 @@ const LIST_LIMIT = 300;
 
 const optionalText = v.optional(v.string());
 const optionalNumber = v.optional(v.number());
-// Only ticket metadata is editable. Location, provenance and inventory are
-// deliberately absent from this validator and the corresponding patch.
+// Ticket fields do not carry location or provenance. A reviewed destination,
+// if supplied, is resolved separately inside the same correction command.
 const correctionFields = v.object({
   factoryOrder: v.string(),
   productBarcodeText: v.string(),
@@ -153,6 +167,241 @@ const extractionOutcome = v.union(
     retryAfterMs: v.number(),
   }),
 );
+
+export const JOB_SCAN_AI_PROVIDER_POLICY: ImageProviderPolicy = Object.freeze({
+  attemptTimeoutMs: 12_000,
+  totalDeadlineMs: 12_000,
+  maxRetries: 0,
+  minRetryBudgetMs: 0,
+  maxResponseBytes: 64 * 1024,
+});
+
+export const JOB_SCAN_SEARCH_AI_RATE_LIMIT = Object.freeze({
+  key: "finishedGoods.jobScanSearch.ai",
+  limit: 30,
+  windowMs: 10 * 60_000,
+});
+
+export const JOB_SCAN_EDIT_AI_RATE_LIMIT = Object.freeze({
+  key: "finishedGoods.jobScanEdit.ai",
+  limit: 30,
+  windowMs: 10 * 60_000,
+});
+
+const jobScanFilter = v.union(
+  v.literal("ALL"),
+  v.literal("UNMAPPED"),
+  v.literal("MAPPED"),
+);
+
+const jobScanSearchFacets = v.object({
+  building: optionalText,
+  floor: optionalNumber,
+  storageFormat: v.optional(batchFormat),
+});
+
+const jobScanSearchIntentValue = v.object({
+  filter: jobScanFilter,
+  search: v.string(),
+  facets: v.optional(jobScanSearchFacets),
+});
+
+const jobScanSearchInterpretOutcome = v.union(
+  v.object({
+    ok: v.literal(true),
+    value: jobScanSearchIntentValue,
+  }),
+  v.object({
+    ok: v.literal(false),
+    error: v.object({
+      code: v.literal("UNSUPPORTED"),
+      fallback: v.literal("MANUAL_SEARCH"),
+    }),
+  }),
+  v.object({
+    ok: v.literal(false),
+    error: v.object({
+      code: v.union(
+        v.literal("PROMPT_INVALID"),
+        v.literal("AI_UNAVAILABLE"),
+        v.literal("AI_TIMEOUT"),
+        v.literal("AI_UNREADABLE"),
+      ),
+    }),
+  }),
+  v.object({
+    ok: v.literal(false),
+    error: v.object({ code: v.literal("RATE_LIMITED") }),
+    retryAfterMs: v.number(),
+  }),
+);
+
+const jobScanEditFields = v.object({
+  factoryOrder: optionalText,
+  productBarcodeText: optionalText,
+  deliveryDate: optionalText,
+  partName: optionalText,
+  customer: optionalText,
+  manufacturingDate: optionalText,
+  quantity: optionalNumber,
+  factoryQuantity: optionalNumber,
+  customerQuantity: optionalNumber,
+  storageFormat: v.optional(batchFormat),
+});
+
+const jobScanEditProposalValue = v.object({
+  locationCode: optionalText,
+  fields: v.optional(jobScanEditFields),
+});
+
+const jobScanEditProposalOutcome = v.union(
+  v.object({
+    ok: v.literal(true),
+    value: jobScanEditProposalValue,
+  }),
+  v.object({
+    ok: v.literal(false),
+    error: v.object({
+      code: v.literal("UNSUPPORTED"),
+      fallback: v.literal("MANUAL_EDIT"),
+    }),
+  }),
+  v.object({
+    ok: v.literal(false),
+    error: v.object({
+      code: v.union(
+        v.literal("PROMPT_INVALID"),
+        v.literal("AI_UNAVAILABLE"),
+        v.literal("AI_TIMEOUT"),
+        v.literal("AI_UNREADABLE"),
+      ),
+    }),
+  }),
+  v.object({
+    ok: v.literal(false),
+    error: v.object({ code: v.literal("RATE_LIMITED") }),
+    retryAfterMs: v.number(),
+  }),
+);
+
+const STRICT_CHAT_ADAPTER = strictOpenRouterChatAdapter(
+  MAX_JOB_SCAN_AI_CONTENT_LENGTH,
+);
+
+function openRouterTextConfig() {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  const model =
+    process.env.OPENROUTER_SEARCH_MODEL?.trim() ||
+    process.env.OPENROUTER_MODEL?.trim();
+  return apiKey && model ? { apiKey, model } : null;
+}
+
+async function runJobScanStructuredAi<T, Fallback extends string>(
+  ctx: TenantActionFunctionContext,
+  options: {
+    readonly eventPrefix: string;
+    readonly fallback: Fallback;
+    readonly rateLimitWindowMs: number;
+    readonly prompt: string;
+    readonly buildBody: (model: string) => object;
+    readonly parse: (content: string) => JobScanInterpretResult<T>;
+  },
+): Promise<
+  | { readonly ok: true; readonly value: T }
+  | {
+      readonly ok: false;
+      readonly error: {
+        readonly code: "UNSUPPORTED";
+        readonly fallback: Fallback;
+      };
+    }
+  | {
+      readonly ok: false;
+      readonly error: {
+        readonly code:
+          "PROMPT_INVALID" | "AI_UNAVAILABLE" | "AI_TIMEOUT" | "AI_UNREADABLE";
+      };
+    }
+  | {
+      readonly ok: false;
+      readonly error: { readonly code: "RATE_LIMITED" };
+      readonly retryAfterMs: number;
+    }
+> {
+  if (!validJobScanAiPrompt(options.prompt))
+    return { ok: false as const, error: { code: "PROMPT_INVALID" as const } };
+  if (ctx.quota === undefined || !ctx.quota.allowed)
+    return {
+      ok: false as const,
+      error: { code: "RATE_LIMITED" as const },
+      retryAfterMs: ctx.quota?.retryAfterMs ?? options.rateLimitWindowMs,
+    };
+  const config = openRouterTextConfig();
+  if (!config)
+    return { ok: false as const, error: { code: "AI_UNAVAILABLE" as const } };
+
+  const body = JSON.stringify(options.buildBody(config.model));
+  const send = (signal: AbortSignal) =>
+    fetch(OPENROUTER_CHAT_URL, {
+      method: "POST",
+      signal,
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body,
+    });
+  let outcome: JobTicketProviderOutcome;
+  try {
+    outcome = await requestJobTicketProvider(send, {
+      adapter: STRICT_CHAT_ADAPTER,
+      policy: JOB_SCAN_AI_PROVIDER_POLICY,
+      tracking: {
+        port: ctx.aiUsage,
+        feature: "AI_SEARCH",
+        model: config.model,
+      },
+      validateContent: (content) =>
+        options.parse(content).kind !== "UNREADABLE",
+    });
+  } catch {
+    return { ok: false as const, error: { code: "AI_UNAVAILABLE" as const } };
+  }
+  if (!outcome.ok) {
+    // Static fields only: never the prompt, provider body, model text or key.
+    console.warn(
+      JSON.stringify({
+        event: `${options.eventPrefix}.provider.failed`,
+        reason: outcome.reason,
+        ...(outcome.status === undefined ? {} : { status: outcome.status }),
+        attempts: outcome.attempts,
+        elapsedMs: outcome.elapsedMs,
+      }),
+    );
+    const code =
+      outcome.reason === "timeout"
+        ? ("AI_TIMEOUT" as const)
+        : outcome.reason === "too_large" || outcome.reason === "malformed"
+          ? ("AI_UNREADABLE" as const)
+          : ("AI_UNAVAILABLE" as const);
+    return { ok: false as const, error: { code } };
+  }
+  const parsed = options.parse(outcome.content);
+  if (parsed.kind === "OK") return { ok: true as const, value: parsed.value };
+  if (parsed.kind === "UNSUPPORTED")
+    return {
+      ok: false as const,
+      error: { code: "UNSUPPORTED" as const, fallback: options.fallback },
+    };
+  console.warn(
+    JSON.stringify({
+      event: `${options.eventPrefix}.provider.unreadable`,
+      attempts: outcome.attempts,
+      elapsedMs: outcome.elapsedMs,
+    }),
+  );
+  return { ok: false as const, error: { code: "AI_UNREADABLE" as const } };
+}
 
 /** Validate the entire selection before either bulk operation writes anything. */
 async function validateJobScanSelection(
@@ -299,6 +548,52 @@ export const extractJobTicket = actionWithOrg({
       return { ok: false as const, error: { code: "AI_UNREADABLE" } };
     }
   },
+});
+
+/** Interprets a natural-language job-scan search prompt without reading or writing records. */
+export const interpretJobScanSearch = actionWithOrg({
+  args: { warehouseId: v.id("warehouses"), prompt: v.string() },
+  returns: jobScanSearchInterpretOutcome,
+  permissionCode: READ,
+  target: { table: TABLE },
+  warehouseId: (args) => args.warehouseId,
+  rateLimit: JOB_SCAN_SEARCH_AI_RATE_LIMIT,
+  handler: async (
+    ctx,
+    args,
+  ): Promise<Infer<typeof jobScanSearchInterpretOutcome>> =>
+    runJobScanStructuredAi(ctx, {
+      eventPrefix: "jobScan.searchAi",
+      fallback: "MANUAL_SEARCH",
+      rateLimitWindowMs: JOB_SCAN_SEARCH_AI_RATE_LIMIT.windowMs,
+      prompt: args.prompt,
+      buildBody: (model) =>
+        jobScanSearchRequestBody({ model, prompt: args.prompt }),
+      parse: (content) => parseJobScanSearchContent(content, args.prompt),
+    }),
+});
+
+/** Proposes explicitly requested job-scan edits for client-side review; performs no writes. */
+export const proposeJobScanEdit = actionWithOrg({
+  args: { warehouseId: v.id("warehouses"), prompt: v.string() },
+  returns: jobScanEditProposalOutcome,
+  permissionCode: MANAGE,
+  target: { table: TABLE },
+  warehouseId: (args) => args.warehouseId,
+  rateLimit: JOB_SCAN_EDIT_AI_RATE_LIMIT,
+  handler: async (
+    ctx,
+    args,
+  ): Promise<Infer<typeof jobScanEditProposalOutcome>> =>
+    runJobScanStructuredAi(ctx, {
+      eventPrefix: "jobScan.editAi",
+      fallback: "MANUAL_EDIT",
+      rateLimitWindowMs: JOB_SCAN_EDIT_AI_RATE_LIMIT.windowMs,
+      prompt: args.prompt,
+      buildBody: (model) =>
+        jobScanEditRequestBody({ model, prompt: args.prompt }),
+      parse: (content) => parseJobScanEditContent(content, args.prompt),
+    }),
 });
 
 export const saveJobScans = mutationWithOrg({
@@ -470,6 +765,7 @@ export const updateJobScan = mutationWithOrg({
     expectedVersion: v.number(),
     fields: correctionFields,
     customerLink: v.optional(customerLinkArg),
+    location: v.optional(mappedLocation),
   },
   returns: writeOutcomeValidator,
   permissionCode: MANAGE,
@@ -493,6 +789,21 @@ export const updateJobScan = mutationWithOrg({
       if (error) return failure(error);
       const detailError = jobTicketDetailError(args.fields);
       if (detailError) return failure(detailError.code, detailError.field);
+      // A reviewed ticket correction can include a location. Resolve it before
+      // applying any ticket changes, using the same warehouse lookup as remapping.
+      const destination = args.location
+        ? await mapLocation(ctx, args.warehouseId, args.location)
+        : null;
+      if (args.location && !destination) return failure("LOCATION_UNAVAILABLE");
+      const locationPatch = destination
+        ? {
+            mapped: true,
+            zoneId: undefined,
+            supportPositionId: undefined,
+            floorId: undefined,
+            ...destination,
+          }
+        : undefined;
       const submittedCustomerText = args.fields.customer;
       const nextCustomerText =
         submittedCustomerText?.trim() === before.customer?.trim()
@@ -547,7 +858,14 @@ export const updateJobScan = mutationWithOrg({
         customerQuantity: args.fields.customerQuantity,
         storageFormat: args.fields.storageFormat,
       };
-      const changes = diffFields(before, fields);
+      const changes = [...diffFields(before, fields)];
+      if (locationPatch && diffFields(before, locationPatch).length) {
+        changes.push({
+          field: "location",
+          from: before.locationCode ?? before.locationText,
+          to: locationPatch.locationCode,
+        });
+      }
       if (
         !changes.length &&
         before.customerReviewPending !== nextReviewPending
@@ -560,6 +878,7 @@ export const updateJobScan = mutationWithOrg({
         const now = Math.max(Date.now(), before.updatedAt + 1);
         await ctx.tenantDb.patch(TABLE, before._id, {
           ...fields,
+          ...locationPatch,
           customerReviewPending: nextReviewPending,
           version: version + 1,
           correctedAt: now,
@@ -813,12 +1132,12 @@ export const deleteJobScans = mutationWithOrg({
 export const listJobScans = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
-    filter: v.union(
-      v.literal("ALL"),
-      v.literal("MAPPED"),
-      v.literal("UNMAPPED"),
-    ),
+    filter: jobScanFilter,
     search: v.optional(v.string()),
+    /** When true, match whole normalized factoryOrder/barcode/location text or code only. */
+    exactCode: v.optional(v.boolean()),
+    /** Optional structured filters applied alongside status and text search. */
+    facets: v.optional(jobScanSearchFacets),
     cursor: v.optional(v.union(v.string(), v.null())),
     /**
      * Current clients opt into `scanning` progress. Without it each response
@@ -856,6 +1175,40 @@ export const listJobScans = queryWithOrg({
       100,
     );
     const needle = normalizeJobScanSearch(args.search ?? "");
+    const exact = Boolean(needle) && args.exactCode === true;
+    const buildingNeedle =
+      args.facets?.building !== undefined
+        ? normalizeJobScanSearch(args.facets.building)
+        : "";
+    const rawFloor = args.facets?.floor;
+    const floorInvalid =
+      rawFloor !== undefined &&
+      (!Number.isSafeInteger(rawFloor) || rawFloor < 0);
+    const floorFacet =
+      rawFloor !== undefined && !floorInvalid ? rawFloor : undefined;
+    const storageFormatFacet = args.facets?.storageFormat;
+    const hasFacets =
+      Boolean(buildingNeedle) ||
+      floorFacet !== undefined ||
+      floorInvalid ||
+      storageFormatFacet !== undefined;
+    // Keep legacy scope identical when neither exactCode nor facets are active,
+    // and bind both into cursor scope whenever present so cursors never mix.
+    const criteriaScope =
+      exact || hasFacets
+        ? {
+            ...(exact ? { exactCode: true } : {}),
+            ...(buildingNeedle ? { building: buildingNeedle } : {}),
+            ...(floorInvalid
+              ? { floor: "invalid" }
+              : floorFacet !== undefined
+                ? { floor: floorFacet }
+                : {}),
+            ...(storageFormatFacet !== undefined
+              ? { storageFormat: storageFormatFacet }
+              : {}),
+          }
+        : undefined;
     const allowCustomerRead = await canReadCustomers(ctx);
     // Parents are shared by many records: read each once per request.
     const cached = new Map<string, Promise<unknown>>();
@@ -870,9 +1223,10 @@ export const listJobScans = queryWithOrg({
       return cached.get(key) as Promise<T | null>;
     };
     const parents = async (scan: Doc<"finishedGoodsJobScans">) => {
-      const zone = scan.buildingId
-        ? null
-        : await parent<Doc<"storageZones">>("storageZones", scan.zoneId);
+      const zone =
+        scan.buildingId && scan.floorId
+          ? null
+          : await parent<Doc<"storageZones">>("storageZones", scan.zoneId);
       const [building, floor] = await Promise.all([
         parent<Doc<"storageBuildings">>(
           "storageBuildings",
@@ -894,9 +1248,33 @@ export const listJobScans = queryWithOrg({
         (args.filter !== "ALL" && scan.mapped !== (args.filter === "MAPPED"))
       )
         return false;
-      if (!needle) return true;
+      if (floorInvalid) return false;
+      if (
+        storageFormatFacet !== undefined &&
+        scan.storageFormat !== storageFormatFacet
+      )
+        return false;
+      if (needle && exact && !jobScanExactCodeMatches(scan, needle))
+        return false;
+      let resolvedParents: Awaited<ReturnType<typeof parents>> | undefined;
+      const getParents = async () => (resolvedParents ??= await parents(scan));
+      if (buildingNeedle || floorFacet !== undefined) {
+        const { building, floor } = await getParents();
+        if (
+          buildingNeedle &&
+          !(
+            building &&
+            (jobScanNameMatches(building.name, buildingNeedle) ||
+              jobScanNameMatches(building.code, buildingNeedle))
+          )
+        )
+          return false;
+        if (floorFacet !== undefined && floor?.floorNumber !== floorFacet)
+          return false;
+      }
+      if (!needle || exact) return true;
       if (jobScanTextMatches(scan, needle)) return true;
-      const { building } = await parents(scan);
+      const { building } = await getParents();
       return Boolean(building && jobScanNameMatches(building.name, needle));
     };
     const hydrate = (records: Doc<"finishedGoodsJobScans">[]) =>
@@ -914,6 +1292,8 @@ export const listJobScans = queryWithOrg({
         readiness: index,
         filter: args.filter,
         needle,
+        exactCode: exact,
+        ...(criteriaScope !== undefined ? { scopeExtra: criteriaScope } : {}),
         pageSize,
         cursor: args.cursor,
         scanCursor: args.scanCursor,
@@ -921,14 +1301,21 @@ export const listJobScans = queryWithOrg({
         accept,
         hydrate,
       });
-    // Otherwise text search inspects history in bounded chunks with a stable
-    // cursor instead of re-reading all of it.
+    // Otherwise text search or facet filtering inspects history in bounded
+    // chunks with a stable cursor instead of re-reading all of it.
+    const boundedScope: unknown[] = [
+      "finishedGoodsJobScans",
+      args.warehouseId,
+      args.filter,
+      needle,
+    ];
+    if (criteriaScope !== undefined) boundedScope.push(criteriaScope);
     return boundedRecordPage(ctx, {
-      scope: ["finishedGoodsJobScans", args.warehouseId, args.filter, needle],
+      scope: boundedScope,
       pageSize,
       cursor: args.cursor,
       scanCursor: args.scanCursor,
-      filtering: Boolean(needle),
+      filtering: Boolean(needle) || hasFacets,
       acceptNativeCursor: true,
       progressive: args.progressive === true,
       read: (range, limit) =>
@@ -995,4 +1382,4 @@ export const listJobScans = queryWithOrg({
   },
 });
 
-export { normalizeJobScanSearch, jobScanTextMatches };
+export { normalizeJobScanSearch, jobScanTextMatches, jobScanExactCodeMatches };

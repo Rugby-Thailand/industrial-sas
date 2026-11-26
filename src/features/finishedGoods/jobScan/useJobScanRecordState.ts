@@ -1,22 +1,52 @@
 "use client";
 
 import { useCatalogueUrlState } from "@/hooks/useCatalogueUrlState";
+import type {
+  JobScanFilter,
+  JobScanSearchFacets,
+} from "../../../../convex/model/finishedGoods/jobScans";
 
-export type JobScanFilter = "ALL" | "UNMAPPED" | "MAPPED";
-export type JobScanRecordState = { filter: JobScanFilter; search: string };
+export type JobScanRecordState = {
+  filter: JobScanFilter;
+  search: string;
+  exactCode?: true | undefined;
+  facets?: JobScanSearchFacets | undefined;
+};
 
 const initial: JobScanRecordState = { filter: "UNMAPPED", search: "" };
 const FILTERS: readonly JobScanFilter[] = ["ALL", "UNMAPPED", "MAPPED"];
+
+function readFacets(value: unknown): JobScanSearchFacets | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return;
+  const { building, floor, storageFormat } = value as Record<string, unknown>;
+  const facets: JobScanSearchFacets = {};
+  if (typeof building === "string" && building.trim())
+    facets.building = building.trim().slice(0, 200);
+  if (typeof floor === "number" && Number.isSafeInteger(floor) && floor >= 0)
+    facets.floor = floor;
+  if (
+    storageFormat === "PALLET" ||
+    storageFormat === "BOX" ||
+    storageFormat === "OTHER"
+  )
+    facets.storageFormat = storageFormat;
+  return Object.keys(facets).length ? facets : undefined;
+}
 
 function read(value: unknown): JobScanRecordState {
   if (!value || typeof value !== "object" || Array.isArray(value))
     return initial;
   const state = value as Record<string, unknown>;
+  const search =
+    typeof state.search === "string" ? state.search.slice(0, 200) : "";
+  const facets = readFacets(state.facets);
   return {
     filter: FILTERS.includes(state.filter as JobScanFilter)
       ? (state.filter as JobScanFilter)
       : initial.filter,
-    search: typeof state.search === "string" ? state.search.slice(0, 200) : "",
+    search,
+    ...(search.trim() && state.exactCode === true ? { exactCode: true } : {}),
+    ...(facets ? { facets } : {}),
   };
 }
 
@@ -29,7 +59,7 @@ const codec = {
     }
   },
   encode: (state: JobScanRecordState) =>
-    state.filter === initial.filter && !state.search
+    state.filter === initial.filter && !state.search && !state.facets
       ? null
       : JSON.stringify(state),
   readPreference: read,

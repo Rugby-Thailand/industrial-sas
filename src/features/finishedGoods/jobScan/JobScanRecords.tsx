@@ -2,9 +2,9 @@
 
 import { Spinner } from "@/components/ui/spinner";
 
-import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { Search, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { useConvex, useMutation, useQuery } from "convex/react";
+import { MapPin, Trash2, XIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { QueryGate } from "@/components/system/QueryGate";
@@ -12,7 +12,6 @@ import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { useEffectiveWarehouse } from "@/lib/workspace/useEffectiveWarehouse";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import { useCatalogueSync } from "@/hooks/useCatalogueSync";
-import { useWorkflowStep } from "@/hooks/useWorkflowStep";
 import { useDraftKey } from "@/hooks/useDraftKey";
 import { useDebouncedSearch } from "@/hooks/useScanContinuation";
 import { useScanRecovery } from "@/hooks/useScanRecovery";
@@ -28,14 +27,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/Notice";
 import { PageContainer } from "@/components/ui/PageContainer";
-import { Panel } from "@/components/ui/Panel";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { requireWritten } from "@/lib/convex/mutationOutcome";
+import { guardedNavigate } from "@/lib/navigationGuard";
 import { cn } from "@/lib/utils";
 import {
   ErrorNotice,
@@ -45,7 +43,9 @@ import {
   useOperation,
 } from "../shared";
 import { JobScanRecordEditor } from "./JobScanRecordEditor";
+import { JobScanRecordAssist } from "./JobScanRecordAssist";
 import { JobScanRecordRow } from "./JobScanRecordRow";
+import { JobScanRecordSearch } from "./JobScanRecordSearch";
 import { pickedLocationPayload, type PickedLocation } from "./ticketDraft";
 import { LocationPicker } from "./LocationPicker";
 import { useJobScanRecordState } from "./useJobScanRecordState";
@@ -125,13 +125,15 @@ function Records({
   loadingLabel: string;
 }) {
   const t = useTranslations("JobScan");
+  const appT = useTranslations("App");
   const canManage = useCanManage();
+  const convex = useConvex();
   const operation = useOperation();
   const assign = useMutation(fgRefs.assignJobScanLocation);
   const deleteScans = useMutation(fgRefs.deleteJobScans);
   const { state: criteria, update: updateCriteria } =
     useJobScanRecordState(viewKey);
-  const { filter, search } = criteria;
+  const { filter, search, exactCode, facets } = criteria;
   const [selection, setSelection] = useState<{
     scope: string;
     ids: string[];
@@ -143,13 +145,24 @@ function Records({
     scope: string;
     ids: string[];
   } | null>(null);
-  const locationPanel = useRef<HTMLDivElement>(null);
+  const locationCompletion = useRef<DialogCompletionHandle>(null);
+  const locationOpener = useRef<HTMLElement | null>(null);
+  const lastLocationSelection = useRef<{
+    scope: string;
+    ids: string[];
+  } | null>(null);
+  const explicitLocationDismiss = useRef(false);
+  const [locationEpoch, setLocationEpoch] = useState(0);
+  const [assigning, setAssigning] = useState(false);
   const remapCompletion = useRef<DialogCompletionHandle>(null);
   const deletionCompletion = useRef<DialogCompletionHandle>(null);
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState<RecordPage["items"][number] | null>(
     null,
   );
+  const [assisting, setAssisting] = useState<
+    RecordPage["items"][number] | null
+  >(null);
   const [remapReview, setRemapReview] = useState<{
     location: PickedLocation;
     records: RecordPage["items"];
@@ -161,15 +174,18 @@ function Records({
   } | null>(null);
   const locale = useLocale();
   const typedSearch = search.trim();
+  const searching = Boolean(typedSearch || facets);
   const settledSearch = useDebouncedSearch(typedSearch);
   const settled = typedSearch === settledSearch;
   const paging = useCursorPagination({
     scope: `job-scans:${viewKey}`,
-    criteria: { filter, search: typedSearch },
+    criteria: { filter, search: typedSearch, exactCode, facets },
   });
   const requestKey = JSON.stringify([
     filter,
     settledSearch,
+    exactCode,
+    facets,
     paging.cursor,
     paging.pageSize,
   ]);
@@ -182,6 +198,8 @@ function Records({
           warehouseId,
           filter,
           ...(settledSearch ? { search: settledSearch } : {}),
+          ...(exactCode && settledSearch ? { exactCode } : {}),
+          ...(facets ? { facets } : {}),
           cursor: paging.cursor,
           pageSize: paging.pageSize,
           progressive: true,
@@ -246,14 +264,10 @@ function Records({
     deletion !== null && deletion.ids.every((id) => visibleIdSet.has(id));
   if (deletion && fresh && !operation.busy && !deleting && !deletionVisible)
     setDeletion(null);
-  const selectionScope = JSON.stringify([
-    filter,
-    settledSearch,
-    paging.cursor,
-    paging.pageSize,
-  ]);
+  const selectionScope = requestKey;
   if (selection.scope !== selectionScope) {
     setSelection({ scope: selectionScope, ids: [] });
+    if (locationSelection) setLocationEpoch((epoch) => epoch + 1);
     setLocationSelection(null);
   }
   // Only records visible on this page can be acted on, including live removals.
@@ -261,40 +275,36 @@ function Records({
     selection.scope === selectionScope
       ? selection.ids.filter((id) => visibleIdSet.has(id))
       : [];
-  const availablePicking =
-    locationSelection?.scope === selectionScope &&
-    locationSelection.ids.every((id) => visibleIdSet.has(id))
-      ? locationSelection
-      : null;
-  const locationStep = useWorkflowStep(
-    "jobRecordsLocation",
-    `job-records:${warehouseId}`,
-    availablePicking !== null,
-    undefined,
-    { blocked: operation.busy },
-  );
-  const picking = locationStep.active ? availablePicking : null;
+  const locationVisible =
+    locationSelection !== null &&
+    locationSelection.scope === selectionScope &&
+    locationSelection.ids.every((id) => visibleIdSet.has(id));
+  if (
+    locationSelection &&
+    fresh &&
+    !operation.busy &&
+    !assigning &&
+    !remapReview &&
+    !locationVisible
+  ) {
+    setLocationEpoch((epoch) => epoch + 1);
+    setLocationSelection(null);
+  }
+  const picking =
+    locationSelection?.scope === selectionScope ? locationSelection : null;
   const isPicking = picking !== null;
-  useEffect(() => {
-    if (!isPicking) return;
-    // The menu must release its focus trap before the picker receives focus.
-    const opener = document.activeElement;
-    const frame = requestAnimationFrame(() => {
-      if (
-        document.activeElement !== opener &&
-        document.activeElement !== document.body
-      )
-        return;
-      locationPanel.current?.scrollIntoView({
-        block: "start",
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "instant"
-          : "smooth",
-      });
-      locationPanel.current?.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [isPicking]);
+  const pickingRecords = picking
+    ? (records?.filter((record) => picking.ids.includes(record.id)) ?? [])
+    : [];
+  const singlePickingRecord =
+    picking?.ids.length === 1 && pickingRecords.length === 1
+      ? pickingRecords[0]
+      : undefined;
+  const pickerTitle = singlePickingRecord
+    ? singlePickingRecord.mapped
+      ? t("changeLocation")
+      : t("setLocation")
+    : t("setSelectedLocation");
   const allVisibleSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selected.includes(id));
   const someVisibleSelected = visibleIds.some((id) => selected.includes(id));
@@ -319,16 +329,37 @@ function Records({
 
   function clearSelection() {
     updateSelection(() => []);
+    lastLocationSelection.current = null;
+    if (locationSelection) setLocationEpoch((epoch) => epoch + 1);
     setLocationSelection(null);
     operation.setError("");
   }
 
-  function openLocationPicker(ids: string[]) {
+  function openLocationPicker(ids: string[], opener?: HTMLElement | null) {
     if (!actionable || !ids.length) return;
+    locationOpener.current =
+      opener ??
+      (document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null);
+    const next = { scope: selectionScope, ids: [...ids] };
     updateSelection(() => ids);
-    setLocationSelection({ scope: selectionScope, ids: [...ids] });
-    locationStep.enter();
+    lastLocationSelection.current = next;
+    setLocationSelection(next);
     operation.setError("");
+  }
+
+  function dismissLocationPicker() {
+    if (operation.busy || !picking) return;
+    guardedNavigate(() => {
+      const closed = locationCompletion.current?.completeOwned?.(() => {
+        setLocationSelection(null);
+      });
+      if (!closed) {
+        setLocationEpoch((epoch) => epoch + 1);
+        setLocationSelection(null);
+      }
+    });
   }
 
   const confirmDelete = (ids: string[]) => {
@@ -396,72 +427,24 @@ function Records({
             </button>
           ))}
         </div>
-        <label className="relative block">
-          <span className="sr-only">{t("search")}</span>
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted"
-          />
-          <Input
-            value={search}
-            disabled={operation.busy || editing !== null}
-            maxLength={200}
-            onChange={(event) => {
-              updateCriteria({ search: event.target.value });
-              clearSelection();
-            }}
-            placeholder={t("search")}
-            className="pl-12"
-          />
-        </label>
+        <JobScanRecordSearch
+          warehouseId={warehouseId}
+          criteria={criteria}
+          disabled={operation.busy || editing !== null || assisting !== null}
+          onChange={(next) => {
+            updateCriteria(next);
+            clearSelection();
+          }}
+          interpret={async (prompt) => {
+            const outcome = await convex.action(fgRefs.interpretJobScanSearch, {
+              warehouseId,
+              prompt,
+            });
+            return outcome.ok && outcome.value.ok ? outcome.value.value : null;
+          }}
+        />
       </div>
 
-      {picking && (
-        <div
-          ref={locationPanel}
-          tabIndex={-1}
-          role="region"
-          aria-label={t("selectLocation")}
-        >
-          <Panel className="space-y-3">
-            <fieldset
-              disabled={operation.busy || editing !== null}
-              className="space-y-3"
-            >
-              <h2 className="text-lg font-semibold">{t("selectLocation")}</h2>
-              {!fresh && (
-                <p role="status" className="text-sm text-muted">
-                  {t("recordList.actionsWait")}
-                </p>
-              )}
-              <fieldset disabled={!fresh} className="contents">
-                <LocationPicker
-                  warehouseId={warehouseId}
-                  allowUnmapped={false}
-                  canReadImage={canManage}
-                  browseWithoutSearch
-                  onPick={(location) => {
-                    if (!actionable || !pickedLocationPayload(location)) return;
-                    const chosen =
-                      records?.filter((record) =>
-                        picking.ids.includes(record.id),
-                      ) ?? [];
-                    if (chosen.length !== picking.ids.length) return;
-                    setRemapReview({ location, records: chosen });
-                  }}
-                />
-              </fieldset>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={locationStep.back}
-              >
-                {t("cancel")}
-              </Button>
-            </fieldset>
-          </Panel>
-        </div>
-      )}
       <div>
         {canManage && records && records.length > 0 && (
           <div className="flex min-h-12 items-center justify-between gap-3 border-b border-border py-2">
@@ -514,7 +497,7 @@ function Records({
             </Button>
           </Notice>
         ) : !records ? (
-          typedSearch ? (
+          searching ? (
             <p
               role="status"
               className="flex min-h-12 items-center gap-2 text-sm text-muted"
@@ -526,21 +509,31 @@ function Records({
             <Loading label={loadingLabel} />
           )
         ) : !records.length && !scanning ? (
-          typedSearch ? (
+          searching ? (
             <EmptyState
-              title={t("recordList.noMatches", { search: typedSearch })}
+              title={
+                typedSearch
+                  ? t("recordList.noMatches", { search: typedSearch })
+                  : t("recordTools.noFacetMatches")
+              }
               body={t("recordList.noMatchesHint")}
               action={
-                <Button
-                  variant="outline"
-                  disabled={operation.busy || editing !== null}
-                  onClick={() => {
-                    updateCriteria({ search: "" });
-                    clearSelection();
-                  }}
-                >
-                  {t("recordList.clearSearch")}
-                </Button>
+                !exactCode && !facets ? (
+                  <Button
+                    variant="outline"
+                    disabled={operation.busy || editing !== null}
+                    onClick={() => {
+                      updateCriteria({
+                        search: "",
+                        exactCode: undefined,
+                        facets: undefined,
+                      });
+                      clearSelection();
+                    }}
+                  >
+                    {t("recordList.clearSearch")}
+                  </Button>
+                ) : undefined
               }
             />
           ) : (
@@ -573,10 +566,15 @@ function Records({
                     selected={selected.includes(record.id)}
                     disabled={!actionable || picking !== null}
                     onToggle={() => toggle(record.id)}
-                    onChangeLocation={() => openLocationPicker([record.id])}
+                    onChangeLocation={(opener) =>
+                      openLocationPicker([record.id], opener)
+                    }
                     onDelete={() => confirmDelete([record.id])}
                     onEdit={() => {
                       if (actionable) setEditing(record);
+                    }}
+                    onAssist={() => {
+                      if (actionable) setAssisting(record);
                     }}
                   />
                 ))}
@@ -627,6 +625,38 @@ function Records({
 
       {!deletion && <ErrorNotice message={operation.error} />}
 
+      {assisting && (
+        <JobScanRecordAssist
+          key={assisting.id}
+          record={assisting}
+          warehouseId={warehouseId}
+          enabled={
+            actionable &&
+            Boolean(
+              records?.some(
+                (record) =>
+                  record.id === assisting.id &&
+                  record.version === assisting.version,
+              ),
+            )
+          }
+          interpret={async (prompt) => {
+            const outcome = await convex.action(fgRefs.proposeJobScanEdit, {
+              warehouseId,
+              prompt,
+            });
+            return outcome.ok && outcome.value.ok ? outcome.value.value : null;
+          }}
+          onClose={() => setAssisting(null)}
+          onManualEdit={() => {
+            setAssisting(null);
+            const record = records?.find(
+              (record) => record.id === assisting.id,
+            );
+            if (record && actionable) setEditing(record);
+          }}
+        />
+      )}
       {editing && (
         <JobScanRecordEditor
           key={editing.id}
@@ -638,6 +668,139 @@ function Records({
         />
       )}
       <Dialog
+        open={picking !== null}
+        completionRef={locationCompletion}
+        backPending={operation.busy}
+        backRevocationEpoch={locationEpoch}
+        onOpenChange={(open) => {
+          if (operation.busy) return;
+          if (!open) {
+            const explicit = explicitLocationDismiss.current;
+            explicitLocationDismiss.current = false;
+            if (explicit) {
+              dismissLocationPicker();
+            } else {
+              setLocationSelection(null);
+            }
+          } else {
+            const previous = lastLocationSelection.current;
+            if (
+              previous &&
+              previous.scope === selectionScope &&
+              previous.ids.every((id) => visibleIdSet.has(id))
+            ) {
+              setLocationSelection(previous);
+            }
+          }
+        }}
+      >
+        {picking && (
+          <DialogContent
+            size="sm"
+            closeLabel={appT("close")}
+            showCloseButton={false}
+            className="gap-4"
+            onEscapeKeyDown={() => {
+              if (!operation.busy) explicitLocationDismiss.current = true;
+            }}
+            onPointerDownOutside={() => {
+              if (!operation.busy) explicitLocationDismiss.current = true;
+            }}
+            onCloseAutoFocus={(event) => {
+              const target = locationOpener.current;
+              if (target?.isConnected) {
+                event.preventDefault();
+                target.focus();
+              }
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MapPin
+                  aria-hidden="true"
+                  className="size-5 shrink-0 text-link"
+                />
+                <span>{pickerTitle}</span>
+              </DialogTitle>
+              <DialogDescription asChild>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+                  {singlePickingRecord ? (
+                    <>
+                      <span className="font-mono font-semibold break-all text-text">
+                        {singlePickingRecord.factoryOrder}
+                      </span>
+                      <span>
+                        {t("currentLocation", {
+                          location:
+                            singlePickingRecord.locationCode ??
+                            (singlePickingRecord.locationText ||
+                              t("statusUnmapped")),
+                        })}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="font-medium text-text">
+                      {t("selectedCount", { count: picking.ids.length })}
+                    </span>
+                  )}
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            <fieldset
+              disabled={operation.busy || editing !== null}
+              className="space-y-3"
+            >
+              {!fresh && (
+                <p role="status" className="text-sm text-muted">
+                  {t("recordList.actionsWait")}
+                </p>
+              )}
+              <fieldset disabled={!fresh} className="contents">
+                <LocationPicker
+                  warehouseId={warehouseId}
+                  allowUnmapped={false}
+                  canReadImage={canManage}
+                  browseWithoutSearch
+                  onPick={(location) => {
+                    if (!actionable || !pickedLocationPayload(location)) return;
+                    const chosen =
+                      records?.filter((record) =>
+                        picking.ids.includes(record.id),
+                      ) ?? [];
+                    if (chosen.length !== picking.ids.length) return;
+                    setRemapReview({ location, records: chosen });
+                  }}
+                />
+              </fieldset>
+            </fieldset>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={operation.busy || editing !== null}
+                onClick={dismissLocationPicker}
+              >
+                {t("cancel")}
+              </Button>
+            </DialogFooter>
+            {!operation.busy && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute top-3 right-3"
+                disabled={editing !== null}
+                onClick={dismissLocationPicker}
+              >
+                <XIcon aria-hidden="true" className="size-4" />
+                <span className="sr-only">{appT("close")}</span>
+              </Button>
+            )}
+          </DialogContent>
+        )}
+      </Dialog>
+
+      <Dialog
         open={remapReview !== null}
         completionRef={remapCompletion}
         backPending={operation.busy}
@@ -647,8 +810,10 @@ function Records({
       >
         {remapReview && (
           <DialogContent
-            closeLabel={t("cancel")}
+            size="sm"
+            closeLabel={appT("close")}
             showCloseButton={!operation.busy}
+            className="gap-4"
           >
             <DialogHeader>
               <DialogTitle>
@@ -656,12 +821,19 @@ function Records({
               </DialogTitle>
               <DialogDescription>{t("locationNotStock")}</DialogDescription>
             </DialogHeader>
-            <ul className="max-h-64 space-y-2 overflow-y-auto text-sm">
+            <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-lg border border-border text-sm">
               {remapReview.records.map((record) => (
-                <li key={record.id}>
-                  {record.factoryOrder}:{" "}
-                  {record.locationCode ?? record.locationText} →{" "}
-                  {remapReview.location.code}
+                <li key={record.id} className="space-y-1 px-3 py-2">
+                  <p className="font-mono font-semibold break-all text-text">
+                    {record.factoryOrder}
+                  </p>
+                  <p className="break-all text-muted">
+                    <span>{record.locationCode ?? record.locationText}</span>
+                    {" → "}
+                    <span className="font-mono font-semibold text-link">
+                      {remapReview.location.code}
+                    </span>
+                  </p>
                 </li>
               ))}
             </ul>
@@ -738,28 +910,45 @@ function Records({
                   setRemapReview((current) =>
                     current ? { ...current, command: payload } : null,
                   );
-                  void operation.run(
-                    async () => assign(payload),
-                    (outcome) => {
-                      setRemapReview((current) =>
-                        current
-                          ? {
-                              location: current.location,
-                              records: current.records,
-                            }
-                          : null,
-                      );
-                      requireWritten(outcome);
-                      operation.complete(() =>
-                        remapCompletion.current?.complete(() =>
-                          locationStep.complete(() => {
-                            clearSelection();
-                            operation.clearRequests();
-                          }),
-                        ),
-                      );
-                    },
-                  );
+                  setAssigning(true);
+                  void operation
+                    .run(
+                      async () => assign(payload),
+                      (outcome) => {
+                        setRemapReview((current) =>
+                          current
+                            ? {
+                                location: current.location,
+                                records: current.records,
+                              }
+                            : null,
+                        );
+                        let completed = false;
+                        try {
+                          requireWritten(outcome);
+                          completed = true;
+                        } finally {
+                          if (!completed) setAssigning(false);
+                        }
+                        operation.complete(() =>
+                          remapCompletion.current?.complete(
+                            () =>
+                              locationCompletion.current?.complete(
+                                () => {
+                                  clearSelection();
+                                  setAssigning(false);
+                                  operation.clearRequests();
+                                },
+                                () => setAssigning(false),
+                              ),
+                            () => setAssigning(false),
+                          ),
+                        );
+                      },
+                    )
+                    .then((saved) => {
+                      if (saved === null) setAssigning(false);
+                    });
                 }}
               >
                 {remapReview.command && !operation.busy
@@ -818,13 +1007,15 @@ function Records({
         )}
       </Dialog>
 
-      {canManage && selected.length > 0 && !picking && (
+      {canManage && selected.length > 0 && (
         <StickyActionBar placement="responsive">
           <div className="mx-auto max-w-3xl">
             <Button
               className="w-full whitespace-normal"
-              disabled={!actionable}
-              onClick={() => openLocationPicker(selected)}
+              disabled={!actionable || isPicking}
+              onClick={(event) =>
+                openLocationPicker(selected, event.currentTarget)
+              }
             >
               {t("mapSelected", { count: selected.length })}
             </Button>
