@@ -484,10 +484,14 @@ it("explicit retake Back to photo and outer Close consume their entries before t
       },
     },
   );
-  await screen.findByRole("textbox", { name: "Review location code" });
-  fireEvent.click(screen.getByRole("button", { name: "Take another photo" }));
+  const reviewedCode = await screen.findByRole("textbox", {
+    name: "Review location code",
+  });
+  reviewedCode.focus();
+  const retake = screen.getByRole("button", { name: "Take another photo" });
+  fireEvent.click(retake);
   fireEvent.click(await screen.findByRole("button", { name: "Back to photo" }));
-  await screen.findByRole("textbox", { name: "Review location code" });
+  await waitFor(() => expect(retake).toHaveFocus());
   closeAi();
   await waitFor(() => expect(href()).toBe(page));
   expect(

@@ -82,6 +82,7 @@ export function LocationImageReader({
   const picker = useRef<HTMLInputElement>(null);
   const capture = useRef<HTMLInputElement>(null);
   const photoCamera = useRef<LocationPhotoCameraHandle>(null);
+  const retakeOpener = useRef<HTMLButtonElement>(null);
   const retakeCompletion = useRef<DialogCompletionHandle>(null);
   const [photo, setPhoto] = useState(initialPhoto);
   const [cameraOpen, setCameraOpen] = useState(!initialPhoto);
@@ -412,7 +413,8 @@ export function LocationImageReader({
                   label={t("locationAiOpenCamera")}
                   variant="ghost"
                   disabled={checking}
-                  onClick={() => {
+                  onClick={(event) => {
+                    retakeOpener.current = event.currentTarget;
                     // Keep the reviewed photo and corrected code until a replacement
                     // is actually captured. Back from retake restores this work.
                     cancelPending();
@@ -454,7 +456,16 @@ export function LocationImageReader({
         }}
         completionRef={retakeCompletion}
       >
-        <DialogContent size="camera" closeLabel={t("backToPhoto")}>
+        <DialogContent
+          size="camera"
+          closeLabel={t("backToPhoto")}
+          onCloseAutoFocus={(event) => {
+            if (retakeOpener.current?.isConnected) {
+              event.preventDefault();
+              retakeOpener.current.focus();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{t("locationAiOpenCamera")}</DialogTitle>
             <DialogDescription>{t("locationAiTitle")}</DialogDescription>

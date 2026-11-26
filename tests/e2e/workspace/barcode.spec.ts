@@ -12,7 +12,13 @@ async function installCamera(page: Page) {
     canvas.height = 480;
     const context = canvas.getContext("2d")!;
 
-    Object.defineProperty(navigator.mediaDevices, "getUserMedia", {
+    // Keep the patched DOM wrapper reachable across WebKit garbage collections.
+    const mediaDevices = navigator.mediaDevices;
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: mediaDevices,
+    });
+    Object.defineProperty(mediaDevices, "getUserMedia", {
       value: async () => {
         const stream = canvas.captureStream(12);
         window.barcodeFixtureStreams.push(stream);
