@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   resolve: vi.fn(),
   change: vi.fn(),
   interpret: vi.fn(),
+  stopCamera: vi.fn(),
 }));
 vi.mock("convex/react", () => ({
   useConvex: () => ({ query: mocks.resolve }),
@@ -20,11 +21,13 @@ vi.mock("../BarcodeCameraBox", () => ({
     disabled,
     presentation,
     progress,
+    children,
   }: {
     onCode: (code: string) => void;
     disabled?: boolean;
     presentation?: string;
     progress?: ReactNode;
+    children?: (camera: { stopCamera: () => void }) => ReactNode;
   }) => (
     <>
       <button
@@ -47,6 +50,7 @@ vi.mock("../BarcodeCameraBox", () => ({
         Read legacy location QR
       </button>
       {progress}
+      {children?.({ stopCamera: mocks.stopCamera })}
     </>
   ),
 }));
@@ -61,6 +65,7 @@ beforeEach(() => {
   });
   mocks.change.mockReset();
   mocks.interpret.mockReset();
+  mocks.stopCamera.mockReset();
   window.history.replaceState({ __NA: true }, "", origin);
   trackAppHistory();
   window.history.pushState({ __NA: true }, "", records);
@@ -106,6 +111,72 @@ it("uses the scanned job code as an exact search and consumes the camera before 
       window.location.pathname + window.location.search + window.location.hash,
     ).toBe(origin),
   );
+});
+
+it("uses a typed code for exact search and consumes the scanner before the next Back", async () => {
+  const user = show();
+  const trigger = screen.getByRole("button", { name: "Scan to search" });
+  await user.click(trigger);
+  const dialog = within(screen.getByRole("dialog", { name: "Scan to search" }));
+  const input = dialog.getByRole("textbox", { name: "Enter code" });
+  await user.type(input, "  FO12345 ");
+  expect(mocks.stopCamera).toHaveBeenCalled();
+  await user.keyboard("{Enter}");
+  await waitFor(() =>
+    expect(mocks.change).toHaveBeenCalledExactlyOnceWith({
+      filter: "ALL",
+      search: "FO12345",
+      searchField: undefined,
+      exactCode: true,
+      locationId: undefined,
+      facets: undefined,
+    }),
+  );
+  expect(mocks.resolve).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
+    warehouseId: "warehouse-a",
+    code: "FO12345",
+    qrOnly: true,
+  });
+  await waitFor(() => expect(trigger).toHaveFocus());
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe(origin),
+  );
+});
+
+it("ignores a pending typed code lookup when Back closes the scanner", async () => {
+  let answer!: (value: unknown) => void;
+  mocks.resolve.mockReturnValueOnce(
+    new Promise((resolve) => {
+      answer = resolve;
+    }),
+  );
+  const user = show();
+  await user.click(screen.getByRole("button", { name: "Scan to search" }));
+  const dialog = within(screen.getByRole("dialog", { name: "Scan to search" }));
+  await user.type(
+    dialog.getByRole("textbox", { name: "Enter code" }),
+    "ISAS:LOCATION:1:zone",
+  );
+  const submit = dialog.getByRole("button", { name: "Search code" });
+  await user.click(submit);
+  expect(submit).toBeDisabled();
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  await act(async () =>
+    answer({
+      ok: true,
+      value: { ok: true, location: { code: "ZONE-A", locationId: "zonea" } },
+    }),
+  );
+  expect(mocks.change).not.toHaveBeenCalled();
+  expect(
+    window.location.pathname + window.location.search + window.location.hash,
+  ).toBe(records);
 });
 
 it("reports unsupported QR labels, checks a warehouse location and ignores an answer after Back", async () => {

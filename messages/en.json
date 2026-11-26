@@ -1876,8 +1876,10 @@
     "recordTools": {
       "searchPlaceholder": "Find records",
       "scanSearch": "Scan to search",
-      "scanHint": "Scan a job number, product barcode, or storage label.",
-      "invalidCode": "This code could not be used. Scan another label or type the code in search.",
+      "scanHint": "Scan or enter a job number, product barcode, or storage code.",
+      "codeInput": "Enter code",
+      "searchCode": "Search code",
+      "invalidCode": "This code could not be used. Try a different code.",
       "exactMatch": "Exact code match",
       "aiSearch": "AI search",
       "aiSearchHint": "Describe the scanned tickets you want to find.",

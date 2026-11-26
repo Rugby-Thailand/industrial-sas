@@ -9121,7 +9121,7 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:scanOpen",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "The shared full-screen record scanner Dialog owns acquisition. Success consumes its entry before applying an exact search, and dismissal invalidates late warehouse lookups.",
+      "expectation": "The shared full-screen record scanner Dialog owns camera, image, and typed code acquisition. Success consumes its entry before applying an exact search, and dismissal invalidates late warehouse lookups.",
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx"
       ],
@@ -9129,6 +9129,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
           "name": "uses the scanned job code as an exact search and consumes the camera before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "uses a typed code for exact search and consumes the scanner before the next Back"
         }
       ]
     },
@@ -9145,6 +9149,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
           "name": "reports unsupported QR labels, checks a warehouse location and ignores an answer after Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "ignores a pending typed code lookup when Back closes the scanner"
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",

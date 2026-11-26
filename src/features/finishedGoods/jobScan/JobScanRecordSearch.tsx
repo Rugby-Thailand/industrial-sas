@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { IconButton } from "@/components/ui/IconButton";
+import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/Notice";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
@@ -268,7 +269,38 @@ function RecordCodeCapture({
           )}
         </>
       }
-    />
+    >
+      {({ stopCamera }) => (
+        <form
+          className="flex flex-wrap gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const code = new FormData(event.currentTarget).get("code");
+            if (typeof code === "string") void receive(code);
+          }}
+        >
+          <Input
+            name="code"
+            aria-label={t("recordTools.codeInput")}
+            aria-invalid={invalid}
+            placeholder={t("recordTools.codeInput")}
+            className="flex-1 basis-32 font-mono"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="search"
+            maxLength={500}
+            required
+            disabled={!active || checking}
+            onFocus={stopCamera}
+            onChange={() => setInvalid(false)}
+          />
+          <Button type="submit" disabled={!active || checking}>
+            {t("recordTools.searchCode")}
+          </Button>
+        </form>
+      )}
+    </BarcodeCameraBox>
   );
 }
 

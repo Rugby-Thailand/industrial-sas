@@ -237,8 +237,10 @@ describe("job-scan AI search and edit actions", () => {
       "Set part name to Gear and scan the next ticket",
       "Gear and scan the next ticket",
     ],
+    ["Set part name to Gear and scan next ticket", "Gear and scan next ticket"],
     ["แก้ชื่อสินค้าเป็น กล่อง และสลับคลัง", "กล่อง และสลับคลัง"],
     ["แก้ชื่อสินค้าเป็น กล่อง และสแกนใบงานถัดไป", "กล่อง และสแกนใบงานถัดไป"],
+    ["แก้ชื่อสินค้าเป็น กล่อง และสแกน QR ถัดไป", "กล่อง และสแกน QR ถัดไป"],
     ["Set part name to Gear and sign off", "Gear and sign off"],
     ["แก้ชื่อสินค้าเป็น กล่อง และล็อกเอาต์", "กล่อง และล็อกเอาต์"],
     ["แก้ชื่อสินค้าเป็น กล่อง และจบเซสชัน", "กล่อง และจบเซสชัน"],
@@ -348,6 +350,28 @@ describe("job-scan AI search and edit actions", () => {
           ok: true,
           value: { fields: { partName: "Blue Box", quantity: 10 } },
         },
+      });
+    },
+  );
+
+  it.each(["Move to DOCK NORTH", "ย้ายไป DOCK NORTH"])(
+    "keeps the entire multiword destination in %s",
+    async (prompt) => {
+      const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
+      transport.mockResolvedValueOnce(
+        openRouterOk(
+          JSON.stringify(editPayload({ locationCode: "DOCK NORTH" })),
+        ),
+      );
+      const result = await world.t
+        .withIdentity(PUBLIC_API_ACTOR)
+        .action(api.finishedGoods.jobScans.proposeJobScanEdit, {
+          warehouseId: world.warehouses.alphaA,
+          prompt,
+        });
+      expect(result).toMatchObject({
+        ok: true,
+        value: { ok: true, value: { locationCode: "DOCK NORTH" } },
       });
     },
   );
@@ -998,7 +1022,10 @@ describe("job-scan AI search and edit actions", () => {
         }),
     ).toMatchObject({
       ok: true,
-      value: { ok: false, error: { code: "AI_UNREADABLE" } },
+      value: {
+        ok: false,
+        error: { code: "UNSUPPORTED", fallback: "MANUAL_EDIT" },
+      },
     });
 
     transport.mockResolvedValueOnce(

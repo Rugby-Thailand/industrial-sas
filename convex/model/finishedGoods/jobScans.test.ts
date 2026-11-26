@@ -1005,7 +1005,7 @@ describe("parseJobScanEditProposal", () => {
         { ...emptyEdit, locationCode: "FG1-F01-Z01" },
         "ย้ายไปที่ว่างใกล้ประตู",
       ),
-    ).toEqual({ kind: "UNREADABLE" });
+    ).toEqual({ kind: "UNSUPPORTED" });
     expect(
       parseJobScanEditProposal(
         { ...emptyEdit, locationId: "loc_123" },
@@ -1511,6 +1511,7 @@ describe("parseJobScanEditProposal", () => {
     "lock me out",
     "switch warehouses",
     "scan the next ticket",
+    "scan next ticket",
   ])(
     "requires quotes to treat follow-up command %s as literal text",
     (command) => {
@@ -1524,4 +1525,19 @@ describe("parseJobScanEditProposal", () => {
       ).toEqual({ kind: "OK", value: { fields: { partName } } });
     },
   );
+
+  it("declines vague or multiple destinations instead of treating them as a code", () => {
+    for (const locationCode of [
+      "near the door",
+      "an empty spot",
+      "DOCK NORTH and DOCK SOUTH",
+    ]) {
+      expect(
+        parseJobScanEditProposal(
+          { ...emptyEdit, locationCode },
+          `Move to ${locationCode}`,
+        ),
+      ).toEqual({ kind: "UNSUPPORTED" });
+    }
+  });
 });

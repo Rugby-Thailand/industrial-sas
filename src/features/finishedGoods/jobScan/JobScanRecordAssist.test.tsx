@@ -98,7 +98,7 @@ function UI({ version = record.version }: { version?: number }) {
 }
 
 const command = "Move to F2-L12-3 and set quantity to 40";
-async function start() {
+async function start(prompt = command) {
   const view = renderWithIntl(<UI />, {
     locale: "en",
     workspace: false,
@@ -108,7 +108,7 @@ async function start() {
   await user.click(screen.getByRole("button", { name: "Open AI edit" }));
   await user.type(
     screen.getByRole("textbox", { name: "What should change?" }),
-    command,
+    prompt,
   );
   return { view, user };
 }
@@ -117,6 +117,25 @@ async function propose(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Review changes" }));
   return within(await screen.findByRole("dialog", { name: "Review changes" }));
 }
+
+it("resolves a multiword destination in the warehouse before offering a move for confirmation", async () => {
+  mocks.interpret.mockResolvedValueOnce({ locationCode: "DOCK NORTH" });
+  mocks.resolve.mockResolvedValueOnce({
+    ok: true,
+    value: {
+      ok: true,
+      location: { locationId: "location-a", code: "DOCK NORTH" },
+    },
+  });
+  const { user } = await start("Move to DOCK NORTH");
+  const review = await propose(user);
+  expect(mocks.resolve).toHaveBeenCalledExactlyOnceWith(
+    fgRefs.resolveJobScanLocation,
+    { warehouseId: "warehouse-a", code: "DOCK NORTH" },
+  );
+  expect(review.getByText("DOCK NORTH")).toBeVisible();
+  expect(mocks.mutation).not.toHaveBeenCalled();
+});
 
 it("reviews both values, saves the same version atomically and consumes both dialogs before the next Back", async () => {
   const { user } = await start();
