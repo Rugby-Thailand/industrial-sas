@@ -28,6 +28,7 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { inventoryWriter } from "../lib/inventoryWriter";
+import { normalizeCode } from "../model/identifiers/normalization";
 import { writeOutcomeValidator } from "../lib/writeEnvelope";
 import { command, created, failure, stamp } from "./commands";
 import { ATTACHMENT_GRACE_MS } from "./attachments";
@@ -1269,6 +1270,26 @@ export const listJobScans = queryWithOrg({
       args.facets?.building !== undefined
         ? normalizeJobScanSearch(args.facets.building)
         : "";
+    const buildingCode = buildingNeedle
+      ? normalizeCode(buildingNeedle, {
+          maxLength: 64,
+          caseFolding: "UPPERCASE",
+        })
+      : undefined;
+    // A known code identifies one building, even if another name contains it.
+    // When the operand is a name, retain partial matching for localized names.
+    const exactBuilding = buildingCode?.ok
+      ? await ctx.tenantDb
+          .byIndex<Doc<"storageBuildings">>(
+            "storageBuildings",
+            "by_orgId_warehouseId_code",
+            [
+              { field: "warehouseId", value: args.warehouseId },
+              { field: "code", value: buildingCode.value },
+            ],
+          )
+          .first()
+      : null;
     const rawFloor = args.facets?.floor;
     const floorInvalid =
       rawFloor !== undefined &&
@@ -1291,6 +1312,7 @@ export const listJobScans = queryWithOrg({
               ? { locationId: location?.locationId ?? "invalid" }
               : {}),
             ...(buildingNeedle ? { building: buildingNeedle } : {}),
+            ...(exactBuilding ? { buildingId: exactBuilding._id } : {}),
             ...(floorInvalid
               ? { floor: "invalid" }
               : floorFacet !== undefined
@@ -1372,8 +1394,10 @@ export const listJobScans = queryWithOrg({
           buildingNeedle &&
           !(
             building &&
-            (jobScanNameMatches(building.name, buildingNeedle) ||
-              jobScanNameMatches(building.code, buildingNeedle))
+            (exactBuilding
+              ? building._id === exactBuilding._id
+              : normalizeJobScanSearch(building.code) === buildingNeedle ||
+                jobScanNameMatches(building.name, buildingNeedle))
           )
         )
           return false;

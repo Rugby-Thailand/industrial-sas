@@ -152,6 +152,7 @@ describe("job-scan AI search and edit actions", () => {
     ],
     ["แก้ชื่อสินค้าเป็น กล่อง แล้วส่งออกใบงานนี้", "กล่อง แล้วส่งออกใบงานนี้"],
     ["Set part name to Widget. Delete this scan", "Widget. Delete this scan"],
+    ["Set part name to Widget & delete this scan", "Widget & delete this scan"],
     [
       "แก้ชื่อสินค้าเป็น กล่อง กรุณาส่งออกใบงานนี้",
       "กล่อง กรุณาส่งออกใบงานนี้",
@@ -231,6 +232,11 @@ describe("job-scan AI search and edit actions", () => {
       "Widget and customer name Acme",
     ],
     ["หาชื่อสินค้า Widget และชื่อลูกค้า Acme", "Widget และชื่อลูกค้า Acme"],
+    [
+      "Find product name Widget and export the results",
+      "Widget and export the results",
+    ],
+    ["หาชื่อสินค้า Widget และส่งออกผลลัพธ์", "Widget และส่งออกผลลัพธ์"],
   ])(
     "returns manual search when the model absorbs an unsupported filter in %s",
     async (prompt, search) => {
@@ -928,7 +934,7 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
       };
 
       const bNorth = await building("FG1", "อาคารเหนือ North Annex");
-      const bSouth = await building("FG2", "Building B");
+      const bSouth = await building("FG10", "FG10 Building B");
       const fNorth1 = await floor(bNorth, 1);
       const fNorth2 = await floor(bNorth, 2);
       const fSouth2 = await floor(bSouth, 2);
@@ -940,7 +946,7 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
         "FG1-F02-Z010",
         "Zone N2 Prefix",
       );
-      const zSouthF2 = await zone(bSouth, fSouth2, "FG2-F02-Z01", "Zone S2");
+      const zSouthF2 = await zone(bSouth, fSouth2, "FG10-F02-Z01", "Zone S2");
 
       const scan = (
         createdAt: number,
@@ -1022,8 +1028,8 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
           factoryOrder: "FO69090001",
           productBarcodeText: "FBN-SOUTH-01",
           partName: "South Pallet",
-          locationText: "FG2-F02-Z01",
-          locationCode: "FG2-F02-Z01",
+          locationText: "FG10-F02-Z01",
+          locationCode: "FG10-F02-Z01",
           locationName: "Zone S2",
           mapped: true,
           buildingId: bSouth,
@@ -1436,6 +1442,21 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
       ]);
 
       // Combined search + facets exercises the trigram index when ready and bounded fallback when unready.
+      expect(
+        await listAll(fixture, {
+          filter: "ALL",
+          search: "South Pallet",
+          facets: { building: "fg1" },
+        }),
+      ).toEqual([]);
+      expect(
+        await listAll(fixture, {
+          filter: "ALL",
+          search: "South Pallet",
+          facets: { building: "FG10" },
+        }),
+      ).toEqual([ids.southPalletF2]);
+
       expect(
         await listAll(fixture, {
           filter: "ALL",

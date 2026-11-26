@@ -726,6 +726,28 @@ describe("parseJobScanSearchIntent", () => {
     }
   });
 
+  it("validates quoted names and keeps a named record field separate from status", () => {
+    for (const [prompt, search] of [
+      ['Find "Acme"', "Acme"],
+      ['Find "Widget and export the results"', "Widget and export the results"],
+      ["หา “กล่อง และส่งออกผลลัพธ์”", "กล่อง และส่งออกผลลัพธ์"],
+    ] as const) {
+      expect(parseJobScanSearchIntent({ ...base, search }, prompt)).toEqual({
+        kind: "OK",
+        value: { filter: "ALL", search },
+      });
+    }
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, search: "Widget", filter: "UNMAPPED" },
+        "Find product name Widget without location",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { filter: "UNMAPPED", search: "Widget", searchField: "partName" },
+    });
+  });
+
   it("keeps buildings separate from statuses and respects quoted building names", () => {
     for (const [prompt, building, filter] of [
       ["Find records in building A without location", "A", "UNMAPPED"],

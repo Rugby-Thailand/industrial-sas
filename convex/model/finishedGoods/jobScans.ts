@@ -309,6 +309,12 @@ const ENGLISH_SEARCH_FIELD = String.raw`\b(?:part\s+name|product\s+name|customer
 const THAI_SEARCH_FIELD = String.raw`(?:ชื่อสินค้า|ชื่อชิ้นส่วน|ชื่อลูกค้า|บาร์โค้ด|เลขที่ใบงาน|(?:ใบ)?งาน\s*ที่(?:อยู่\s*(?:ที่|ใน)(?:ตำแหน่ง|จุดจัดเก็บ)|ตำแหน่ง|จุดจัดเก็บ|อยู่)|^ตำแหน่ง)`;
 const ENGLISH_SEARCH_CLAUSE = String.raw`(?:${ENGLISH_SEARCH_FIELD}|\b(?:building|floors?|(?:storage\s+)?format|(?:factory\s+|customer\s+)?(?:quantity|qty|count)|(?:delivery|manufacturing|production)\s+date)\b)`;
 const THAI_SEARCH_CLAUSE = String.raw`(?:${THAI_SEARCH_FIELD}|อาคาร|ชั้น|รูปแบบ|ประเภทการจัดเก็บ|จำนวน|วันที่ส่ง|วันส่ง|วันที่ผลิต|วันผลิต)`;
+const QUOTED_LITERAL = /"([^"\r\n]+)"|“([^”\r\n]+)”/gu;
+const UNSUPPORTED_RECORD_ACTION = String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ)`;
+const UNSUPPORTED_SEARCH_ACTION = new RegExp(
+  String.raw`(?:^|[,;.!?]\s*|\s+(?:and|then)\s+|\s*[&+]\s*|\s*(?:และ|แล้ว|พร้อมทั้ง|จากนั้น)\s*)(?:${UNSUPPORTED_RECORD_ACTION})`,
+  "u",
+);
 
 const BUILDING_HINT = new RegExp(
   [
@@ -326,7 +332,7 @@ const SEARCH_LITERAL = new RegExp(
     String.raw`|(?<thai>${THAI_SEARCH_FIELD})\s*[:=]?\s*)`,
     String.raw`(?:"(?<quoted>[^"]+)"|“(?<thaiQuoted>[^”]+)”|(?<plain>[^"“].*?)`,
     String.raw`(?=$|[.!?]$|[,;\r\n]|\s+(?:(?:and|with)\s+)?(?=${ENGLISH_SEARCH_CLAUSE})|\s*(?:และ|โดยมี|ที่มี)\s*(?=${THAI_SEARCH_CLAUSE})|\s+(?:in|at|on|from|within)\s+(?:the\s+)?(?:building|(?:[\w-]+\s+)?floors?)\b|\s*(?:ที่|จาก)(?:อาคาร|ชั้น)`,
-    String.raw`|(?:\s+(?:(?:that|which)\s+(?:(?:are|is|have|has|were|was|remain|stay)\s+)?|and\s+)|\s*(?:ที่|และ|[,;])\s*)(?:(?:currently|already|still|yet)\s+)*(?=${SEARCH_STATUS.source})))`,
+    String.raw`|(?:\s+(?:(?:that|which)\s+(?:(?:are|is|have|has|were|was|remain|stay)\s+)?|and\s+)?|\s*(?:ที่|และ|[,;])\s*)(?:(?:currently|already|still|yet)\s+)*(?=${SEARCH_STATUS.source})))`,
   ].join(""),
   "giu",
 );
@@ -739,9 +745,14 @@ export function parseJobScanSearchIntent(
       )
     : source;
   const buildingClauses = [...sourceInstructions.matchAll(BUILDING_HINT)];
-  const criteriaSource = sourceInstructions.replace(BUILDING_HINT, " ");
+  const withoutBuildings = sourceInstructions.replace(BUILDING_HINT, " ");
+  const quotes = [...withoutBuildings.matchAll(QUOTED_LITERAL)];
+  if (quotes.length > 1 || (literal && quotes.length))
+    return { kind: "UNSUPPORTED" };
+  const quotedSearch = (quotes[0]?.[1] ?? quotes[0]?.[2])?.trim();
+  const criteriaSource = withoutBuildings.replace(QUOTED_LITERAL, " ");
   const jobCodes = factoryOrderTokens(criteriaSource);
-  if (jobCodes.size > 1 || (literal && jobCodes.size))
+  if (jobCodes.size > 1 || ((literal || quotedSearch) && jobCodes.size))
     return { kind: "UNSUPPORTED" };
   const implicitJobCode = [...jobCodes][0];
   const searchField =
@@ -760,6 +771,8 @@ export function parseJobScanSearchIntent(
   );
   if (
     statuses.size > 1 ||
+    UNSUPPORTED_SEARCH_ACTION.test(instructions) ||
+    UNSUPPORTED_SEARCH_ACTION.test(unquotedText) ||
     UNSUPPORTED_SEARCH_CRITERIA.some(
       (pattern) =>
         pattern.test(instructions) ||
@@ -769,7 +782,8 @@ export function parseJobScanSearchIntent(
     unquotedBuildings.some(
       (name) =>
         AMBIGUOUS_SEARCH_TEXT.test(name) ||
-        UNSUPPORTED_SEARCH_OPERATOR.test(name),
+        UNSUPPORTED_SEARCH_OPERATOR.test(name) ||
+        UNSUPPORTED_SEARCH_ACTION.test(name),
     ) ||
     AMBIGUOUS_SEARCH_TEXT.test(unquotedText) ||
     TRAILING_SEARCH_STATUS.test(unquotedText) ||
@@ -790,7 +804,11 @@ export function parseJobScanSearchIntent(
   if (search && !source.includes(search)) return { kind: "UNREADABLE" };
   if (implicitJobCode !== undefined && search !== implicitJobCode)
     return { kind: "UNREADABLE" };
-  if (!literal && AMBIGUOUS_SEARCH_TEXT.test(normalizeForGrounding(search)))
+  const explicitValue = literalValue ?? quotedSearch;
+  if (
+    explicitValue === undefined &&
+    AMBIGUOUS_SEARCH_TEXT.test(normalizeForGrounding(search))
+  )
     return { kind: "UNSUPPORTED" };
 
   const facets: JobScanSearchFacets = {};
@@ -848,18 +866,21 @@ export function parseJobScanSearchIntent(
   if (
     search &&
     !searchField &&
+    quotedSearch === undefined &&
     (filter !== "ALL" || Object.keys(facets).length)
   )
     return { kind: "UNSUPPORTED" };
   if (
     hasRemainingSearchInstructions(
-      !literal && search ? criteriaSource.replace(search, " ") : criteriaSource,
+      explicitValue === undefined && search
+        ? criteriaSource.replace(search, " ")
+        : criteriaSource,
       format,
     )
   )
     return { kind: "UNSUPPORTED" };
   if (
-    (literal && search !== literalValue) ||
+    (explicitValue !== undefined && search !== explicitValue) ||
     filter !== ([...statuses][0] ?? "ALL")
   )
     return { kind: "UNREADABLE" };
@@ -945,20 +966,19 @@ const EDIT_DATE_LABELS = [
   .map((field) => field.source.slice(1))
   .join("|");
 const EDIT_ASSIGNMENT = /^(?:\s+(?:to|as)\s+|\s*(?:[:=]|ให้เป็น|เป็น)\s*)/iu;
-const UNSUPPORTED_EDIT_ACTION = String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ)`;
 const EDIT_CLAUSE_START = [
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=${EDIT_ASSIGNMENT.source.slice(1)})`,
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=\s+from\b|\s*จาก)`,
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_DATE_LABELS})(?=\s*[\d๐-๙]+[/.-])`,
   MOVE_VERB.source.slice(1),
-  UNSUPPORTED_EDIT_ACTION,
+  UNSUPPORTED_RECORD_ACTION,
 ].join("|");
 // Unquoted sentence breaks, semicolons, and explicit sequencing words start another
 // clause. Commas and conjunctions also occur in names, so use their next word
 // to distinguish a value from an assignment or an unsupported action.
 const EDIT_QUOTED_VALUE = /"([^"\r\n]+)"|“([^”\r\n]+)”/u;
 const EDIT_CLAUSE_BOUNDARY = new RegExp(
-  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|\s+(?:and\s+)?then\s+|\s*(?:และ\s*)?(?:แล้ว|จากนั้น)\s*|(?:\s+and\s+|\s*(?:และ|พร้อมทั้ง|พร้อมกับ)\s*|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))(?=${EDIT_CLAUSE_START}))`,
+  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|\s+(?:and\s+)?then\s+|\s*(?:และ\s*)?(?:แล้ว|จากนั้น)\s*|(?:\s+and\s+|\s*[&+＆]\s*|\s*(?:และ|พร้อมทั้ง|พร้อมกับ)\s*|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))(?=${EDIT_CLAUSE_START}))`,
   "giu",
 );
 const EDIT_CONDITION =
