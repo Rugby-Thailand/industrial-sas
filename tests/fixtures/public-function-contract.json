@@ -4808,8 +4808,13 @@
         },
         "warehouseId": {
           "fieldType": {
-            "type": "id",
-            "tableName": "warehouses"
+            "type": "string"
+          },
+          "optional": true
+        },
+        "includeOverview": {
+          "fieldType": {
+            "type": "boolean"
           },
           "optional": true
         }
