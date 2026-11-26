@@ -429,6 +429,8 @@ describe("parseJobScanSearchIntent", () => {
     for (const [prompt, searchField] of [
       ["find tickets at location F2-L12-1", "location"],
       ["Find jobs by location F2-L12-1", "location"],
+      ["Find jobs at F2-L12-1", "location"],
+      ['Find jobs at "F2-L12-1"', "location"],
       ["หาใบงานที่ตำแหน่ง F2-L12-1", "location"],
       ["find Job No. F2-L12-1", "factoryOrder"],
       ["find barcode F2-L12-1", "productBarcodeText"],
@@ -1069,6 +1071,10 @@ describe("parseJobScanEditProposal", () => {
   it("accepts a compound edit that names a typed quantity without an assignment word", () => {
     for (const [prompt, partName] of [
       ["Change product name to Outer 131 and set quantity 10", "Outer 131"],
+      [
+        "Change product name to Outer 131 and make the quantity 10",
+        "Outer 131",
+      ],
       ["Change product name to Outer 131 with quantity 10", "Outer 131"],
       [
         "Change product name to Outer 131 together with its quantity 10",

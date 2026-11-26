@@ -306,7 +306,11 @@ const SEARCH_STATUS = new RegExp(
   "gu",
 );
 
-const ENGLISH_SEARCH_FIELD = String.raw`\b(?:part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number)|(?:at|in|for|by)\s+(?:storage\s+)?location(?:\s+code)?|(?:storage\s+)?location\s+code|location(?=\s*[:=])|located\s+at)`;
+// A storage-style code immediately after "at" or "in" is a location value.
+// Leave ordinary names and codes without a location cue in general search.
+const STORAGE_ADDRESS_CODE = String.raw`(?=[a-z0-9-]*\d)[a-z0-9]+(?:-[a-z0-9]+)+`;
+const IMPLIED_LOCATION_FIELD = String.raw`(?:at|in)(?=\s+(?:${STORAGE_ADDRESS_CODE}(?=$|[\s,;.!?])|"${STORAGE_ADDRESS_CODE}"|“${STORAGE_ADDRESS_CODE}”))`;
+const ENGLISH_SEARCH_FIELD = String.raw`\b(?:part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number)|(?:at|in|for|by)\s+(?:storage\s+)?location(?:\s+code)?|(?:storage\s+)?location\s+code|location(?=\s*[:=])|located\s+at|${IMPLIED_LOCATION_FIELD})`;
 const THAI_SEARCH_FIELD = String.raw`(?:ชื่อสินค้า|ชื่อชิ้นส่วน|ชื่อลูกค้า|บาร์โค้ด|เลขที่ใบงาน|(?:ใบ)?งาน\s*ที่(?:อยู่\s*(?:ที่|ใน)(?:ตำแหน่ง|จุดจัดเก็บ)|ตำแหน่ง|จุดจัดเก็บ|อยู่)|^ตำแหน่ง)`;
 const ENGLISH_SEARCH_CLAUSE = String.raw`(?:${ENGLISH_SEARCH_FIELD}|\b(?:building|floors?|(?:storage\s+)?format|(?:factory\s+|customer\s+)?(?:quantity|qty|count)|(?:delivery|manufacturing|production)\s+date)\b)`;
 const THAI_SEARCH_CLAUSE = String.raw`(?:${THAI_SEARCH_FIELD}|อาคาร|ชั้น|รูปแบบ|ประเภทการจัดเก็บ|จำนวน|วันที่ส่ง|วันส่ง|วันที่ผลิต|วันผลิต)`;
@@ -338,11 +342,12 @@ const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:make|take|generate|save)\s+(?:(?:a|an|another)\s+)?(?:copy|duplicate|backup|printout|snapshot)\b`,
   String.raw`(?:mark|flag|tag|classify)\s+(?:it|them|this|that|the|as|records?|tickets?|jobs?|scans?)\b`,
   String.raw`(?:mark|flag|tag)\s+(?:for|deleted|void(?:ed)?|archived|cancelled|canceled|closed|complete(?:d)?|done|inactive|active|pending|on\s+hold|ready|approved|rejected|mapped|unmapped)\b`,
-  String.raw`(?:[\p{L}’'-]+\s+){1,6}(?:this|that|these|those|another)\s+(?:(?:saved|scanned)\s+)?(?:records?|tickets?|jobs?|scans?)\b`,
+  String.raw`(?:close|reopen|finish|lock|unlock|activate|deactivate|complete|finalize)\s+(?:it|them)\b`,
+  String.raw`(?:[\p{L}’'-]+\s+){1,6}(?:the|this|that|these|those|another)\s+(?:(?:saved|scanned|current|selected|open|closed)\s+)*(?:records?|tickets?|jobs?|scans?)\b`,
   String.raw`(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก|ทำสำเนา|ถ่ายสำเนา)`,
 ].join("|");
 const UNSUPPORTED_SEARCH_ACTION = new RegExp(
-  String.raw`(?:^|[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?:${QUALIFIED_FOLLOW_UP})?(?:${UNSUPPORTED_RECORD_ACTION}|(?:move|set|change|update|edit|assign|remap|transfer)\b|ย้าย|แก้(?:ไข)?|เปลี่ยน|ตั้ง|ระบุ)`,
+  String.raw`(?:^|[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?:${QUALIFIED_FOLLOW_UP})?(?:${UNSUPPORTED_RECORD_ACTION}|(?:move|make|set|change|update|edit|assign|remap|transfer)\b|ย้าย|แก้(?:ไข)?|เปลี่ยน|ตั้ง|ระบุ)`,
   "u",
 );
 
@@ -993,7 +998,7 @@ const EDIT_FIELD_NAMES: Record<EditableField, RegExp> = {
     /^(?:(?:storage\s+)?location(?:\s+code)?|ตำแหน่ง(?:จัดเก็บ)?)/iu,
 };
 
-const ENGLISH_EDIT_VERB = String.raw`(?:please\s+)?(?:set|change|correct|update|edit)\s+`;
+const ENGLISH_EDIT_VERB = String.raw`(?:please\s+)?(?:set|change|correct|update|edit|make|adjust|amend)\s+`;
 const THAI_EDIT_VERB = String.raw`(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:เปลี่ยน|แก้ไข|แก้|ตั้งค่า|ตั้ง|ระบุ)\s*`;
 const OWNED_EDIT_FIELD = String.raw`(?:its|(?:this|the)\s+(?:record|ticket|job|scan)['’]s)\s+`;
 const EDIT_VERB = new RegExp(

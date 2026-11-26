@@ -200,6 +200,14 @@ describe("job-scan AI search and edit actions", () => {
       "Blue Box and mark deleted",
     ],
     [
+      "Change product name to Blue Box and close the record",
+      "Blue Box and close the record",
+    ],
+    [
+      "Change product name to Blue Box and finish the selected ticket",
+      "Blue Box and finish the selected ticket",
+    ],
+    [
       "Change product name to Blue Box and set the status to deleted",
       "Blue Box and set the status to deleted",
     ],
@@ -252,6 +260,7 @@ describe("job-scan AI search and edit actions", () => {
 
   it.each([
     "and set its quantity to 10",
+    "and make the quantity 10",
     "with quantity 10",
     "along with its quantity: 10",
   ])(
@@ -451,8 +460,9 @@ describe("job-scan AI search and edit actions", () => {
     ["หาสินค้า Outer 131", "Outer 131", undefined],
     ["หาใบงานที่อยู่ ข้างเสา C12", "ข้างเสา C12", "location"],
     ["หาใบงานที่อยู่ F2-L12-1", "F2-L12-1", "location"],
+    ["Find jobs at F2-L12-1", "F2-L12-1", "location"],
   ])(
-    "accepts the Thai prototype search %s",
+    "accepts the saved-record search %s",
     async (prompt, search, searchField) => {
       const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
       transport.mockResolvedValueOnce(
