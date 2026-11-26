@@ -13,7 +13,7 @@ import {
 
 /**
  * Identifies the ticket updated by the latest scan and reports required-field
- * progress in the dock. Fixed-height rows keep the viewfinder steady.
+ * progress in the dock once there are tickets to track.
  */
 export function ScanProgress({
   tickets,
@@ -31,7 +31,7 @@ export function ScanProgress({
     : -1;
   const ticket = index < 0 ? undefined : tickets[index];
   const incomplete = tickets.filter((row) => !isComplete(row)).length;
-  const row = "h-5 truncate leading-5";
+  if (!tickets.length) return null;
   return (
     <div className="flex items-center gap-2 rounded-md border border-border py-2 pr-2 pl-3 text-sm">
       <div
@@ -40,7 +40,7 @@ export function ScanProgress({
         aria-atomic="true"
         className="min-w-0 flex-1 space-y-0.5"
       >
-        <p className={cn(row, "font-medium")}>
+        <p className="font-medium wrap-anywhere">
           {ticket && written
             ? t("scanProgressLatest", {
                 number: index + 1,
@@ -49,9 +49,9 @@ export function ScanProgress({
               })
             : t("scanProgressWaiting")}
         </p>
-        <p className={cn(row, "flex gap-4 whitespace-nowrap")}>
-          {ticket &&
-            REQUIRED_FIELDS.map((field) => {
+        {ticket && (
+          <p className="flex flex-wrap gap-x-3">
+            {REQUIRED_FIELDS.map((field) => {
               const done = Boolean(ticket.values[field]?.trim());
               const Icon = done ? Check : Circle;
               return (
@@ -70,10 +70,10 @@ export function ScanProgress({
                 </span>
               );
             })}
-        </p>
-        <p className={cn(row, "text-muted")}>
-          {tickets.length > 0 &&
-            t("scanProgressIncomplete", { count: incomplete })}
+          </p>
+        )}
+        <p className="text-muted">
+          {t("scanProgressIncomplete", { count: incomplete })}
         </p>
       </div>
       {ticket && onUndo && (

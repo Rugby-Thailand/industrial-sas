@@ -707,7 +707,7 @@ export function PackageAssignment({
               }
               actions={
                 <DialogClose asChild>
-                  <Button type="button" className="w-full">
+                  <Button type="button" className="ml-auto">
                     {tr("Done", "เสร็จ")}
                   </Button>
                 </DialogClose>

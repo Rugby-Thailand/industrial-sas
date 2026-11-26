@@ -104,6 +104,20 @@ it("pauses the camera without closing the location session and applies the image
   expect(onClose).not.toHaveBeenCalled();
 });
 
+it("returns directly to the live camera when scanning again after image review", async () => {
+  const onStart = vi.fn();
+  const { onCode, onClose } = setup({ onStart });
+  select();
+  fireEvent.click(await screen.findByRole("button", { name: "Scan again" }));
+  expect(onStart).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("button", { name: "Start camera" })).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Use scanned code(s)" }),
+  ).toBeNull();
+  expect(onCode).not.toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
 it("cancels a pending image before switching back to the camera", async () => {
   let finish!: (codes: string[]) => void;
   mocks.decode.mockReturnValue(

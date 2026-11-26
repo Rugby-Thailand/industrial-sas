@@ -208,9 +208,7 @@ function otherTab(warehouseId: string) {
 }
 async function chooseImageCodes(codes: string[]) {
   mocks.decode.mockResolvedValueOnce(codes);
-  const picker = screen.getByText("Choose image", {
-    selector: "button",
-  }).parentElement!;
+  const picker = screen.getByRole("dialog", { name: "Scan code" });
   fireEvent.change(within(picker).getByLabelText("Choose image"), {
     target: {
       files: [new File(["photo"], "ticket.webp", { type: "image/webp" })],

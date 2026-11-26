@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import Image from "next/image";
 import { Crop, ImagePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -34,6 +41,9 @@ export function BarcodeImagePicker({
   onCodes,
   onReadWithAi,
   compact = false,
+  liveView = false,
+  actions,
+  onScanAgain,
   initialReview,
   onReviewChange,
 }: {
@@ -44,11 +54,15 @@ export function BarcodeImagePicker({
   onReadWithAi?: ((file?: File, crop?: BarcodeCrop) => void) | undefined;
   /** Offer the picker as a left-aligned icon action instead of a full-width button. */
   compact?: boolean;
+  liveView?: boolean;
+  actions?: ReactNode;
+  onScanAgain?: () => void;
   initialReview?: BarcodeImageReview | undefined;
   onReviewChange?:
     ((review: BarcodeImageReview | undefined) => void) | undefined;
 }) {
   const t = useTranslations("JobScan");
+  const privacyId = useId();
   const input = useRef<HTMLInputElement>(null),
     pending = useRef<AbortController | null>(null),
     version = useRef(0);
@@ -180,28 +194,35 @@ export function BarcodeImagePicker({
           if (file) void select(file);
         }}
       />
-      {compact ? (
-        <IconButton
-          label={t("chooseBarcodeImage")}
-          variant="ghost"
-          disabled={disabled || reading}
-          onClick={() => input.current?.click()}
-        >
-          <ImagePlus className="size-5" aria-hidden="true" />
-        </IconButton>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-12 w-full"
-          disabled={disabled || reading}
-          onClick={() => input.current?.click()}
-        >
-          <ImagePlus className="size-4" aria-hidden="true" />
-          {t("chooseBarcodeImage")}
-        </Button>
-      )}
-      <p className="text-xs text-muted">{t("barcodeImagePrivacy")}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {compact ? (
+          <IconButton
+            label={t("chooseBarcodeImage")}
+            aria-describedby={privacyId}
+            variant="ghost"
+            disabled={disabled || reading}
+            onClick={() => input.current?.click()}
+          >
+            <ImagePlus className="size-5" aria-hidden="true" />
+          </IconButton>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            aria-describedby={privacyId}
+            className={actions ? "min-h-12" : "min-h-12 w-full"}
+            disabled={disabled || reading}
+            onClick={() => input.current?.click()}
+          >
+            <ImagePlus className="size-4" aria-hidden="true" />
+            {t("chooseBarcodeImage")}
+          </Button>
+        )}
+        {actions}
+      </div>
+      <p id={privacyId} className={liveView ? "sr-only" : "text-xs text-muted"}>
+        {t("barcodeImagePrivacy")}
+      </p>
       {image && (
         <div className="space-y-3">
           <div className="relative w-fit">
@@ -371,7 +392,11 @@ export function BarcodeImagePicker({
             type="button"
             variant="outline"
             className="min-h-12 w-full"
-            onClick={clear}
+            disabled={disabled}
+            onClick={() => {
+              clear();
+              onScanAgain?.();
+            }}
           >
             {t("scanAgain")}
           </Button>
