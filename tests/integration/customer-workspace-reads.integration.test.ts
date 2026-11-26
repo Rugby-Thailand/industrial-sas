@@ -353,98 +353,120 @@ describe("customer workspace reads", () => {
     expect(forbidden.warehouses).toHaveLength(2);
   });
 
-  it("reads a directly selected warehouse beyond the directory window and marks partial totals", async () => {
-    const world = await setup();
-    const lastWarehouse = await world.t.run(async (ctx) => {
-      const membership = await ctx.db
-        .query("memberships")
-        .filter((q) =>
-          q.and(
-            q.eq(q.field("orgId"), world.orgA),
-            q.eq(q.field("userId"), world.userA),
-          ),
-        )
-        .unique();
-      await ctx.db.patch(membership!._id, { scopeMode: "ORG_WIDE" });
-      for (let i = 0; i < 24; i++) {
-        const warehouseId = await ctx.db.insert("warehouses", {
+  it.each([24, 124])(
+    "finds the newest job and counts linked products beyond the selector across %i additional warehouses",
+    async (extraWarehouses) => {
+      const world = await setup();
+      const lastWarehouse = await world.t.run(async (ctx) => {
+        const membership = await ctx.db
+          .query("memberships")
+          .filter((q) =>
+            q.and(
+              q.eq(q.field("orgId"), world.orgA),
+              q.eq(q.field("userId"), world.userA),
+            ),
+          )
+          .unique();
+        await ctx.db.patch(membership!._id, { scopeMode: "ORG_WIDE" });
+        for (let i = 0; i < extraWarehouses; i++) {
+          const warehouseId = await ctx.db.insert("warehouses", {
+            orgId: world.orgA,
+            code: `WH-${i}`,
+            name: `Warehouse ${i}`,
+            status: "ACTIVE",
+          });
+          await ctx.db.insert("customerWarehouseActivity", {
+            orgId: world.orgA,
+            customerId: world.customerId,
+            warehouseId,
+            linkedProductCount: 0,
+          });
+        }
+        const row = await ctx.db
+          .query("customerWarehouseActivity")
+          .withIndex("by_orgId_customerId_warehouseId", (q) =>
+            q.eq("orgId", world.orgA).eq("customerId", world.customerId),
+          )
+          .order("desc")
+          .first();
+        const warehouseId = row!.warehouseId;
+        const scanId = await ctx.db.insert("finishedGoodsJobScans", {
           orgId: world.orgA,
-          code: `WH-${i}`,
-          name: `Warehouse ${i}`,
-          status: "ACTIVE",
-        });
-        await ctx.db.insert("customerWarehouseActivity", {
-          orgId: world.orgA,
-          customerId: world.customerId,
           warehouseId,
-          linkedProductCount: 0,
-        });
-      }
-      const row = await ctx.db
-        .query("customerWarehouseActivity")
-        .withIndex("by_orgId_customerId_warehouseId", (q) =>
-          q.eq("orgId", world.orgA).eq("customerId", world.customerId),
-        )
-        .order("desc")
-        .first();
-      const warehouseId = row!.warehouseId;
-      const scanId = await ctx.db.insert("finishedGoodsJobScans", {
-        orgId: world.orgA,
-        warehouseId,
-        customerId: world.customerId,
-        factoryOrder: "LAST-WH",
-        mapped: false,
-        productBarcodeText: "LAST",
-        locationText: "DOCK",
-        source: "MANUAL",
-        version: 1,
-        ...world.stamps(10000),
-      });
-      await ctx.db.patch(row!._id, {
-        latestJobScanId: scanId,
-        latestJobCreatedAt: 10000,
-        latestJobFactoryOrder: "LAST-WH",
-      });
-      return warehouseId;
-    });
-    const read = async (warehouseId?: string) =>
-      allowed(
-        await world.actorA.query(workspace.getCustomerWorkspace, {
           customerId: world.customerId,
-          ...(warehouseId ? { warehouseId } : {}),
+          factoryOrder: "LAST-WH",
+          mapped: false,
+          productBarcodeText: "LAST",
+          locationText: "DOCK",
+          source: "MANUAL",
+          version: 1,
+          ...world.stamps(10000),
+        });
+        await ctx.db.patch(row!._id, {
+          latestJobScanId: scanId,
+          latestJobCreatedAt: 10000,
+          latestJobFactoryOrder: "LAST-WH",
+        });
+        return warehouseId;
+      });
+      const read = async (warehouseId?: string) =>
+        allowed(
+          await world.actorA.query(workspace.getCustomerWorkspace, {
+            customerId: world.customerId,
+            ...(warehouseId ? { warehouseId } : {}),
+          }),
+        ) as Workspace;
+      const all = await read();
+      expect(all.warehousesComplete).toBe(false);
+      let productTotal = all.rollup!.linkedProducts.count;
+      const jobs = [...all.latestJobs];
+      let cursor = all.overviewCursor;
+      expect(Boolean(cursor)).toBe(extraWarehouses > 100);
+      while (cursor) {
+        const page = allowed(
+          await world.actorA.query(workspace.continueCustomerOverview, {
+            customerId: world.customerId,
+            cursor,
+          }),
+        )!;
+        productTotal += page.linkedProductCount;
+        jobs.push(...page.latestJobs);
+        cursor = page.nextCursor;
+      }
+      expect(productTotal).toBe(3);
+      expect(
+        jobs.sort((a, b) => b.createdAt - a.createdAt)[0]?.factoryOrder,
+      ).toBe("LAST-WH");
+      expect(all.rollup?.linkedJobs.complete).toBe(false);
+      expect(all.rollup?.unmappedJobs.complete).toBe(false);
+      expect(all.warehouses.map((w) => w.warehouseId)).not.toContain(
+        lastWarehouse,
+      );
+      const selected = await read(lastWarehouse);
+      expect(selected.warehouses.map((w) => w.warehouseId)).toContain(
+        lastWarehouse,
+      );
+      expect(selected.rollup?.linkedJobs.complete).toBe(true);
+      expect(selected.latestJobs[0]?.factoryOrder).toBe("LAST-WH");
+      expect((await read("malformed")).scopeAvailable).toBe(false);
+
+      const scoped = await world.member(
+        "last_only",
+        ["masterData.customer.read", "masterData.storageLayout.read"],
+        [lastWarehouse],
+      );
+      const scopedAll = allowed(
+        await scoped.query(workspace.getCustomerWorkspace, {
+          customerId: world.customerId,
         }),
       ) as Workspace;
-    const all = await read();
-    expect(all.warehousesComplete).toBe(false);
-    expect(all.rollup?.linkedJobs.complete).toBe(false);
-    expect(all.rollup?.unmappedJobs.complete).toBe(false);
-    expect(all.warehouses.map((w) => w.warehouseId)).not.toContain(
-      lastWarehouse,
-    );
-    const selected = await read(lastWarehouse);
-    expect(selected.warehouses.map((w) => w.warehouseId)).toContain(
-      lastWarehouse,
-    );
-    expect(selected.rollup?.linkedJobs.complete).toBe(true);
-    expect(selected.latestJobs[0]?.factoryOrder).toBe("LAST-WH");
-    expect((await read("malformed")).scopeAvailable).toBe(false);
-
-    const scoped = await world.member(
-      "last_only",
-      ["masterData.customer.read", "masterData.storageLayout.read"],
-      [lastWarehouse],
-    );
-    const scopedAll = allowed(
-      await scoped.query(workspace.getCustomerWorkspace, {
-        customerId: world.customerId,
-      }),
-    ) as Workspace;
-    expect(scopedAll.warehouses.map((w) => w.warehouseId)).toEqual([
-      lastWarehouse,
-    ]);
-    expect(scopedAll.rollup?.linkedJobs.complete).toBe(true);
-    expect(scopedAll.latestJobs[0]?.factoryOrder).toBe("LAST-WH");
-  });
+      expect(scopedAll.warehouses.map((w) => w.warehouseId)).toEqual([
+        lastWarehouse,
+      ]);
+      expect(scopedAll.rollup?.linkedJobs.complete).toBe(true);
+      expect(scopedAll.latestJobs[0]?.factoryOrder).toBe("LAST-WH");
+    },
+  );
 
   it("marks stored pallets incomplete when the first warehouse exactly consumes the product budget", async () => {
     const world = await setup();

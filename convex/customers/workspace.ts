@@ -181,6 +181,32 @@ async function activityInWarehouse(
   return row ? { row, warehouse } : null;
 }
 
+type ActivityEntry = {
+  row: Doc<"customerWarehouseActivity">;
+  warehouse: Doc<"warehouses">;
+};
+
+async function visibleActivity(
+  ctx: TenantFunctionContext,
+  allowed: Awaited<ReturnType<typeof allowedCustomerWarehouses>>,
+  rows: readonly Doc<"customerWarehouseActivity">[],
+) {
+  const visible = await Promise.all(
+    rows.map(async (row) => {
+      const listed = allowed.byId.get(row.warehouseId);
+      if (listed) return { row, warehouse: listed };
+      if (allowed.complete || !(await canAccessWarehouse(ctx, row.warehouseId)))
+        return null;
+      const warehouse = await ctx.tenantDb.get<Doc<"warehouses">>(
+        "warehouses",
+        row.warehouseId,
+      );
+      return warehouse ? { row, warehouse } : null;
+    }),
+  );
+  return visible.filter((entry) => entry !== null);
+}
+
 async function customerWarehouses(
   ctx: TenantFunctionContext,
   customerId: Id<"customers">,
@@ -212,26 +238,95 @@ async function customerWarehouses(
       complete: true,
     };
   }
-  const visible = await Promise.all(
-    rows.slice(0, MAX_CUSTOMER_WAREHOUSES).map(async (row) => {
-      const listed = allowed.byId.get(row.warehouseId);
-      if (listed) return { row, warehouse: listed };
-      if (allowed.complete || !(await canAccessWarehouse(ctx, row.warehouseId)))
-        return null;
-      const warehouse = await ctx.tenantDb.get<Doc<"warehouses">>(
-        "warehouses",
-        row.warehouseId,
-      );
-      return warehouse ? { row, warehouse } : null;
-    }),
+  const visible = await visibleActivity(
+    ctx,
+    allowed,
+    rows.slice(0, MAX_CUSTOMER_WAREHOUSES),
   );
   return {
-    entries: visible
-      .filter((entry) => entry !== null)
-      .sort((a, b) => a.warehouse.name.localeCompare(b.warehouse.name)),
+    entries: visible.sort((a, b) =>
+      a.warehouse.name.localeCompare(b.warehouse.name),
+    ),
     complete: rows.length <= MAX_CUSTOMER_WAREHOUSES,
   };
 }
+
+async function newestJobs(
+  ctx: TenantFunctionContext,
+  customerId: Id<"customers">,
+  entries: readonly ActivityEntry[],
+) {
+  // The newest jobs overall are among each warehouse's newest few, and the
+  // activity row tracks every warehouse's latest job.
+  const recent = entries
+    .filter(({ row }) => row.latestJobCreatedAt !== undefined)
+    .sort(
+      (a, b) =>
+        (b.row.latestJobCreatedAt ?? 0) - (a.row.latestJobCreatedAt ?? 0),
+    )
+    .slice(0, LATEST_JOBS);
+  const recentJobs = await Promise.all(
+    recent.map(async ({ warehouse }) =>
+      (
+        await customerJobRange(ctx, customerId, warehouse._id).take(
+          LATEST_JOBS,
+          "desc",
+        )
+      ).map((scan) => jobRow(scan, warehouse.name)),
+    ),
+  );
+  return recentJobs
+    .flat()
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, LATEST_JOBS);
+}
+
+async function overviewTotalsPage(
+  ctx: TenantFunctionContext,
+  customerId: Id<"customers">,
+  allowed: Awaited<ReturnType<typeof allowedCustomerWarehouses>>,
+  cursor?: string,
+) {
+  const page = await ctx.tenantDb
+    .byIndex<Doc<"customerWarehouseActivity">>(
+      "customerWarehouseActivity",
+      "by_orgId_customerId_warehouseId",
+      [{ field: "customerId", value: customerId }],
+    )
+    .page({ limit: TENANT_INDEX_MAX_PAGE_SIZE, cursor });
+  const visible = await visibleActivity(ctx, allowed, page.page);
+  return {
+    latestJobs: await newestJobs(ctx, customerId, visible),
+    linkedProductCount: visible.reduce(
+      (count, entry) => count + entry.row.linkedProductCount,
+      0,
+    ),
+    ...(page.isDone ? {} : { nextCursor: page.continueCursor }),
+  };
+}
+
+export const continueCustomerOverview = queryWithOrg({
+  ...readCustomers,
+  args: { customerId: v.id("customers"), cursor: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      latestJobs: v.array(workspaceJob),
+      linkedProductCount: v.number(),
+      nextCursor: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx, { customerId, cursor }) => {
+    const customer = await ctx.tenantDb.get<Doc<"customers">>(
+      "customers",
+      customerId,
+    );
+    if (!customer) return null;
+    const allowed = await allowedCustomerWarehouses(ctx);
+    if (!allowed.hasWarehouseRead) return null;
+    return overviewTotalsPage(ctx, customer._id, allowed, cursor);
+  },
+});
 
 /**
  * Workspace shell data: access flags, the selector's warehouses, and the
@@ -277,6 +372,7 @@ export const getCustomerWorkspace = queryWithOrg({
           ),
         }),
       ),
+      overviewCursor: v.optional(v.string()),
       latestJobs: v.array(workspaceJob),
     }),
   ),
@@ -468,29 +564,15 @@ export const getCustomerWorkspace = queryWithOrg({
       };
     }
 
-    // The newest jobs overall are among each warehouse's newest few, and the
-    // activity row tracks every warehouse's latest job.
-    const recent = scoped
-      .filter(({ row }) => row.latestJobCreatedAt !== undefined)
-      .sort(
-        (a, b) =>
-          (b.row.latestJobCreatedAt ?? 0) - (a.row.latestJobCreatedAt ?? 0),
-      )
-      .slice(0, LATEST_JOBS);
-    const recentJobs = await Promise.all(
-      recent.map(async ({ warehouse }) =>
-        (
-          await customerJobRange(ctx, customer._id, warehouse._id).take(
-            LATEST_JOBS,
-            "desc",
-          )
-        ).map((scan) => jobRow(scan, warehouse.name)),
-      ),
-    );
-    const latestJobs = recentJobs
-      .flat()
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, LATEST_JOBS);
+    // The selector is only a preview. Complete display metrics independently
+    // across all permitted activity, using live continuations for large scopes.
+    const overview = !scopeComplete
+      ? await overviewTotalsPage(ctx, customer._id, allowed)
+      : {
+          latestJobs: await newestJobs(ctx, customer._id, scoped),
+          linkedProductCount,
+          nextCursor: undefined,
+        };
 
     return {
       ...shell,
@@ -499,7 +581,10 @@ export const getCustomerWorkspace = queryWithOrg({
           ...linkedJobs,
           complete: scopeComplete && linkedJobs.complete,
         },
-        linkedProducts: { count: linkedProductCount, complete: scopeComplete },
+        linkedProducts: {
+          count: overview.linkedProductCount,
+          complete: !overview.nextCursor,
+        },
         storedPallets: { count: stored, complete: storedComplete },
         unmappedJobs: {
           ...unmappedJobs,
@@ -507,7 +592,8 @@ export const getCustomerWorkspace = queryWithOrg({
         },
         ...(pendingReview === undefined ? {} : { pendingReview }),
       },
-      latestJobs,
+      latestJobs: overview.latestJobs,
+      ...(overview.nextCursor ? { overviewCursor: overview.nextCursor } : {}),
     };
   },
 });

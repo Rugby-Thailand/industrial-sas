@@ -274,6 +274,7 @@ export async function readPendingScansSummary(
       collectReviewScans(scans, rows.slice(0, count));
       remaining -= count;
       if (rows.length === limit) hasMore = true;
+      if (remaining === 0 && hasMore) return { allowed, scans, hasMore };
     }
   }
   return { allowed, scans, hasMore };

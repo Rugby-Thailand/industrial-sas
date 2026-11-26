@@ -238,9 +238,36 @@ function allowCustomer(status: "ACTIVE" | "ARCHIVED" = "ACTIVE") {
   mocks.customerQuery.mockImplementation((_query, args) =>
     args === "skip"
       ? undefined
-      : querySuccess({ name: "Acme Foods", code: "C-001", status }),
+      : querySuccess({
+          customerId: "customer-a",
+          name: "Acme Foods",
+          code: "C-001",
+          status,
+        }),
   );
 }
+
+it("waits for a pending customer lookup before creating a manual ticket", () => {
+  mocks.canReadCustomers = true;
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?customer=customer-a",
+  );
+  const view = start(true);
+  const manual = screen.getByRole("button", { name: "Manual" });
+  expect(manual).toBeDisabled();
+  fireEvent.click(manual);
+  expect(screen.queryByRole("textbox", { name: /Job No\./ })).toBeNull();
+  allowCustomer();
+  view.rerender(<JobScanScreen />);
+  expect(manual).toBeEnabled();
+  addTicket();
+  fireEvent.click(screen.getByRole("button", { name: /More details/ }));
+  expect(screen.getByRole("textbox", { name: "Customer" })).toHaveValue(
+    "Acme Foods",
+  );
+});
 
 it("prefills editable manual customer text and keeps mismatch advisory when saving", async () => {
   allowCustomer();

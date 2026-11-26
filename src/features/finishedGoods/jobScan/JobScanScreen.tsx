@@ -129,22 +129,26 @@ export function LocationSummary({
 function useScanCustomer() {
   const customerId = useQueryParams().get("customer");
   const { navigationPermissions } = useWorkspace();
+  const shouldLookup =
+    !!customerId &&
+    /^[A-Za-z0-9_-]{1,64}$/.test(customerId) &&
+    navigationPermissions.includes(NAVIGATION_PERMISSION.customers);
   const outcome = useQuery(
     api.customers.catalogue.getCustomer,
-    customerId &&
-      /^[A-Za-z0-9_-]{1,64}$/.test(customerId) &&
-      navigationPermissions.includes(NAVIGATION_PERMISSION.customers)
-      ? { customerId }
-      : "skip",
+    shouldLookup ? { customerId } : "skip",
   );
-  if (!customerId || !outcome?.ok || outcome.value?.status !== "ACTIVE")
-    return undefined;
-  const { name, code } = outcome.value;
+  const customer = shouldLookup && outcome?.ok ? outcome.value : null;
   return {
-    customerId,
-    name,
-    code,
-    normalizedName: normalizeCustomerName(name),
+    pending: shouldLookup && outcome === undefined,
+    customer:
+      customer?.status === "ACTIVE"
+        ? {
+            customerId: customer.customerId,
+            name: customer.name,
+            code: customer.code,
+            normalizedName: normalizeCustomerName(customer.name),
+          }
+        : undefined,
   };
 }
 
@@ -152,7 +156,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const t = useTranslations("JobScan");
   const router = useRouter();
   const canManage = useCanManage();
-  const scanCustomer = useScanCustomer();
+  const { customer: scanCustomer, pending: loadingScanCustomer } =
+    useScanCustomer();
   // Tickets are not persisted, so neither are their save IDs (see module map).
   const operation = useOperation();
   const extract = useAction(fgRefs.extractJobTicket);
@@ -688,7 +693,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             },
             {
               key: "MANUAL",
-              disabled: tickets.length >= MAX_JOB_SCAN_ITEMS,
+              disabled:
+                loadingScanCustomer || tickets.length >= MAX_JOB_SCAN_ITEMS,
               label: t("manual"),
               icon: Keyboard,
               onSelect: () => {

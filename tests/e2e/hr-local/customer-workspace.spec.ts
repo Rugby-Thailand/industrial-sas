@@ -162,6 +162,16 @@ test("warehouse scope, ticket filtering and product navigation survive Back and 
   await expect(page).toHaveURL(
     (url) => url.pathname + url.search + url.hash === origin,
   );
+  await sections.getByRole("button", { name: "Job tickets" }).click();
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("section") === "jobs",
+  );
+  await page.getByRole("combobox", { name: "Warehouse", exact: true }).click();
+  await page.getByRole("option", { name: /LOCAL-DEMO/ }).click();
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("warehouse") === warehouseId,
+  );
+  const scanOrigin = page.url();
   await page
     .getByRole("link", { name: "Scan job ticket", exact: true })
     .click();
@@ -172,5 +182,30 @@ test("warehouse scope, ticket filtering and product navigation survive Back and 
   );
   await expect(
     page.getByText(new RegExp("Scanning.*" + name, "i")),
+  ).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "Search location" })
+    .fill("Dock-" + suffix);
+  await page
+    .getByRole("button", { name: /Save now, set location later/ })
+    .click();
+  await page.getByRole("button", { name: "Manual", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: /Job No\./ })
+    .fill("RETURN-" + suffix);
+  await page.getByRole("textbox", { name: /Product barcode/ }).fill(sku);
+  await page.getByRole("button", { name: /^Save 1/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Saved 1 ticket" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "View customer jobs" }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(scanOrigin);
+  await expect(
+    page
+      .getByTestId("customer-recent-jobs")
+      .getByRole("link", { name: new RegExp("RETURN-" + suffix) }),
   ).toBeVisible();
 });

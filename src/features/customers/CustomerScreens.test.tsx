@@ -3421,6 +3421,43 @@ describe("customer workspace navigation", () => {
     expect(href()).toBe(scoped);
   });
 
+  it("waits for activity beyond the warehouse selector before presenting totals and latest jobs", () => {
+    const continuation = getFunctionName(
+      api.customers.workspace.continueCustomerOverview,
+    );
+    const view = withWorkspace(WORKSPACE_URL, { overviewCursor: "next" });
+    expect(
+      screen.queryByRole("heading", { name: "Latest job tickets" }),
+    ).toBeNull();
+    mocks.queries.set(continuation, {
+      ok: true,
+      value: {
+        latestJobs: [
+          {
+            ...job,
+            jobScanId: "second",
+            factoryOrder: "LAST-WH",
+            createdAt: job.createdAt + 1,
+          },
+        ],
+        linkedProductCount: 4,
+      },
+    });
+    view.rerender(
+      <DraftGuardProvider>
+        <CustomerDetail customerId="customer-a" />
+      </DraftGuardProvider>,
+    );
+    expect(
+      screen.getByRole("button", { name: /Linked products\s*5/ }),
+    ).toBeVisible();
+    expect(
+      within(screen.getByTestId("customer-recent-jobs")).getAllByRole(
+        "link",
+      )[0],
+    ).toHaveTextContent("LAST-WH");
+  });
+
   it("shows a recovery action for an unavailable warehouse without querying its records", async () => {
     const current = `${WORKSPACE_URL}?section=jobs&warehouse=wrong`;
     const view = withWorkspace(current, { scopeAvailable: false });

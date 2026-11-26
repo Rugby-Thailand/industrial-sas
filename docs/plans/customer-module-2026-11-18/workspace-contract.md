@@ -77,11 +77,14 @@ null | {
     unmappedJobs: BoundedCount;    // linked live jobs with mapped=false, capped at 99
     pendingReview?: { names: number; scans: number; complete: boolean }; // only when canReview
   };
-  latestJobs: WorkspaceJob[];      // newest 3 in scope
+  overviewCursor?: string;         // continueCustomerOverview reads the remaining activity pages
+  latestJobs: WorkspaceJob[];      // newest 3 across the activity pages read so far
 }
 ```
 
 `pendingReview` counts names in "Names to review" that the queue would propose for this customer. A name qualifies when it matches the customer's canonical name or an approved alias exactly. It also qualifies through the queue's compact-stem similarity rule, which applies only when the customer is active and the name has no exact match anywhere. The count uses the same candidate reader as the queue, including its active-customer sample and suggestion limits. The overview checks up to 300 source rows and 50 distinct names in scope. `complete: false` means the window was truncated.
+
+When the selector is truncated, the overview reads compact activity rows in pages of 100. It sums permitted product counts and merges the three newest jobs from each page before displaying either metric. Scope and permission checks apply to every continuation.
 
 Archived customers keep their history. Show the archived notice and still load the rollup. `canScan` is false for them.
 

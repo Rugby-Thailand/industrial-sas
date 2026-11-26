@@ -80,6 +80,16 @@ export function CustomerWarehouseSection({
       ? {}
       : { warehouseId: warehouse as Id<"warehouses"> }),
   };
+  if (section === "overview" && shell.overviewCursor) {
+    return (
+      <ContinuedWarehouseOverview
+        args={args}
+        shell={shell}
+        onSection={onSection}
+        cursor={shell.overviewCursor}
+      />
+    );
+  }
   if (section === "overview")
     return (
       <WarehouseOverview shell={shell} args={args} onSection={onSection} />
@@ -114,15 +124,60 @@ type ScopeArgs = {
   readonly warehouseId?: Id<"warehouses">;
 };
 
-function WarehouseOverview({
-  shell,
-  args,
-  onSection,
-}: {
+type OverviewProps = {
   readonly shell: Workspace;
   readonly args: ScopeArgs;
   readonly onSection: SectionProps["onSection"];
-}) {
+};
+
+/** Keep each activity page subscribed so inserts and removals update its totals. */
+function ContinuedWarehouseOverview({
+  cursor,
+  shell,
+  args,
+  onSection,
+}: OverviewProps & { readonly cursor: string }) {
+  const outcome = useQuery(api.customers.workspace.continueCustomerOverview, {
+    customerId: args.customerId,
+    cursor,
+  });
+  if (outcome === undefined)
+    return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
+  if (!outcome.ok)
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: outcome.denial.requestId }}
+      />
+    );
+  if (!outcome.value || !shell.rollup) return null;
+  const { nextCursor, latestJobs, linkedProductCount } = outcome.value;
+  const merged: Workspace = {
+    ...shell,
+    rollup: {
+      ...shell.rollup,
+      linkedProducts: {
+        count: shell.rollup.linkedProducts.count + linkedProductCount,
+        complete: !nextCursor,
+      },
+    },
+    latestJobs: [...shell.latestJobs, ...latestJobs]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 3),
+  };
+  if (nextCursor)
+    return (
+      <ContinuedWarehouseOverview
+        key={nextCursor}
+        cursor={nextCursor}
+        args={args}
+        shell={merged}
+        onSection={onSection}
+      />
+    );
+  return <WarehouseOverview args={args} shell={merged} onSection={onSection} />;
+}
+
+function WarehouseOverview({ shell, args, onSection }: OverviewProps) {
   const t = useTranslations("Customers.workspace");
   const format = useFormatter();
   const rollup = shell.rollup;
