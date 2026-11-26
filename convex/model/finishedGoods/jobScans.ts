@@ -1092,10 +1092,11 @@ const EDIT_CLAUSE_START = [
 const EDIT_QUOTED_VALUE = /"([^"\r\n]+)"|“([^”\r\n]+)”/u;
 const EDIT_CONJUNCTION = String.raw`(?:\s+(?:and|plus)(?=\s|$)\s*|\s+[&+＆]\s*|[&+＆]\s+|\s*(?:และ|พร้อมทั้ง|พร้อมกับ)\s*)`;
 const UNSPLIT_EDIT_CONJUNCTION = new RegExp(EDIT_CONJUNCTION, "u");
-// Preserve quoted values, possessive field names, and the reserved QR prefix.
-const EDIT_PUNCTUATION = String.raw`(?!(?:["“”'‘’]|(?<=\bISAS):))[\p{P}\p{S}]`;
+// Match punctuation at its own position so the quoted-value token gets first
+// chance. Keep possessive suffixes and the reserved QR prefix intact.
+const EDIT_PUNCTUATION = String.raw`(?!(?:(?<=[\p{L}\p{N}])['’]s\b|(?<=\bISAS):))[\p{P}\p{S}]`;
 const EDIT_CLAUSE_BOUNDARY = new RegExp(
-  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>(?:\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|${EXPLICIT_FOLLOW_UP}|${EDIT_CONJUNCTION})${FOLLOW_UP_MODIFIERS}|(?:\s*${EDIT_PUNCTUATION}\s*|\s+${WITH_FOLLOW_UP}\s+|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))`,
+  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>(?:\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=[^\s\p{N}])|${EXPLICIT_FOLLOW_UP}|${EDIT_CONJUNCTION})${FOLLOW_UP_MODIFIERS}|(?:${EDIT_PUNCTUATION}\s*|\s+${WITH_FOLLOW_UP}\s+|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))`,
   "giu",
 );
 const EDIT_CONDITION =

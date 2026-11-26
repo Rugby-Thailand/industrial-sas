@@ -1243,6 +1243,9 @@ describe("parseJobScanEditProposal", () => {
       "-",
       "#",
       "⁄",
+      "'",
+      "’",
+      "”",
     ]) {
       for (const modifier of ["", "also ", "please also ", "and then "]) {
         for (const action of [
@@ -1292,6 +1295,9 @@ describe("parseJobScanEditProposal", () => {
       "Widget A/B",
       "Widget Type:A",
       "RACK#01",
+      "A/B-1 (Rev. 2)",
+      "L’Atelier's Blue",
+      "King’s Seal",
     ]) {
       expect(
         parseJobScanEditProposal(

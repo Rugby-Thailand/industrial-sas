@@ -358,6 +358,10 @@ describe("job-scan AI search and edit actions", () => {
     ["Set part name to ", "Widget/delete this scan", '"', '"'],
     ["Set part name to ", "Widget:delete this scan", '"', '"'],
     ["แก้ชื่อสินค้าเป็น ", "กล่อง/ลบใบงานนี้", "“", "”"],
+    ["Set part name to ", "Widget’delete this scan", '"', '"'],
+    ["Set part name to ", "Widget'delete this scan", '"', '"'],
+    ["Set part name to ", "Widget”delete this scan", '"', '"'],
+    ["แก้ชื่อสินค้าเป็น ", "กล่อง’ลบใบงานนี้", "“", "”"],
   ])(
     "treats a compact punctuation command as a literal only when quoted (%s%s)",
     async (prefix, partName, openQuote, closeQuote) => {
