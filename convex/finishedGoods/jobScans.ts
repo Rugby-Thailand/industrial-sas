@@ -803,6 +803,11 @@ export const updateJobScan = mutationWithOrg({
       if (error) return failure(error);
       const detailError = jobTicketDetailError(submitted);
       if (detailError) return failure(detailError.code, detailError.field);
+      if (
+        args.ticketPatch?.customer !== undefined &&
+        !(await canReadCustomers(ctx))
+      )
+        return failure("CUSTOMER_LINK_REVIEW_REQUIRED", "customer");
       // A reviewed ticket correction can include a location. Resolve it before
       // applying any ticket changes, using the same warehouse lookup as remapping.
       const destination = args.location
@@ -855,6 +860,12 @@ export const updateJobScan = mutationWithOrg({
           nextCustomerLinkSource = undefined;
         }
       }
+      if (
+        args.ticketPatch?.customer !== undefined &&
+        (nextCustomerId !== before.customerId ||
+          nextCustomerLinkSource !== before.customerLinkSource)
+      )
+        return failure("CUSTOMER_LINK_REVIEW_REQUIRED", "customer");
       const nextReviewPending = reviewCustomer
         ? customerReviewState({
             voided: before.voided,
@@ -890,12 +901,6 @@ export const updateJobScan = mutationWithOrg({
                 (field) => [field, normalized[field]],
               ),
             ),
-            ...(reviewCustomer
-              ? {
-                  customerId: nextCustomerId,
-                  customerLinkSource: nextCustomerLinkSource,
-                }
-              : {}),
           };
       const changes = [...diffFields(before, fields)];
       if (locationPatch && diffFields(before, locationPatch).length) {
@@ -1228,13 +1233,23 @@ export const listJobScans = queryWithOrg({
             locationId: args.locationId,
           })
         : null;
-    const zoneSharingLocation =
-      location?.zoneId && location.supportPositionId
-        ? await ctx.tenantDb.get<Doc<"storageZones">>(
+    // Older scans can carry only their layout references. Resolve both aliases
+    // of the ledger identity, including a retired default position of an active area.
+    const [legacyZone, legacyPosition] = location?.zoneId
+      ? await Promise.all([
+          ctx.tenantDb.get<Doc<"storageZones">>(
             "storageZones",
             location.zoneId,
-          )
-        : null;
+          ),
+          ctx.tenantDb
+            .byIndex<Doc<"storagePositions">>(
+              "storagePositions",
+              "by_orgId_locationId",
+              [{ field: "locationId", value: location.locationId }],
+            )
+            .first(),
+        ])
+      : [null, null];
     const exact = Boolean(needle) && args.exactCode === true;
     const buildingNeedle =
       args.facets?.building !== undefined
@@ -1318,9 +1333,11 @@ export const listJobScans = queryWithOrg({
         } else if (
           !location.zoneId ||
           scan.zoneId !== location.zoneId ||
-          (scan.supportPositionId !== location.supportPositionId &&
-            (scan.supportPositionId !== undefined ||
-              zoneSharingLocation?.locationId !== location.locationId))
+          (scan.supportPositionId
+            ? scan.supportPositionId !== legacyPosition?._id ||
+              legacyPosition.zoneId !== location.zoneId ||
+              legacyPosition.warehouseId !== args.warehouseId
+            : legacyZone?.locationId !== location.locationId)
         ) {
           return false;
         }

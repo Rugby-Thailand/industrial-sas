@@ -169,6 +169,22 @@ it("Cancel consumes the record search camera entry before the next Back", async 
   );
 });
 
+it("does not fall back to a ticket code when a warehouse QR is unavailable", async () => {
+  mocks.resolve.mockResolvedValueOnce({
+    ok: true,
+    value: { ok: false, error: { code: "LOCATION_UNAVAILABLE" } },
+  });
+  const user = show();
+  await user.click(screen.getByRole("button", { name: "Scan to search" }));
+  await user.click(
+    screen.getByRole("button", { name: "Read legacy location QR" }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This code could not be used",
+  );
+  expect(mocks.change).not.toHaveBeenCalled();
+});
+
 it("applies validated AI facets after the search popup closes and keeps manual search usable on failure", async () => {
   mocks.interpret.mockResolvedValueOnce(null).mockResolvedValueOnce({
     filter: "MAPPED",

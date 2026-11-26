@@ -155,6 +155,7 @@ export function JobScanRecordAssist({
       : record.version,
   );
   const stale = liveVersion !== version || op.errorCode === "STALE_REVISION";
+  const customerLinkConflict = op.errorCode === "CUSTOMER_LINK_REVIEW_REQUIRED";
   const guard = useNavigationDraft({
     foregroundScope: draftScope,
     dirty: Boolean(prompt.trim()),
@@ -231,7 +232,12 @@ export function JobScanRecordAssist({
   }
 
   async function saveReview() {
-    if (op.busy || !review || (!pendingCommand && (stale || !enabled))) return;
+    if (
+      op.busy ||
+      !review ||
+      (!pendingCommand && (stale || customerLinkConflict || !enabled))
+    )
+      return;
     const args = {
       warehouseId,
       jobScanId: record.id,
@@ -411,10 +417,24 @@ export function JobScanRecordAssist({
                 </li>
               ))}
             </ul>
+            {review.ticketPatch?.customer !== undefined &&
+              !customerLinkConflict && (
+                <p className="text-sm text-muted">
+                  {t("recordTools.customerLinkNote")}
+                </p>
+              )}
             {stale && !pendingCommand && (
               <Notice tone="warning" role="alert" title={t("recordConflict")} />
             )}
-            <ErrorNotice message={op.error} />
+            {customerLinkConflict ? (
+              <Notice
+                tone="warning"
+                role="alert"
+                title={t("recordTools.customerLinkConflict")}
+              />
+            ) : (
+              <ErrorNotice message={op.error} />
+            )}
             <DialogFooter>
               <Button
                 variant="outline"
@@ -427,7 +447,11 @@ export function JobScanRecordAssist({
               </Button>
               <Button
                 onClick={() => void saveReview()}
-                disabled={op.busy || (!pendingCommand && (stale || !enabled))}
+                disabled={
+                  op.busy ||
+                  (!pendingCommand &&
+                    (stale || customerLinkConflict || !enabled))
+                }
               >
                 {t(
                   op.busy

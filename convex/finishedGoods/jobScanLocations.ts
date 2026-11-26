@@ -147,7 +147,7 @@ export function jobLocationReader(
         [{ field: "locationId", value: row._id }],
       )
       .first();
-    if (position)
+    if (position?.status === "ACTIVE" && position.warehouseId === warehouseId)
       return {
         source: position,
         position,

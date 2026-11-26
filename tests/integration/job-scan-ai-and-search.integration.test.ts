@@ -950,6 +950,73 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
     ).toEqual([]);
   });
 
+  it("keeps an active zone searchable after its shared default position is retired and refuses a foreign warehouse QR", async () => {
+    const fixture = await seedListFixture();
+    const { world, warehouseId, ids } = fixture;
+    const qr = "legacy-default-position";
+    const foreignQr = "foreign-location-label";
+    const { locationId, positionId } = await world.t.run(async (ctx) => {
+      const scan = (await ctx.db.get(ids.exactFoPalletF2))!;
+      const zone = (await ctx.db.get(scan.zoneId!))!;
+      const position = {
+        orgId: zone.orgId,
+        warehouseId,
+        buildingId: zone.buildingId,
+        floorId: zone.floorId,
+        zoneId: zone._id,
+        locationId: zone.locationId,
+        code: zone.code,
+        label: zone.label,
+        qrValue: qr,
+        kind: "DEFAULT" as const,
+        isDefault: true,
+        status: "ACTIVE" as const,
+        createdAt: zone.createdAt,
+        createdByUserId: zone.createdByUserId,
+        updatedAt: zone.updatedAt,
+        updatedByUserId: zone.updatedByUserId,
+      };
+      const positionId = await ctx.db.insert("storagePositions", position);
+      await ctx.db.insert("storagePositions", {
+        ...position,
+        qrValue: foreignQr,
+        warehouseId: world.warehouses.bravoA,
+      });
+      await ctx.db.patch(scan._id, { supportPositionId: positionId });
+      await ctx.db.patch(ids.southPalletF2, { productBarcodeText: foreignQr });
+      return { locationId: zone.locationId, positionId };
+    });
+    const client = world.t.withIdentity(IDENTITY);
+    for (const status of ["ACTIVE", "INACTIVE"] as const) {
+      await world.t.run((ctx) => ctx.db.patch(positionId, { status }));
+      for (const code of [`ISAS:LOCATION:1:${locationId}`, qr]) {
+        expect(
+          await client.query(api.finishedGoods.jobScanLocations.resolve, {
+            warehouseId,
+            code,
+            qrOnly: true,
+          }),
+        ).toMatchObject({
+          ok: true,
+          value: { ok: true, location: { locationId } },
+        });
+      }
+      expect(
+        await listAll(fixture, { filter: "ALL", locationId, pageSize: 1 }),
+      ).toEqual([ids.legacyZoneOnlyPalletF2, ids.exactFoPalletF2]);
+    }
+    expect(
+      await client.query(api.finishedGoods.jobScanLocations.resolve, {
+        warehouseId,
+        code: foreignQr,
+        qrOnly: true,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { ok: false, error: { code: "LOCATION_UNAVAILABLE" } },
+    });
+  });
+
   it("matches exact scanned codes without matching prefixes or non-code fields in both index and fallback modes", async () => {
     const fixture = await seedListFixture();
     await buildIndex(fixture);

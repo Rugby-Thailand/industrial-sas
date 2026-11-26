@@ -215,3 +215,29 @@ it("refuses unknown locations and disables new writes when the reviewed ticket c
   ).toBeDisabled();
   expect(mocks.mutation).not.toHaveBeenCalled();
 });
+
+it("blocks an unreviewed customer link change and points back to the full ticket editor", async () => {
+  mocks.interpret.mockResolvedValueOnce({ fields: { customer: "Beta Co" } });
+  mocks.mutation.mockResolvedValueOnce(
+    querySuccess({
+      written: false,
+      error: { code: "CUSTOMER_LINK_REVIEW_REQUIRED", field: "customer" },
+    }),
+  );
+  const { user } = await start();
+  const review = await propose(user);
+  expect(review.getByText("Beta Co")).toBeVisible();
+  const save = review.getByRole("button", { name: "Confirm and save" });
+  await user.click(save);
+  expect(await review.findByRole("alert")).toHaveTextContent(
+    "Use the ticket editor to review this customer link change.",
+  );
+  expect(save).toBeDisabled();
+  expect(mocks.mutation).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ ticketPatch: { customer: "Beta Co" } }),
+  );
+  await user.click(review.getByRole("button", { name: "Edit request" }));
+  expect(
+    await screen.findByRole("button", { name: "Correct ticket details" }),
+  ).toBeEnabled();
+});

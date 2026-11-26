@@ -270,7 +270,12 @@ export async function resolveTarget(
     return { error: "AMBIGUOUS_IDENTITY" } as const;
   const position = distinctPositions[0];
   if (qrOnly && !zones.length && !position)
-    return { error: "LOCATION_NOT_FOUND" } as const;
+    return {
+      error:
+        zonesByQr.length || positionsByQr.length
+          ? "LOCATION_UNAVAILABLE"
+          : "LOCATION_NOT_FOUND",
+    } as const;
   const zone =
     zones[0] ??
     (position
@@ -280,7 +285,17 @@ export async function resolveTarget(
         )
       : null);
   const context = zone
-    ? await targetContext(ctx, warehouseId, zone, position)
+    ? await targetContext(
+        ctx,
+        warehouseId,
+        zone,
+        qrOnly &&
+          position?.isDefault &&
+          position.status !== "ACTIVE" &&
+          position.locationId === zone.locationId
+          ? undefined
+          : position,
+      )
     : null;
   return context ?? ({ error: "LOCATION_UNAVAILABLE" } as const);
 }

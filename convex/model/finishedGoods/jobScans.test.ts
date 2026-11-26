@@ -227,6 +227,21 @@ describe("parseJobScanSearchIntent", () => {
     });
   });
 
+  it("does not interpret a job number or a product name fragment as a search facet", () => {
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, search: "PO-42", floor: 42 },
+        "Find records for PO-42",
+      ),
+    ).toEqual({ kind: "UNREADABLE" });
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, search: "boxwood gasket", storageFormat: "BOX" },
+        "Find boxwood gasket",
+      ),
+    ).toEqual({ kind: "UNREADABLE" });
+  });
+
   it("rejects untrusted, ungrounded, extra-key, ID or truncated responses", () => {
     expect(
       parseJobScanSearchIntent({ ...base, jobScanId: "scan_123" }, "unmapped"),
@@ -419,5 +434,39 @@ describe("parseJobScanEditProposal", () => {
         "Do not set quantity to 40",
       ),
     ).toEqual({ kind: "UNSUPPORTED" });
+  });
+
+  it.each(["AbC123", "ＡＢＣ123"])(
+    "rejects provider changes to the exact barcode %s",
+    (barcode) => {
+      const prompt = `Set barcode to ${barcode}`;
+      expect(
+        parseJobScanEditProposal(
+          { ...emptyEdit, productBarcodeText: "ABC123" },
+          prompt,
+        ),
+      ).toEqual({ kind: "UNREADABLE" });
+      expect(
+        parseJobScanEditProposal(
+          { ...emptyEdit, productBarcodeText: barcode },
+          prompt,
+        ),
+      ).toEqual({
+        kind: "OK",
+        value: { fields: { productBarcodeText: barcode } },
+      });
+    },
+  );
+
+  it("keeps punctuation and conjunctions in literal names", () => {
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, customer: "ACME, Inc.", partName: "Bolt and Nut" },
+        "Set customer to ACME, Inc., and set part name to Bolt and Nut",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { fields: { customer: "ACME, Inc.", partName: "Bolt and Nut" } },
+    });
   });
 });

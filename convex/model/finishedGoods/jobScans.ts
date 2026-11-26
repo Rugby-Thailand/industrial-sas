@@ -217,19 +217,6 @@ function containsGroundedText(prompt: string, value: string): boolean {
   return needle.length > 0 && normalizeForGrounding(prompt).includes(needle);
 }
 
-function containsGroundedNumber(prompt: string, value: number): boolean {
-  if (!Number.isFinite(value) || value < 0) return false;
-  const normalized = normalizeForGrounding(prompt).replace(
-    /(?<=\d),(?=\d)/g,
-    "",
-  );
-  const escaped = String(value).replace(".", "\\.");
-  const pattern = Number.isInteger(value)
-    ? new RegExp(`(?<!\\d|\\.)0*${escaped}(?!\\d|\\.\\d*[1-9])`)
-    : new RegExp(`(?<!\\d)${escaped}(?!\\d)`);
-  return pattern.test(normalized);
-}
-
 const FLOOR_WORDS: Readonly<Record<number, readonly string[]>> = Object.freeze({
   0: ["ground floor", "ชั้นล่าง", "ชั้นจี"],
   1: ["first floor", "ชั้นหนึ่ง"],
@@ -245,18 +232,22 @@ const FLOOR_WORDS: Readonly<Record<number, readonly string[]>> = Object.freeze({
 });
 
 function containsGroundedFloor(prompt: string, floor: number): boolean {
-  if (containsGroundedNumber(prompt, floor)) return true;
-  const words = FLOOR_WORDS[floor];
-  if (!words) return false;
   const normalized = normalizeForGrounding(prompt);
-  return words.some((word) => normalized.includes(word));
+  const floorNumbers = normalized.matchAll(
+    /(?:\bfloor\s*|ชั้น\s*)(\d+)(?![\d.])|\b(\d+)(?:st|nd|rd|th)?\s+floor\b/gu,
+  );
+  for (const match of floorNumbers) {
+    if (Number(match[1] ?? match[2]) === floor) return true;
+  }
+  const words = FLOOR_WORDS[floor];
+  return words?.some((word) => normalized.includes(word)) ?? false;
 }
 
 const FORMAT_HINTS: Readonly<Record<JobScanStorageFormat, RegExp>> =
   Object.freeze({
-    PALLET: /(?:pallets?|skids?|พาเลท|พาเลต|พาเล็ท|พาเล็ต)/i,
-    BOX: /(?:boxes|box|cartons?|cases?|ctn|กล่อง|ลัง)/i,
-    OTHER: /(?:other|misc|loose|อื่นๆ|อื่น\s*ๆ|อื่น)/i,
+    PALLET: /\b(?:pallets?|skids?)\b|พาเลท|พาเลต|พาเล็ท|พาเล็ต/u,
+    BOX: /\b(?:boxes|box|cartons?|cases?|ctn)\b|กล่อง|ลัง/u,
+    OTHER: /\b(?:other|misc|loose)\b|อื่น\s*ๆ|อื่น/u,
   });
 
 function containsStorageFormatHint(
@@ -618,37 +609,51 @@ type EditableField = keyof JobScanEditableFields | "locationCode";
 // Each clause must name its field and provide its full value. Ordering keeps
 // qualified quantities distinct from the general quantity field.
 const EDIT_FIELD_NAMES: Record<EditableField, RegExp> = {
-  factoryQuantity: /^(?:factory (?:quantity|qty)|จำนวน(?:ของ)?โรงงาน)/u,
-  customerQuantity: /^(?:customer (?:quantity|qty)|จำนวน(?:ของ)?ลูกค้า)/u,
-  quantity: /^(?:quantity|qty|จำนวน)/u,
-  factoryOrder: /^(?:factory order|job (?:no\.?|number)|เลขที่ใบงาน|เลขใบงาน)/u,
-  productBarcodeText: /^(?:(?:product )?barcode|บาร์โค้ด(?:สินค้า)?)/u,
-  partName: /^(?:part name|product name|ชื่อสินค้า|ชื่อชิ้นส่วน)/u,
-  customer: /^(?:customer(?: name)?|ชื่อลูกค้า|ลูกค้า)/u,
-  deliveryDate: /^(?:delivery date|วันที่ส่ง(?:สินค้า)?|วันส่ง(?:สินค้า)?)/u,
+  factoryQuantity: /^(?:factory\s+(?:quantity|qty)|จำนวน(?:ของ)?โรงงาน)/iu,
+  customerQuantity: /^(?:customer\s+(?:quantity|qty)|จำนวน(?:ของ)?ลูกค้า)/iu,
+  quantity: /^(?:quantity|qty|จำนวน)/iu,
+  factoryOrder:
+    /^(?:factory\s+order|job\s+(?:no\.?|number)|เลขที่ใบงาน|เลขใบงาน)/iu,
+  productBarcodeText: /^(?:(?:product\s+)?barcode|บาร์โค้ด(?:สินค้า)?)/iu,
+  partName: /^(?:part\s+name|product\s+name|ชื่อสินค้า|ชื่อชิ้นส่วน)/iu,
+  customer: /^(?:customer(?:\s+name)?|ชื่อลูกค้า|ลูกค้า)/iu,
+  deliveryDate: /^(?:delivery\s+date|วันที่ส่ง(?:สินค้า)?|วันส่ง(?:สินค้า)?)/iu,
   manufacturingDate:
-    /^(?:manufacturing date|production date|วันที่ผลิต|วันผลิต)/u,
+    /^(?:manufacturing\s+date|production\s+date|วันที่ผลิต|วันผลิต)/iu,
   storageFormat:
-    /^(?:storage format|format|รูปแบบ(?:การจัดเก็บ)?|ประเภทการจัดเก็บ)/u,
-  locationCode: /^(?:(?:storage )?location(?: code)?|ตำแหน่ง(?:จัดเก็บ)?)/u,
+    /^(?:storage\s+format|format|รูปแบบ(?:การจัดเก็บ)?|ประเภทการจัดเก็บ)/iu,
+  locationCode:
+    /^(?:(?:storage\s+)?location(?:\s+code)?|ตำแหน่ง(?:จัดเก็บ)?)/iu,
 };
+
+const EDIT_CLAUSE_BOUNDARY = new RegExp(
+  [
+    String.raw`(?:\s+and\s+|\s*และ\s*|\s*[,;]\s*(?:and\s+|และ\s*)?|\r?\n\s*)`,
+    String.raw`(?=(?:please\s+)?(?:set|change|correct|update|edit|move|delete|remove|void)\b`,
+    "|(?:เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ลบ|ยกเลิก)",
+    String.raw`|(?:${Object.values(EDIT_FIELD_NAMES)
+      .map((field) => field.source.slice(1))
+      .join("|")})(?=\s|[:=]|เป็น|ให้เป็น|\d))`,
+    String.raw`|\s+(?=(?:เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ))`,
+  ].join(""),
+  "iu",
+);
 
 function requestedEditValues(
   prompt: string,
 ): Map<EditableField, string> | null {
-  const clauses = normalizeForGrounding(prompt).split(
-    /\s+and\s+|\s*และ\s*|\s*[,;]\s*(?!\d)|\s+(?=(?:เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ))/u,
-  );
+  const clauses = prompt.trim().split(EDIT_CLAUSE_BOUNDARY);
   const values = new Map<EditableField, string>();
   for (const clause of clauses) {
-    const move = /^(?:move(?: it)? to\s+|ย้ายไป\s*)(.+)$/u.exec(clause);
+    const move =
+      /^(?:(?:please\s+)?move(?:\s+it)?\s+to\s+|ย้ายไป\s*)(.+)$/iu.exec(clause);
     if (move) {
       if (values.has("locationCode")) return null;
-      values.set("locationCode", move[1]!);
+      values.set("locationCode", move[1]!.trim());
       continue;
     }
     const instruction = clause.replace(
-      /^(?:(?:please\s+)?(?:set|change|correct|update|edit)\s+(?:the\s+)?|(?:เปลี่ยน|แก้ไข|แก้|ระบุ)\s*)/u,
+      /^(?:(?:please\s+)?(?:set|change|correct|update|edit)\s+(?:the\s+)?|(?:เปลี่ยน|แก้ไข|แก้|ระบุ)\s*)/iu,
       "",
     );
     const field = (Object.keys(EDIT_FIELD_NAMES) as EditableField[]).find(
@@ -664,7 +669,8 @@ function requestedEditValues(
     const label = EDIT_FIELD_NAMES[field].exec(instruction)![0];
     const value = instruction
       .slice(label.length)
-      .replace(/^(?:\s+(?:to|as)(?=\s)|\s*(?:[:=]|ให้เป็น|เป็น))?\s*/u, "");
+      .replace(/^(?:\s+(?:to|as)(?=\s)|\s*(?:[:=]|ให้เป็น|เป็น))?\s*/iu, "")
+      .trim();
     if (!value) return null;
     values.set(field, value);
   }
@@ -674,7 +680,7 @@ function requestedEditValues(
 function matchesEditQuantity(value: string | undefined, quantity: number) {
   const match =
     /^(\d+(?:,\d{3})*(?:\.\d+)?)(?:\s*(?:pcs?\.?|pieces?|ชิ้น|units?|boxes|กล่อง))?$/u.exec(
-      value ?? "",
+      normalizeForGrounding(value ?? ""),
     );
   return Boolean(match && Number(match[1]!.replace(/,/g, "")) === quantity);
 }
@@ -704,7 +710,7 @@ export function parseJobScanEditProposal(
         code.length > MAX_JOB_SCAN_SEARCH_LENGTH ||
         ANY_CONTROL.test(code) ||
         RESERVED_CODE_OR_URL.test(code) ||
-        requested.get("locationCode") !== normalizeForGrounding(code)
+        requested.get("locationCode") !== code
       )
         return { kind: "UNREADABLE" };
       locationCode = code;
@@ -718,14 +724,19 @@ export function parseJobScanEditProposal(
     if (typeof rawValue !== "string") return { kind: "UNREADABLE" };
     const value = rawValue.trim();
     if (!value) continue;
+    const literal = requested.get(field);
+    const date = field === "deliveryDate" || field === "manufacturingDate";
     if (
       value.length > JOB_TICKET_TEXT_LIMITS[field] ||
       ANY_CONTROL.test(value) ||
       RESERVED_CODE_OR_URL.test(value) ||
-      requested.get(field) !== normalizeForGrounding(value)
+      literal === undefined ||
+      (date
+        ? foldThaiDigits(literal) !== foldThaiDigits(value)
+        : literal !== value)
     )
       return { kind: "UNREADABLE" };
-    fields[field] = value;
+    fields[field] = date ? foldThaiDigits(literal) : literal;
   }
 
   for (const field of EDIT_NUMBER_FIELDS) {
@@ -749,7 +760,7 @@ export function parseJobScanEditProposal(
         raw.storageFormat,
       ) ||
       !EXACT_EDIT_FORMATS[raw.storageFormat as JobScanStorageFormat].test(
-        requested.get("storageFormat") ?? "",
+        normalizeForGrounding(requested.get("storageFormat") ?? ""),
       )
     )
       return { kind: "UNREADABLE" };

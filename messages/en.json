@@ -1885,6 +1885,8 @@
       "aiEditRecord": "Edit {job} with AI",
       "editPrompt": "What should change?",
       "editExample": "For example, move to F2-L12-3 and set quantity to 40",
+      "customerLinkConflict": "Use the ticket editor to review this customer link change.",
+      "customerLinkNote": "Use the ticket editor for customer link changes.",
       "requesting": "Working…",
       "aiUnavailable": "AI could not complete this request. Try again or use the manual controls.",
       "locationUnavailable": "That location could not be verified in this warehouse. Check the code or use the location picker.",
