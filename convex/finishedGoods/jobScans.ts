@@ -1270,26 +1270,35 @@ export const listJobScans = queryWithOrg({
       args.facets?.building !== undefined
         ? normalizeJobScanSearch(args.facets.building)
         : "";
-    const buildingCode = buildingNeedle
-      ? normalizeCode(buildingNeedle, {
-          maxLength: 64,
-          caseFolding: "UPPERCASE",
-        })
-      : undefined;
+    const buildingOperand = buildingNeedle.replace(
+      /^(?:building\s+|อาคาร\s*)(?=\S)/u,
+      "",
+    );
     // A known code identifies one building, even if another name contains it.
-    // When the operand is a name, retain partial matching for localized names.
-    const exactBuilding = buildingCode?.ok
-      ? await ctx.tenantDb
-          .byIndex<Doc<"storageBuildings">>(
-            "storageBuildings",
-            "by_orgId_warehouseId_code",
-            [
-              { field: "warehouseId", value: args.warehouseId },
-              { field: "code", value: buildingCode.value },
-            ],
-          )
-          .first()
-      : null;
+    // The AI can return either the code or the complete "Building <code>" label.
+    const findBuildingByCode = async (operand: string) => {
+      if (!operand) return null;
+      const code = normalizeCode(operand, {
+        maxLength: 64,
+        caseFolding: "UPPERCASE",
+      });
+      if (!code.ok) return null;
+      return ctx.tenantDb
+        .byIndex<Doc<"storageBuildings">>(
+          "storageBuildings",
+          "by_orgId_warehouseId_code",
+          [
+            { field: "warehouseId", value: args.warehouseId },
+            { field: "code", value: code.value },
+          ],
+        )
+        .first();
+    };
+    const exactBuilding =
+      (await findBuildingByCode(buildingNeedle)) ??
+      (buildingOperand === buildingNeedle
+        ? null
+        : await findBuildingByCode(buildingOperand));
     const rawFloor = args.facets?.floor;
     const floorInvalid =
       rawFloor !== undefined &&
@@ -1396,8 +1405,9 @@ export const listJobScans = queryWithOrg({
             building &&
             (exactBuilding
               ? building._id === exactBuilding._id
-              : normalizeJobScanSearch(building.code) === buildingNeedle ||
-                jobScanNameMatches(building.name, buildingNeedle))
+              : [buildingNeedle, buildingOperand].includes(
+                  normalizeJobScanSearch(building.code),
+                ) || jobScanNameMatches(building.name, buildingNeedle))
           )
         )
           return false;

@@ -192,6 +192,10 @@ describe("job-scan AI search and edit actions", () => {
       "Outer 131 and make a copy of this record",
     ],
     [
+      "Change product name to Blue Box and mark it as deleted",
+      "Blue Box and mark it as deleted",
+    ],
+    [
       "Change product name to Outer 131 / please also delete this record",
       "Outer 131 / please also delete this record",
     ],
@@ -223,6 +227,47 @@ describe("job-scan AI search and edit actions", () => {
       });
     },
   );
+
+  it("keeps a possessive quantity clause separate from the product name", async () => {
+    const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
+    const client = world.t.withIdentity(PUBLIC_API_ACTOR);
+    const args = {
+      warehouseId: world.warehouses.alphaA,
+      prompt: "Change product name to Blue Box and set its quantity to 10",
+    };
+    transport
+      .mockResolvedValueOnce(
+        openRouterOk(
+          JSON.stringify(
+            editPayload({
+              partName: "Blue Box and set its quantity to 10",
+            }),
+          ),
+        ),
+      )
+      .mockResolvedValueOnce(
+        openRouterOk(
+          JSON.stringify(
+            editPayload({
+              partName: "Blue Box",
+              quantity: 10,
+            }),
+          ),
+        ),
+      );
+    const action = api.finishedGoods.jobScans.proposeJobScanEdit;
+    await expect(client.action(action, args)).resolves.toMatchObject({
+      ok: true,
+      value: { ok: false, error: { code: "AI_UNREADABLE" } },
+    });
+    await expect(client.action(action, args)).resolves.toMatchObject({
+      ok: true,
+      value: {
+        ok: true,
+        value: { fields: { partName: "Blue Box", quantity: 10 } },
+      },
+    });
+  });
 
   it("accepts a Thai quantity adjacent to its field name", async () => {
     const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
@@ -390,6 +435,60 @@ describe("job-scan AI search and edit actions", () => {
       });
     },
   );
+
+  it("applies both building-code spellings returned by the provider to the same saved tickets", async () => {
+    const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
+    const warehouseId = world.warehouses.alphaA;
+    const scanId = await world.t.run((ctx) =>
+      ctx.db.insert("finishedGoodsJobScans", {
+        orgId: world.orgA,
+        warehouseId,
+        factoryOrder: "FO12345",
+        productBarcodeText: "SKU-1",
+        source: "MANUAL",
+        locationText: "",
+        mapped: false,
+        buildingId: world.buildingId,
+        createdAt: 1000,
+        updatedAt: 1000,
+        createdByUserId: world.userA,
+        updatedByUserId: world.userA,
+      }),
+    );
+    const client = world.t.withIdentity(PUBLIC_API_ACTOR);
+    for (const building of [
+      "Building PUBLIC-B",
+      "PUBLIC-B",
+      "อาคาร PUBLIC-B",
+    ]) {
+      transport.mockResolvedValueOnce(
+        openRouterOk(JSON.stringify(searchPayload({ building }))),
+      );
+      const proposal = await client.action(
+        api.finishedGoods.jobScans.interpretJobScanSearch,
+        {
+          warehouseId,
+          prompt: building.startsWith("อาคาร")
+            ? "หาใบงานในอาคาร PUBLIC-B"
+            : "Find jobs in Building PUBLIC-B",
+        },
+      );
+      if (!proposal.ok || !proposal.value.ok || !proposal.value.value.facets)
+        throw new Error("Expected valid building search proposal");
+      const results = await client.query(
+        api.finishedGoods.jobScans.listJobScans,
+        {
+          warehouseId,
+          filter: proposal.value.value.filter,
+          facets: proposal.value.value.facets,
+        },
+      );
+      expect(results).toMatchObject({
+        ok: true,
+        value: { items: [{ id: scanId }] },
+      });
+    }
+  });
 
   it("keeps the building separate from a location status in the search proposal", async () => {
     const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
@@ -1595,6 +1694,13 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
           filter: "ALL",
           search: "South Pallet",
           facets: { building: "FG10" },
+        }),
+      ).toEqual([ids.southPalletF2]);
+      expect(
+        await listAll(fixture, {
+          filter: "ALL",
+          search: "South Pallet",
+          facets: { building: "Building FG10" },
         }),
       ).toEqual([ids.southPalletF2]);
 

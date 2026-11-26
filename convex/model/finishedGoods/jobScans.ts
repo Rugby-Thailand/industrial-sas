@@ -325,6 +325,7 @@ const QUALIFIED_FOLLOW_UP = String.raw`(?:(?:do\s+not|don['’]t|instead|rather\
 const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b`,
   String.raw`(?:make|take|generate|save)\s+(?:(?:a|an|another)\s+)?(?:copy|duplicate|backup|printout|snapshot)\b`,
+  String.raw`(?:mark|flag|tag|classify)\s+(?:it|them|this|that|the|as|records?|tickets?|jobs?|scans?)\b`,
   String.raw`(?:[\p{L}’'-]+\s+){1,6}(?:this|that|these|those|another)\s+(?:(?:saved|scanned)\s+)?(?:records?|tickets?|jobs?|scans?)\b`,
   String.raw`(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก|ทำสำเนา|ถ่ายสำเนา)`,
 ].join("|");
@@ -970,8 +971,12 @@ const EDIT_FIELD_NAMES: Record<EditableField, RegExp> = {
     /^(?:(?:storage\s+)?location(?:\s+code)?|ตำแหน่ง(?:จัดเก็บ)?)/iu,
 };
 
-const EDIT_VERB =
-  /^(?:(?:please\s+)?(?:set|change|correct|update|edit)\s+(?:the\s+)?|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:เปลี่ยน|แก้ไข|แก้|ระบุ)\s*)/iu;
+const ENGLISH_EDIT_VERB = String.raw`(?:please\s+)?(?:set|change|correct|update|edit)\s+`;
+const OWNED_EDIT_FIELD = String.raw`(?:its|(?:this|the)\s+(?:record|ticket|job|scan)['’]s)\s+`;
+const EDIT_VERB = new RegExp(
+  String.raw`^(?:${ENGLISH_EDIT_VERB}(?:${OWNED_EDIT_FIELD}|the\s+)?|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:เปลี่ยน|แก้ไข|แก้|ระบุ)\s*)`,
+  "iu",
+);
 const MOVE_VERB =
   /^(?:(?:please\s+)?move(?:\s+it)?\s+to\s+|(?:(?:กรุณา|โปรด|ช่วย)\s*)?ย้ายไป\s*)/iu;
 const EDIT_LABELS = Object.values(EDIT_FIELD_NAMES)
@@ -991,6 +996,7 @@ const EDIT_CLAUSE_START = [
   String.raw`${EDIT_VERB.source.slice(1)}(?:${EDIT_LABELS})(?=\s|[:=]|เป็น|ให้เป็น|[\d๐-๙])`,
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=\s+from\b|\s*จาก)`,
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_TYPED_LABELS})(?=\s*[\d๐-๙])`,
+  String.raw`${ENGLISH_EDIT_VERB}${OWNED_EDIT_FIELD}(?=\S)`,
   MOVE_VERB.source.slice(1),
   UNSUPPORTED_RECORD_ACTION,
   QUALIFIED_FOLLOW_UP,

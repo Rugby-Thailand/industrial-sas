@@ -1047,6 +1047,14 @@ describe("parseJobScanEditProposal", () => {
     for (const [prompt, partName] of [
       ["Change product name to Outer 131 and set quantity 10", "Outer 131"],
       [
+        "Change product name to Outer 131 and set its quantity to 10",
+        "Outer 131",
+      ],
+      [
+        "Change product name to Outer 131 and set this record's quantity to 10",
+        "Outer 131",
+      ],
+      [
         "Change product name to Outer 131 – also set quantity to 10",
         "Outer 131",
       ],
