@@ -1,8 +1,13 @@
+import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 import { trackAppHistory } from "@/lib/browser/appHistory";
+import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { getFunctionName } from "convex/server";
 import type { ComponentProps, ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -22,7 +27,7 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
 }));
 vi.mock("convex/react", () => ({
-  useMutation: () => mocks.save,
+  useMutation: getTestMutation,
   useConvex: () => ({ action: mocks.action, query: mocks.resolve }),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) => {
     if (args === "skip") return;
@@ -80,6 +85,7 @@ beforeEach(() => {
   mocks.list.mockClear();
   mocks.action.mockReset();
   mocks.save.mockReset().mockResolvedValue(writeSuccess("scan-a"));
+  registerTestMutation(fgRefs.updateJobScan, mocks.save);
   mocks.resolve.mockReset();
   mocks.resolve.mockResolvedValue(
     querySuccess({ ok: false, error: { code: "LOCATION_NOT_FOUND" } }),

@@ -152,7 +152,6 @@ function Records({
     scope: string;
     ids: string[];
   } | null>(null);
-  const explicitLocationDismiss = useRef(false);
   const [locationEpoch, setLocationEpoch] = useState(0);
   const [assigning, setAssigning] = useState(false);
   const remapCompletion = useRef<DialogCompletionHandle>(null);
@@ -360,10 +359,7 @@ function Records({
 
   function clearSelection() {
     updateSelection(() => []);
-    lastLocationSelection.current = null;
-    if (retainedRemap.current) discardRemapReview();
-    if (locationSelection) setLocationEpoch((epoch) => epoch + 1);
-    setLocationSelection(null);
+    if (lastLocationSelection.current) retireLocationPicker();
     operation.setError("");
   }
 
@@ -382,17 +378,18 @@ function Records({
     operation.setError("");
   }
 
+  function retireLocationPicker() {
+    lastLocationSelection.current = null;
+    if (retainedRemap.current) discardRemapReview();
+    setLocationSelection(null);
+    setLocationEpoch((epoch) => epoch + 1);
+  }
+
   function dismissLocationPicker() {
     if (operation.busy || !picking) return;
     guardedNavigate(() => {
-      if (retainedRemap.current) discardRemapReview();
-      const closed = locationCompletion.current?.completeOwned?.(() => {
-        setLocationSelection(null);
-      });
-      if (!closed) {
-        setLocationEpoch((epoch) => epoch + 1);
-        setLocationSelection(null);
-      }
+      if (!locationCompletion.current?.completeOwned?.(retireLocationPicker))
+        retireLocationPicker();
     });
   }
 
@@ -735,21 +732,18 @@ function Records({
         onOpenChange={(open) => {
           if (operation.busy) return;
           if (!open) {
-            const explicit = explicitLocationDismiss.current;
-            explicitLocationDismiss.current = false;
-            if (explicit) {
-              dismissLocationPicker();
-            } else {
-              setLocationSelection(null);
-            }
+            setLocationSelection(null);
           } else {
             const previous = lastLocationSelection.current;
             if (
+              canManage &&
               previous &&
               previous.scope === selectionScope &&
               previous.ids.every((id) => visibleIdSet.has(id))
             ) {
               setLocationSelection(previous);
+            } else {
+              retireLocationPicker();
             }
           }
         }}
@@ -760,11 +754,13 @@ function Records({
             closeLabel={appT("close")}
             showCloseButton={false}
             className="gap-4"
-            onEscapeKeyDown={() => {
-              if (!operation.busy) explicitLocationDismiss.current = true;
+            onEscapeKeyDown={(event) => {
+              event.preventDefault();
+              dismissLocationPicker();
             }}
-            onPointerDownOutside={() => {
-              if (!operation.busy) explicitLocationDismiss.current = true;
+            onPointerDownOutside={(event) => {
+              event.preventDefault();
+              dismissLocationPicker();
             }}
             onCloseAutoFocus={(event) => {
               const target = locationOpener.current;

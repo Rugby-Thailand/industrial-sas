@@ -1098,55 +1098,80 @@ it("native Back closes Location assignment and retains the selected records", as
   }
 });
 
-it("explicit location Cancel consumes its step before the next Back", async () => {
-  window.history.replaceState(
-    { appNavigationIndex: 0 },
-    "",
-    "/th/finished-goods/scan?origin=kept#scanner",
-  );
-  const stop = trackAppHistory();
-  window.history.pushState(
-    {},
-    "",
-    "/en/finished-goods/scan/records?filter=keep#rows",
-  );
-  const user = userEvent.setup();
-  const view = renderWithIntl(<JobScanRecordsScreen />, {
-    locale: "en",
-    workspace: false,
-  });
-  try {
-    await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
-    const bulkButton = screen.getByRole("button", {
-      name: "Set location for 1 record",
+it.each(["Cancel", "Close", "Escape"])(
+  "explicit location %s retires the picker before Forward and the next Back",
+  async (dismissal) => {
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/th/finished-goods/scan?origin=kept#scanner",
+    );
+    const stop = trackAppHistory();
+    window.history.pushState(
+      {},
+      "",
+      "/en/finished-goods/scan/records?filter=keep#rows",
+    );
+    const user = userEvent.setup();
+    const view = renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
     });
-    await user.click(bulkButton);
-    const dialog = screen.getByRole("dialog", { name: "Set location" });
-    expect(await axe(dialog)).toHaveNoViolations();
-    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
-    );
-    await waitFor(() =>
-      expect(window.location.search + window.location.hash).toBe(
-        "?filter=keep#rows",
-      ),
-    );
-    await waitFor(() => expect(bulkButton).toHaveFocus());
-    expect(mocks.assign).not.toHaveBeenCalled();
-    act(() => window.history.back());
-    await waitFor(() =>
+    try {
+      await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
+      const bulkButton = screen.getByRole("button", {
+        name: "Set location for 1 record",
+      });
+      await user.click(bulkButton);
+      const dialog = screen.getByRole("dialog", { name: "Set location" });
+      expect(await axe(dialog)).toHaveNoViolations();
+      if (dismissal === "Escape") await user.keyboard("{Escape}");
+      else
+        await user.click(
+          within(dialog).getByRole("button", { name: dismissal }),
+        );
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", { name: "Set location" }),
+        ).toBeNull(),
+      );
+      await waitFor(() =>
+        expect(window.location.search + window.location.hash).toBe(
+          "?filter=keep#rows",
+        ),
+      );
+      await waitFor(() => expect(bulkButton).toHaveFocus());
+      expect(mocks.assign).not.toHaveBeenCalled();
       expect(
-        window.location.pathname +
-          window.location.search +
-          window.location.hash,
-      ).toBe("/th/finished-goods/scan?origin=kept#scanner"),
-    );
-  } finally {
-    view.unmount();
-    stop();
-  }
-});
+        screen.getByRole("checkbox", { name: "Select FO001" }),
+      ).toBeChecked();
+      await act(async () => {
+        const visited = new Promise<void>((resolve) =>
+          window.addEventListener("popstate", () => resolve(), { once: true }),
+        );
+        window.history.forward();
+        await visited;
+      });
+      await waitFor(() =>
+        expect(window.location.search + window.location.hash).toBe(
+          "?filter=keep#rows",
+        ),
+      );
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull();
+      act(() => window.history.back());
+      await waitFor(() =>
+        expect(
+          window.location.pathname +
+            window.location.search +
+            window.location.hash,
+        ).toBe("/th/finished-goods/scan?origin=kept#scanner"),
+      );
+    } finally {
+      view.unmount();
+      stop();
+    }
+  },
+);
 
 it("shows the verified destination details before confirming a location change", async () => {
   mocks.resolveLocation.mockResolvedValueOnce(
@@ -1804,54 +1829,82 @@ it("dirty location registration inside the picker Dialog guards Cancel and Back 
   }
 });
 
-it("dismisses the location picker Dialog when a live update removes its target record", async () => {
-  window.history.replaceState(
-    { appNavigationIndex: 0 },
-    "",
-    "/en/finished-goods/scan?origin=kept#scanner",
-  );
-  const stop = trackAppHistory();
-  window.history.pushState(
-    {},
-    "",
-    "/en/finished-goods/scan/records?filter=keep#rows",
-  );
-  const user = userEvent.setup();
-  const view = renderWithIntl(<JobScanRecordsScreen />, {
-    locale: "en",
-    workspace: false,
-    preserveProviders: true,
-  });
-  try {
-    await user.click(
-      screen.getByRole("button", { name: "Set location for FO001" }),
+it.each(["while open", "after Back"])(
+  "retires the location picker when a live update removes its target %s",
+  async (removal) => {
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/en/finished-goods/scan?origin=kept#scanner",
     );
-    expect(
-      screen.getByRole("dialog", { name: "Set location" }),
-    ).toBeInTheDocument();
-    mocks.records = originalRecords.filter((record) => record.id !== "scan-a");
-    view.rerender(<JobScanRecordsScreen />);
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
+    const stop = trackAppHistory();
+    window.history.pushState(
+      {},
+      "",
+      "/en/finished-goods/scan/records?filter=keep#rows",
     );
-    await waitFor(() =>
-      expect(window.location.search + window.location.hash).toBe(
-        "?filter=keep#rows",
-      ),
-    );
-    act(() => window.history.back());
-    await waitFor(() =>
+    const user = userEvent.setup();
+    const view = renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+    try {
+      await user.click(
+        screen.getByRole("button", { name: "Set location for FO001" }),
+      );
       expect(
-        window.location.pathname +
-          window.location.search +
-          window.location.hash,
-      ).toBe("/en/finished-goods/scan?origin=kept#scanner"),
-    );
-  } finally {
-    view.unmount();
-    stop();
-  }
-});
+        screen.getByRole("dialog", { name: "Set location" }),
+      ).toBeInTheDocument();
+      if (removal === "after Back") {
+        act(() => window.history.back());
+        await waitFor(() =>
+          expect(
+            screen.queryByRole("dialog", { name: "Set location" }),
+          ).toBeNull(),
+        );
+      }
+      mocks.records = originalRecords.filter(
+        (record) => record.id !== "scan-a",
+      );
+      view.rerender(<JobScanRecordsScreen />);
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", { name: "Set location" }),
+        ).toBeNull(),
+      );
+      await waitFor(() =>
+        expect(window.location.search + window.location.hash).toBe(
+          "?filter=keep#rows",
+        ),
+      );
+      await act(async () => {
+        const visited = new Promise<void>((resolve) =>
+          window.addEventListener("popstate", () => resolve(), { once: true }),
+        );
+        window.history.forward();
+        await visited;
+      });
+      await waitFor(() =>
+        expect(window.location.search + window.location.hash).toBe(
+          "?filter=keep#rows",
+        ),
+      );
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull();
+      act(() => window.history.back());
+      await waitFor(() =>
+        expect(
+          window.location.pathname +
+            window.location.search +
+            window.location.hash,
+        ).toBe("/en/finished-goods/scan?origin=kept#scanner"),
+      );
+    } finally {
+      view.unmount();
+      stop();
+    }
+  },
+);
 
 it("remounting the records screen retires an open location picker Dialog cleanly", async () => {
   window.history.replaceState(

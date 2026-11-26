@@ -1096,7 +1096,7 @@ const UNSPLIT_EDIT_CONJUNCTION = new RegExp(EDIT_CONJUNCTION, "u");
 // chance. Keep possessive suffixes and the reserved QR prefix intact.
 const EDIT_PUNCTUATION = String.raw`(?!(?:(?<=[\p{L}\p{N}])['’]s\b|(?<=\bISAS):))[\p{P}\p{S}]`;
 const EDIT_CLAUSE_BOUNDARY = new RegExp(
-  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>(?:\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=[^\s\p{N}])|${EXPLICIT_FOLLOW_UP}|${EDIT_CONJUNCTION})${FOLLOW_UP_MODIFIERS}|(?:${EDIT_PUNCTUATION}\s*|\s+${WITH_FOLLOW_UP}\s+|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))`,
+  String.raw`(?<literal>${EDIT_QUOTED_VALUE.source})(?:(?<afterLiteral>\s*${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))|)|(?<separator>(?:\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=[^\s\p{N}])|${EXPLICIT_FOLLOW_UP}|${EDIT_CONJUNCTION})${FOLLOW_UP_MODIFIERS}|(?:${EDIT_PUNCTUATION}\s*|\s+${WITH_FOLLOW_UP}\s+|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))`,
   "giu",
 );
 const EDIT_CONDITION =
@@ -1139,8 +1139,12 @@ function requestedEditValues(
   const clauses: string[] = [];
   let start = 0;
   for (const match of source.matchAll(EDIT_CLAUSE_BOUNDARY)) {
-    if (!match.groups?.separator) continue;
-    clauses.push(source.slice(start, match.index));
+    if (!match.groups?.separator && match.groups?.afterLiteral === undefined)
+      continue;
+    // A quoted fragment protects only the text between its marks. A command
+    // following it still starts a new clause.
+    const end = match.index + (match.groups.literal?.length ?? 0);
+    clauses.push(source.slice(start, end));
     start = match.index + match[0].length;
   }
   clauses.push(source.slice(start));

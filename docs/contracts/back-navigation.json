@@ -3159,7 +3159,7 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:locationSelection",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "Single and bulk location assignment runs in a shared Back-aware Dialog retaining the chosen record context, nested QR/Photo AI/registration ownership, and selected rows on Back/Cancel; pending writes stay protected, explicit Cancel/Close consumes owned entries, Forward restores cleanly, and completion settles review and picker before the next native Back.",
+      "expectation": "Single and bulk location assignment runs in a shared Back-aware Dialog retaining the record context, nested QR/Photo AI/registration ownership, and selected rows on Back or Cancel. Native Forward restores a valid picker after Back. Explicit dismissal retires it, and Forward consumes an entry whose target disappeared. Pending writes stay protected and completion settles both review and picker.",
       "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
       "cases": [
         {
@@ -3168,7 +3168,7 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
-          "name": "explicit location Cancel consumes its step before the next Back"
+          "name": "explicit location %s retires the picker before Forward and the next Back"
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
@@ -3201,7 +3201,7 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
-          "name": "explicit location Cancel consumes its step before the next Back"
+          "name": "explicit location %s retires the picker before Forward and the next Back"
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
@@ -3210,6 +3210,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
           "name": "remounting the records screen retires an open location picker Dialog cleanly"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "retires the location picker when a live update removes its target %s"
         }
       ]
     },

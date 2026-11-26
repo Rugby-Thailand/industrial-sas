@@ -1298,6 +1298,7 @@ describe("parseJobScanEditProposal", () => {
       "A/B-1 (Rev. 2)",
       "L’Atelier's Blue",
       "King’s Seal",
+      "Widget “Blue” Edition",
     ]) {
       expect(
         parseJobScanEditProposal(
