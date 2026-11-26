@@ -151,6 +151,11 @@ describe("job-scan AI search and edit actions", () => {
       "Widget and delete this scan",
     ],
     ["แก้ชื่อสินค้าเป็น กล่อง แล้วส่งออกใบงานนี้", "กล่อง แล้วส่งออกใบงานนี้"],
+    ["Set part name to Widget. Delete this scan", "Widget. Delete this scan"],
+    [
+      "แก้ชื่อสินค้าเป็น กล่อง กรุณาส่งออกใบงานนี้",
+      "กล่อง กรุณาส่งออกใบงานนี้",
+    ],
     ["Change product name from Old to New", "from Old to New"],
   ])(
     "returns manual edit when the model copies an unsupported clause in %s",
@@ -221,6 +226,11 @@ describe("job-scan AI search and edit actions", () => {
       "หาชื่อสินค้า Widget, วันที่ส่ง 12/12/2569",
       "Widget, วันที่ส่ง 12/12/2569",
     ],
+    [
+      "Find product name Widget and customer name Acme",
+      "Widget and customer name Acme",
+    ],
+    ["หาชื่อสินค้า Widget และชื่อลูกค้า Acme", "Widget และชื่อลูกค้า Acme"],
   ])(
     "returns manual search when the model absorbs an unsupported filter in %s",
     async (prompt, search) => {
@@ -243,6 +253,28 @@ describe("job-scan AI search and edit actions", () => {
       });
     },
   );
+
+  it("keeps the building separate from a location status in the search proposal", async () => {
+    const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
+    transport.mockResolvedValueOnce(
+      openRouterOk(
+        JSON.stringify(searchPayload({ building: "A", filter: "UNMAPPED" })),
+      ),
+    );
+    const result = await world.t
+      .withIdentity(PUBLIC_API_ACTOR)
+      .action(api.finishedGoods.jobScans.interpretJobScanSearch, {
+        warehouseId: world.warehouses.alphaA,
+        prompt: "Find records in building A without location",
+      });
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        ok: true,
+        value: { filter: "UNMAPPED", search: "", facets: { building: "A" } },
+      },
+    });
+  });
 
   it("accepts the Thai prototype query and refuses a provider response that omits its pallet filter", async () => {
     const world = await createPublicApiWorld(MODULES, "SUPERVISOR");

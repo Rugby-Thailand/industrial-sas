@@ -295,9 +295,6 @@ function requestedFloors(prompt: string): Set<number> {
   return numbers;
 }
 
-const BUILDING_HINT =
-  /(?:\bbuilding\s+|อาคาร\s*)([^,;]+?)(?=$|[,;]|\s+(?:and|floors?|with|mapped|unmapped)\b|\s+(?:on|at|in|from)\s+(?:the\s+)?(?:[\w-]+\s+)?floors?\b|\s*(?:ชั้น|และ))/gu;
-
 const SEARCH_STATUS = new RegExp(
   [
     String.raw`\b(?:not|never|(?:isn|aren|wasn|weren|haven|hasn)['’]t)\s+(?:(?:yet|already|currently|been)\s+)*(?<negated>unmapped|unassigned|mapped|assigned|stored)\b`,
@@ -308,17 +305,27 @@ const SEARCH_STATUS = new RegExp(
   "gu",
 );
 
-const ENGLISH_SEARCH_CLAUSE =
-  /\b(?:building|floors?|(?:storage\s+)?format|(?:factory\s+|customer\s+)?(?:quantity|qty|count)|(?:delivery|manufacturing|production)\s+date)\b/u;
-const THAI_SEARCH_CLAUSE =
-  /(?:อาคาร|ชั้น|รูปแบบ|ประเภทการจัดเก็บ|จำนวน|วันที่ส่ง|วันส่ง|วันที่ผลิต|วันผลิต)/u;
+const ENGLISH_SEARCH_FIELD = String.raw`\b(?:part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number)|(?:at|in|for|by)\s+(?:storage\s+)?location(?:\s+code)?|(?:storage\s+)?location\s+code|location(?=\s*[:=])|located\s+at)`;
+const THAI_SEARCH_FIELD = String.raw`(?:ชื่อสินค้า|ชื่อชิ้นส่วน|ชื่อลูกค้า|บาร์โค้ด|เลขที่ใบงาน|(?:ใบ)?งาน\s*ที่(?:อยู่\s*(?:ที่|ใน)(?:ตำแหน่ง|จุดจัดเก็บ)|ตำแหน่ง|จุดจัดเก็บ|อยู่)|^ตำแหน่ง)`;
+const ENGLISH_SEARCH_CLAUSE = String.raw`(?:${ENGLISH_SEARCH_FIELD}|\b(?:building|floors?|(?:storage\s+)?format|(?:factory\s+|customer\s+)?(?:quantity|qty|count)|(?:delivery|manufacturing|production)\s+date)\b)`;
+const THAI_SEARCH_CLAUSE = String.raw`(?:${THAI_SEARCH_FIELD}|อาคาร|ชั้น|รูปแบบ|ประเภทการจัดเก็บ|จำนวน|วันที่ส่ง|วันส่ง|วันที่ผลิต|วันผลิต)`;
+
+const BUILDING_HINT = new RegExp(
+  [
+    String.raw`(?:\bbuilding\s+|อาคาร\s*)(?:"(?<quoted>[^"]+)"|“(?<thaiQuoted>[^”]+)”|(?<plain>[^"“].*?)`,
+    String.raw`(?=$|[.!?]$|[,;\r\n]|\s+(?:and|with)\b|\s+(?=${ENGLISH_SEARCH_CLAUSE})|\s+(?:on|at|in|from|within)\s+(?:the\s+)?(?:[\w-]+\s+)?floors?\b|\s*(?=${THAI_SEARCH_CLAUSE}|และ)`,
+    String.raw`|\s+(?=(?:pallets?|skids?|boxes|box|cartons?|cases?|ctn)\b)|\s*(?:(?:currently|already|still|yet)\s+)*(?=${SEARCH_STATUS.source})))`,
+  ].join(""),
+  "giu",
+);
 
 const SEARCH_LITERAL = new RegExp(
   [
-    String.raw`(?:\b(?<english>part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number)|(?:at|in|for|by)\s+(?:storage\s+)?location(?:\s+code)?|(?:storage\s+)?location\s+code|location(?=\s*[:=])|located\s+at)(?:\s*[:=]\s*|\s+)`,
-    String.raw`|(?<thai>ชื่อสินค้า|ชื่อชิ้นส่วน|ชื่อลูกค้า|บาร์โค้ด|เลขที่ใบงาน|(?:ใบ)?งาน\s*ที่(?:อยู่\s*(?:ที่|ใน)(?:ตำแหน่ง|จุดจัดเก็บ)|ตำแหน่ง|จุดจัดเก็บ|อยู่)|^ตำแหน่ง)\s*[:=]?\s*)`,
+    String.raw`"[^"]+"|“[^”]+”|`,
+    String.raw`(?:(?<english>${ENGLISH_SEARCH_FIELD})(?:\s*[:=]\s*|\s+)`,
+    String.raw`|(?<thai>${THAI_SEARCH_FIELD})\s*[:=]?\s*)`,
     String.raw`(?:"(?<quoted>[^"]+)"|“(?<thaiQuoted>[^”]+)”|(?<plain>[^"“].*?)`,
-    String.raw`(?=$|[.!?]$|[,;\r\n]|\s+(?:and|with)\s+(?=${ENGLISH_SEARCH_CLAUSE.source})|\s*(?:และ|โดยมี|ที่มี)\s*(?=${THAI_SEARCH_CLAUSE.source})|\s+(?:in|at|on|from|within)\s+(?:the\s+)?(?:building|(?:[\w-]+\s+)?floors?)\b|\s*(?:ที่|จาก)(?:อาคาร|ชั้น)`,
+    String.raw`(?=$|[.!?]$|[,;\r\n]|\s+(?:(?:and|with)\s+)?(?=${ENGLISH_SEARCH_CLAUSE})|\s*(?:และ|โดยมี|ที่มี)\s*(?=${THAI_SEARCH_CLAUSE})|\s+(?:in|at|on|from|within)\s+(?:the\s+)?(?:building|(?:[\w-]+\s+)?floors?)\b|\s*(?:ที่|จาก)(?:อาคาร|ชั้น)`,
     String.raw`|(?:\s+(?:(?:that|which)\s+(?:(?:are|is|have|has|were|was|remain|stay)\s+)?|and\s+)|\s*(?:ที่|และ|[,;])\s*)(?:(?:currently|already|still|yet)\s+)*(?=${SEARCH_STATUS.source})))`,
   ].join(""),
   "giu",
@@ -363,12 +370,23 @@ function explicitSearchField(label: string): JobScanSearchField {
   return "location";
 }
 
-function requestedBuildings(prompt: string): Map<string, Set<string>> {
+function requestedBuildings(
+  clauses: RegExpMatchArray[],
+): Map<string, Set<string>> {
   const buildings = new Map<string, Set<string>>();
-  for (const match of prompt.matchAll(BUILDING_HINT)) {
-    const name = match[1]!.trim().replace(/[.!?]+$/u, "");
+  for (const match of clauses) {
+    const { quoted, thaiQuoted, plain } = match.groups ?? {};
+    const name = (
+      quoted ??
+      thaiQuoted ??
+      plain?.trim().replace(/[.!?]+$/u, "") ??
+      ""
+    ).toLocaleLowerCase("en-US");
     if (!name) continue;
-    const label = match[0].trim().replace(/[.!?]+$/u, "");
+    const label = match[0]
+      .trim()
+      .replace(/[.!?]+$/u, "")
+      .toLocaleLowerCase("en-US");
     const spellings = buildings.get(name) ?? new Set<string>([name]);
     spellings.add(label);
     buildings.set(name, spellings);
@@ -418,7 +436,6 @@ function hasRemainingSearchInstructions(
   format: JobScanStorageFormat | undefined,
 ) {
   let remaining = normalizeForGrounding(source)
-    .replace(BUILDING_HINT, " ")
     .replace(SEARCH_STATUS, " ")
     .replace(FLOOR_NUMBER, " ")
     .replace(THAI_FLOOR_WORD, " ");
@@ -691,7 +708,9 @@ export function parseJobScanSearchIntent(
     return { kind: "UNREADABLE" };
   const filter = raw.filter as JobScanFilter;
   const source = prompt.trim();
-  const literals = [...source.matchAll(SEARCH_LITERAL)];
+  const literals = [...source.matchAll(SEARCH_LITERAL)].filter(
+    ({ groups }) => groups?.english || groups?.thai,
+  );
   if (literals.length > 1) return { kind: "UNSUPPORTED" };
   const literal = literals[0];
   const literalGroups = literal?.groups;
@@ -719,14 +738,19 @@ export function parseJobScanSearchIntent(
         compactCode && plain ? plain.slice(compactCode.length) : " ",
       )
     : source;
-  const jobCodes = factoryOrderTokens(sourceInstructions);
+  const buildingClauses = [...sourceInstructions.matchAll(BUILDING_HINT)];
+  const criteriaSource = sourceInstructions.replace(BUILDING_HINT, " ");
+  const jobCodes = factoryOrderTokens(criteriaSource);
   if (jobCodes.size > 1 || (literal && jobCodes.size))
     return { kind: "UNSUPPORTED" };
   const implicitJobCode = [...jobCodes][0];
   const searchField =
     explicitField ?? (implicitJobCode ? "factoryOrder" : undefined);
-  const instructions = normalizeForGrounding(sourceInstructions);
+  const instructions = normalizeForGrounding(criteriaSource);
   const unquotedText = codeField ? "" : normalizeForGrounding(plain ?? "");
+  const unquotedBuildings = buildingClauses.map(({ groups }) =>
+    normalizeForGrounding(groups?.plain ?? ""),
+  );
   const statuses = new Set(
     [...instructions.matchAll(SEARCH_STATUS)].map(({ groups }) => {
       if (groups?.negated)
@@ -737,7 +761,15 @@ export function parseJobScanSearchIntent(
   if (
     statuses.size > 1 ||
     UNSUPPORTED_SEARCH_CRITERIA.some(
-      (pattern) => pattern.test(instructions) || pattern.test(unquotedText),
+      (pattern) =>
+        pattern.test(instructions) ||
+        pattern.test(unquotedText) ||
+        unquotedBuildings.some((name) => pattern.test(name)),
+    ) ||
+    unquotedBuildings.some(
+      (name) =>
+        AMBIGUOUS_SEARCH_TEXT.test(name) ||
+        UNSUPPORTED_SEARCH_OPERATOR.test(name),
     ) ||
     AMBIGUOUS_SEARCH_TEXT.test(unquotedText) ||
     TRAILING_SEARCH_STATUS.test(unquotedText) ||
@@ -764,9 +796,7 @@ export function parseJobScanSearchIntent(
   const facets: JobScanSearchFacets = {};
   // Keep the literal spelling in query operands. Thai digit folding and
   // whitespace normalization only apply to cues such as floor numbers.
-  const buildings = requestedBuildings(
-    sourceInstructions.toLocaleLowerCase("en-US"),
-  );
+  const buildings = requestedBuildings(buildingClauses);
   const floors = requestedFloors(instructions);
   const formats = requestedFormats(instructions);
   if (
@@ -823,9 +853,7 @@ export function parseJobScanSearchIntent(
     return { kind: "UNSUPPORTED" };
   if (
     hasRemainingSearchInstructions(
-      !literal && search
-        ? sourceInstructions.replace(search, " ")
-        : sourceInstructions,
+      !literal && search ? criteriaSource.replace(search, " ") : criteriaSource,
       format,
     )
   )
@@ -904,8 +932,9 @@ const EDIT_FIELD_NAMES: Record<EditableField, RegExp> = {
 };
 
 const EDIT_VERB =
-  /^(?:(?:please\s+)?(?:set|change|correct|update|edit)\s+(?:the\s+)?|(?:เปลี่ยน|แก้ไข|แก้|ระบุ)\s*)/iu;
-const MOVE_VERB = /^(?:(?:please\s+)?move(?:\s+it)?\s+to\s+|ย้ายไป\s*)/iu;
+  /^(?:(?:please\s+)?(?:set|change|correct|update|edit)\s+(?:the\s+)?|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:เปลี่ยน|แก้ไข|แก้|ระบุ)\s*)/iu;
+const MOVE_VERB =
+  /^(?:(?:please\s+)?move(?:\s+it)?\s+to\s+|(?:(?:กรุณา|โปรด|ช่วย)\s*)?ย้ายไป\s*)/iu;
 const EDIT_LABELS = Object.values(EDIT_FIELD_NAMES)
   .map((field) => field.source.slice(1))
   .join("|");
@@ -916,7 +945,7 @@ const EDIT_DATE_LABELS = [
   .map((field) => field.source.slice(1))
   .join("|");
 const EDIT_ASSIGNMENT = /^(?:\s+(?:to|as)\s+|\s*(?:[:=]|ให้เป็น|เป็น)\s*)/iu;
-const UNSUPPORTED_EDIT_ACTION = String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve)\b|(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ)`;
+const UNSUPPORTED_EDIT_ACTION = String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ)`;
 const EDIT_CLAUSE_START = [
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=${EDIT_ASSIGNMENT.source.slice(1)})`,
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=\s+from\b|\s*จาก)`,
@@ -924,16 +953,18 @@ const EDIT_CLAUSE_START = [
   MOVE_VERB.source.slice(1),
   UNSUPPORTED_EDIT_ACTION,
 ].join("|");
-// Unquoted semicolons, newlines, and explicit sequencing words start another
+// Unquoted sentence breaks, semicolons, and explicit sequencing words start another
 // clause. Commas and conjunctions also occur in names, so use their next word
 // to distinguish a value from an assignment or an unsupported action.
 const EDIT_QUOTED_VALUE = /"([^"\r\n]+)"|“([^”\r\n]+)”/u;
 const EDIT_CLAUSE_BOUNDARY = new RegExp(
-  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>\s*(?:;|\r?\n)\s*|\s+(?:and\s+)?then\s+|\s*(?:และ\s*)?(?:แล้ว|จากนั้น)\s*|(?:\s+and\s+|\s*(?:และ|พร้อมทั้ง|พร้อมกับ)\s*|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))(?=${EDIT_CLAUSE_START}))`,
+  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|\s+(?:and\s+)?then\s+|\s*(?:และ\s*)?(?:แล้ว|จากนั้น)\s*|(?:\s+and\s+|\s*(?:และ|พร้อมทั้ง|พร้อมกับ)\s*|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))(?=${EDIT_CLAUSE_START}))`,
   "giu",
 );
 const EDIT_CONDITION =
   /(?<![\p{L}\p{N}_-])(?:if|unless|when|whenever|once|before|after|until|depending on|provided(?: that)?|as long as|assuming|otherwise|only (?:for|on|with|in)|except|either|or)(?![\p{L}\p{N}_-])|ถ้า|หาก|เมื่อ|เฉพาะ|ในกรณี|หลังจาก|ก่อนที่|จนกว่า|ยกเว้น|หรือ/u;
+const EDIT_REQUEST_SUFFIX =
+  /\b(?:please|kindly|(?:can|could|would|will) you)\b|กรุณา|โปรด|รบกวน/u;
 const EDIT_RECORD_SCOPE =
   /\b(?:all|any|both|other|every|each|multiple|selected|matching|these|those|remaining)\s+(?:(?:the|saved|scanned|mapped|unmapped)\s+)*(?:records?|tickets?|jobs?|scans?)\b|\b(?:for|on|across|in)\s+(?:the\s+)?(?:records?|tickets?|jobs?|scans?)\b|\b(?:for|on|across)\s+f[o0]m?\d{4,}\b|(?:ทุก|หลาย|ทั้งสอง)(?:ใบงาน|งาน|รายการ)|(?:ใบงาน|งาน|รายการ)\s*(?:ทั้งหมด|อื่น|ที่เลือก)/u;
 
@@ -951,7 +982,9 @@ function editOperand(field: EditableField, value: string): string | undefined {
   )
     return /^\S+$/u.test(value) ? value : undefined;
   const normalized = normalizeForGrounding(value);
-  return EDIT_CONDITION.test(normalized) || EDIT_RECORD_SCOPE.test(normalized)
+  return EDIT_CONDITION.test(normalized) ||
+    EDIT_REQUEST_SUFFIX.test(normalized) ||
+    EDIT_RECORD_SCOPE.test(normalized)
     ? undefined
     : value;
 }

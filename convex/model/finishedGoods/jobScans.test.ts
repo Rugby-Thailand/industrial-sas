@@ -712,6 +712,55 @@ describe("parseJobScanSearchIntent", () => {
     }
   });
 
+  it("declines a search with two named record fields instead of merging their values", () => {
+    for (const [lead, combined] of [
+      ["Find product name ", "Widget and customer name Acme"],
+      ["Find product name ", "Widget with barcode ABC-123"],
+      ["หาชื่อสินค้า ", "Widget และชื่อลูกค้า Acme"],
+    ] as const) {
+      for (const search of [combined, "Widget"]) {
+        expect(
+          parseJobScanSearchIntent({ ...base, search }, lead + combined),
+        ).toEqual({ kind: "UNSUPPORTED" });
+      }
+    }
+  });
+
+  it("keeps buildings separate from statuses and respects quoted building names", () => {
+    for (const [prompt, building, filter] of [
+      ["Find records in building A without location", "A", "UNMAPPED"],
+      [
+        "Find records in Building A awaiting a location",
+        "Building A",
+        "UNMAPPED",
+      ],
+      ["หาใบงานอาคารเหนือไม่มีตำแหน่ง", "เหนือ", "UNMAPPED"],
+      [
+        'Find records in building "A without location"',
+        "A without location",
+        "ALL",
+      ],
+      [
+        'Find records in building "BOX part name FO1234" unmapped',
+        "BOX part name FO1234",
+        "UNMAPPED",
+      ],
+    ] as const) {
+      expect(
+        parseJobScanSearchIntent({ ...base, filter, building }, prompt),
+      ).toEqual({
+        kind: "OK",
+        value: { filter, search: "", facets: { building } },
+      });
+    }
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, building: "A without location" },
+        "Find records in building A without location",
+      ),
+    ).toEqual({ kind: "UNREADABLE" });
+  });
+
   it("rejects untrusted, ungrounded, extra-key, ID or truncated responses", () => {
     expect(
       parseJobScanSearchIntent({ ...base, jobScanId: "scan_123" }, "unmapped"),
@@ -1082,6 +1131,11 @@ describe("parseJobScanEditProposal", () => {
         "Set part name to Widget and delete this scan",
         "Widget and delete this scan",
       ],
+      ["Set part name to Widget. Delete this scan", "Widget. Delete this scan"],
+      [
+        "Set part name to Widget! Could you export the records?",
+        "Widget! Could you export the records?",
+      ],
       [
         "Set part name to Widget and please export the shipment",
         "Widget and please export the shipment",
@@ -1105,6 +1159,10 @@ describe("parseJobScanEditProposal", () => {
         "กล่อง แล้วส่งออกใบงานนี้",
       ],
       ["แก้ชื่อสินค้าเป็น กล่อง และส่งออกใบงานนี้", "กล่อง และส่งออกใบงานนี้"],
+      [
+        "แก้ชื่อสินค้าเป็น กล่อง กรุณาส่งออกใบงานนี้",
+        "กล่อง กรุณาส่งออกใบงานนี้",
+      ],
     ] as const) {
       for (const value of [partName, "Widget"]) {
         expect(
