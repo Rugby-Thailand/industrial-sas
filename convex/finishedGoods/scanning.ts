@@ -198,6 +198,32 @@ export async function targetContext(
   };
   return { resolved, zone, target, building, floor };
 }
+/** Legacy QR aliases must never affect results outside the selected warehouse. */
+export function locationQrRows(
+  ctx: TenantFunctionContext,
+  warehouseId: Id<"warehouses">,
+  code: string,
+) {
+  const equality = [
+    { field: "warehouseId", value: warehouseId },
+    { field: "qrValue", value: code },
+  ];
+  return Promise.all([
+    rows<Doc<"storageZones">>(
+      ctx,
+      "storageZones",
+      "by_orgId_warehouseId_qrValue",
+      equality,
+    ),
+    rows<Doc<"storagePositions">>(
+      ctx,
+      "storagePositions",
+      "by_orgId_warehouseId_qrValue",
+      equality,
+    ),
+  ]);
+}
+
 export async function resolveTarget(
   ctx: TenantFunctionContext,
   warehouseId: Id<"warehouses">,
@@ -208,7 +234,7 @@ export async function resolveTarget(
   if (!code || code.length > 500) return { error: "INVALID_IDENTITY" } as const;
   if (code.startsWith("ISAS:PALLET:"))
     return { error: "WRONG_ENTITY_TYPE" } as const;
-  const [zonesByCode, zonesByQr, positionsByCode, positionsByQr] =
+  const [zonesByCode, positionsByCode, [zonesByQr, positionsByQr]] =
     await Promise.all([
       qrOnly
         ? []
@@ -221,9 +247,6 @@ export async function resolveTarget(
               { field: "code", value: code.toUpperCase() },
             ],
           ),
-      rows<Doc<"storageZones">>(ctx, "storageZones", "by_orgId_qrValue", [
-        { field: "qrValue", value: code },
-      ]),
       qrOnly
         ? []
         : rows<Doc<"storagePositions">>(
@@ -235,25 +258,16 @@ export async function resolveTarget(
               { field: "code", value: code.toUpperCase() },
             ],
           ),
-      rows<Doc<"storagePositions">>(
-        ctx,
-        "storagePositions",
-        "by_orgId_qrValue",
-        [{ field: "qrValue", value: code }],
-      ),
+      locationQrRows(ctx, warehouseId, code),
     ]);
   const zones = [
     ...new Map(
-      [...zonesByCode, ...zonesByQr]
-        .filter((row) => row.warehouseId === warehouseId)
-        .map((row) => [row._id, row]),
+      [...zonesByCode, ...zonesByQr].map((row) => [row._id, row]),
     ).values(),
   ];
   const positions = [
     ...new Map(
-      [...positionsByCode, ...positionsByQr]
-        .filter((row) => row.warehouseId === warehouseId)
-        .map((row) => [row._id, row]),
+      [...positionsByCode, ...positionsByQr].map((row) => [row._id, row]),
     ).values(),
   ];
   // Default position labels may deliberately alias their parent zone label.
@@ -270,12 +284,7 @@ export async function resolveTarget(
     return { error: "AMBIGUOUS_IDENTITY" } as const;
   const position = distinctPositions[0];
   if (qrOnly && !zones.length && !position)
-    return {
-      error:
-        zonesByQr.length || positionsByQr.length
-          ? "LOCATION_UNAVAILABLE"
-          : "LOCATION_NOT_FOUND",
-    } as const;
+    return { error: "LOCATION_NOT_FOUND" } as const;
   const zone =
     zones[0] ??
     (position

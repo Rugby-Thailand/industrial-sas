@@ -349,10 +349,10 @@ const UNSUPPORTED_SEARCH_ASSIGNMENT = new RegExp(
   String.raw`(?:[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?!${SEARCH_FACET_ASSIGNMENT})(?:${BARE_FIELD_ASSIGNMENT}|${PROTECTED_RECORD_FIELD})`,
   "u",
 );
-const ENGLISH_LIFECYCLE_VERB = String.raw`(?:close|open|reopen|finish|lock|unlock|activate|deactivate|complete|finalize|reject|resolve|suspend|resume|hold|pause|save|commit|refresh|reload|dismiss|exit|leave|minimize|maximize|navigate|switch|end|terminate|disconnect|quit)`;
-const ENGLISH_ACTION_TARGET = String.raw`(?:records?|tickets?|jobs?|scans?|dialogs?|modals?|pages?|screens?|forms?|views?|windows?|tabs?|menus?|popups?|pickers?|drawers?|sessions?|connections?|accounts?|camera|app)`;
-const THAI_LIFECYCLE_VERB = String.raw`(?:ปิด|เปิด(?:ใหม่)?|ล็อก|ปลดล็อก|ระงับ|พัก|จบ|สิ้นสุด|ส่งกลับ|คืนค่า|กู้คืน|รับรอง|ปฏิเสธ|รีเฟรช|โหลดใหม่|ออกจาก|สลับ)`;
-const THAI_ACTION_TARGET = String.raw`(?:(?:ใบ)?งาน|รายการ(?:สแกน)?|การสแกน|ตั๋ว|หน้าต่าง|หน้าจอ|หน้าเว็บ|หน้านี้|หน้า|เมนู|กล้อง|แอป|ระบบ|บัญชี)`;
+const ENGLISH_LIFECYCLE_VERB = String.raw`(?:close|open|reopen|finish|lock|unlock|activate|deactivate|complete|finalize|reject|resolve|suspend|resume|hold|pause|save|commit|refresh|reload|dismiss|exit|leave|minimize|maximize|navigate|switch|end|terminate|disconnect|quit|scan|rescan)`;
+const ENGLISH_ACTION_TARGET = String.raw`(?:records?|tickets?|jobs?|scans?|dialogs?|modals?|pages?|screens?|forms?|views?|windows?|tabs?|menus?|popups?|pickers?|drawers?|sessions?|connections?|accounts?|warehouses?|buildings?|floors?|zones?|pallets?|barcodes?|camera|app)`;
+const THAI_LIFECYCLE_VERB = String.raw`(?:ปิด|เปิด(?:ใหม่)?|ล็อก|ปลดล็อก|ระงับ|พัก|จบ|สิ้นสุด|ส่งกลับ|คืนค่า|กู้คืน|รับรอง|ปฏิเสธ|รีเฟรช|โหลดใหม่|ออกจาก|สลับ|เปลี่ยน(?:ไป)?|สแกน(?:ใหม่)?)`;
+const THAI_ACTION_TARGET = String.raw`(?:(?:ใบ)?งาน|รายการ(?:สแกน)?|การสแกน|ตั๋ว|หน้าต่าง|หน้าจอ|หน้าเว็บ|หน้านี้|หน้า|เมนู|กล้อง|แอป|ระบบ|บัญชี|คลัง(?:สินค้า)?|อาคาร|ชั้น|โซน|พาเลท|บาร์โค้ด)`;
 const RECORD_ACTION_END = String.raw`(?=\s*(?:$|[,;.!?，；。！？\r\n])|${RECORD_FOLLOW_UP})`;
 const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b`,

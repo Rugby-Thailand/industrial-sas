@@ -30,6 +30,7 @@ import {
 import { refusal, writeContextOf, written } from "../lib/writeEnvelope";
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import {
+  locationQrRows,
   resolveTarget,
   targetContext,
   type LayoutParentReads,
@@ -250,7 +251,7 @@ async function lookupJobLocation(
   }
   const code = normalizeJobLocationCode(input);
   if (!code) return fail("INVALID_IDENTITY");
-  const [ledger, zone, position, pallet, zonesByQr, positionsByQr] =
+  const [ledger, zone, position, pallet, [zonesByQr, positionsByQr]] =
     await Promise.all([
       ctx.tenantDb
         .byIndex<Doc<"locations">>("locations", "by_orgId_warehouseId_code", [
@@ -288,19 +289,9 @@ async function lookupJobLocation(
           ],
         )
         .first(),
-      rows<Doc<"storageZones">>(ctx, "storageZones", "by_orgId_qrValue", [
-        { field: "qrValue", value: input },
-      ]),
-      rows<Doc<"storagePositions">>(
-        ctx,
-        "storagePositions",
-        "by_orgId_qrValue",
-        [{ field: "qrValue", value: input }],
-      ),
+      locationQrRows(ctx, warehouseId, input),
     ]);
-  const hasLegacyQr = [...zonesByQr, ...positionsByQr].some(
-    (row) => row.warehouseId === warehouseId,
-  );
+  const hasLegacyQr = zonesByQr.length > 0 || positionsByQr.length > 0;
   if (pallet) return fail("WRONG_ENTITY_TYPE");
   if (ledger?.locationType === "NAMED_STORAGE") {
     if (zone || position || hasLegacyQr) return fail("AMBIGUOUS_IDENTITY");

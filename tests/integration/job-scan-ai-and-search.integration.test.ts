@@ -229,6 +229,16 @@ describe("job-scan AI search and edit actions", () => {
       "Gear and terminate my session",
     ],
     ["Set part name to Gear and sign me out", "Gear and sign me out"],
+    [
+      "Set part name to Gear and switch warehouses",
+      "Gear and switch warehouses",
+    ],
+    [
+      "Set part name to Gear and scan the next ticket",
+      "Gear and scan the next ticket",
+    ],
+    ["แก้ชื่อสินค้าเป็น กล่อง และสลับคลัง", "กล่อง และสลับคลัง"],
+    ["แก้ชื่อสินค้าเป็น กล่อง และสแกนใบงานถัดไป", "กล่อง และสแกนใบงานถัดไป"],
     ["Set part name to Gear and sign off", "Gear and sign off"],
     ["แก้ชื่อสินค้าเป็น กล่อง และล็อกเอาต์", "กล่อง และล็อกเอาต์"],
     ["แก้ชื่อสินค้าเป็น กล่อง และจบเซสชัน", "กล่อง และจบเซสชัน"],
@@ -1560,11 +1570,10 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
     ).toEqual([]);
   });
 
-  it("keeps an active zone searchable after its shared default position is retired and refuses a foreign warehouse QR", async () => {
+  it("keeps an active zone searchable after its shared default position is retired", async () => {
     const fixture = await seedListFixture();
     const { world, warehouseId, ids } = fixture;
     const qr = "legacy-default-position";
-    const foreignQr = "foreign-location-label";
     const { locationId, positionId } = await world.t.run(async (ctx) => {
       const scan = (await ctx.db.get(ids.exactFoPalletF2))!;
       const zone = (await ctx.db.get(scan.zoneId!))!;
@@ -1587,13 +1596,7 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
         updatedByUserId: zone.updatedByUserId,
       };
       const positionId = await ctx.db.insert("storagePositions", position);
-      await ctx.db.insert("storagePositions", {
-        ...position,
-        qrValue: foreignQr,
-        warehouseId: world.warehouses.bravoA,
-      });
       await ctx.db.patch(scan._id, { supportPositionId: positionId });
-      await ctx.db.patch(ids.southPalletF2, { productBarcodeText: foreignQr });
       return { locationId: zone.locationId, positionId };
     });
     const client = world.t.withIdentity(IDENTITY);
@@ -1615,13 +1618,51 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
         await listAll(fixture, { filter: "ALL", locationId, pageSize: 1 }),
       ).toEqual([ids.legacyZoneOnlyPalletF2, ids.exactFoPalletF2]);
     }
-    expect(
-      await client.query(api.finishedGoods.jobScanLocations.resolve, {
-        warehouseId,
-        code: foreignQr,
-        qrOnly: true,
+  });
+
+  it("ignores a foreign legacy QR collision and keeps the exact local barcode searchable", async () => {
+    const fixture = await seedListFixture();
+    const { world, warehouseId, ids } = fixture;
+    const client = world.t.withIdentity(IDENTITY);
+    const code = "LOCAL-EXACT-BARCODE";
+    const scan = { warehouseId, code, qrOnly: true };
+    const missing = {
+      ok: true,
+      value: { ok: false, error: { code: "LOCATION_NOT_FOUND" } },
+    };
+    await expect(
+      client.query(api.finishedGoods.jobScanLocations.resolve, scan),
+    ).resolves.toMatchObject(missing);
+    const collisionZoneId = await world.t.run(async (ctx) => {
+      const row = (await ctx.db.get(ids.exactFoPalletF2))!;
+      const zone = (await ctx.db.get(row.zoneId!))!;
+      const { _id, _creationTime, ...data } = zone;
+      const zoneId = await ctx.db.insert("storageZones", {
+        ...data,
+        warehouseId: world.warehouses.bravoA,
+        qrValue: code,
+      });
+      await ctx.db.patch(ids.southPalletF2, { productBarcodeText: code });
+      return zoneId;
+    });
+    await expect(
+      client.query(api.finishedGoods.jobScanLocations.resolve, {
+        ...scan,
+        warehouseId: world.warehouses.bravoA,
       }),
-    ).toMatchObject({
+    ).rejects.toThrow("WAREHOUSE_OUT_OF_SCOPE");
+    await expect(
+      client.query(api.finishedGoods.jobScanLocations.resolve, scan),
+    ).resolves.toMatchObject(missing);
+    await expect(
+      listAll(fixture, { filter: "ALL", search: code, exactCode: true }),
+    ).resolves.toEqual([ids.southPalletF2]);
+    await world.t.run((ctx) =>
+      ctx.db.patch(collisionZoneId, { warehouseId, status: "INACTIVE" }),
+    );
+    await expect(
+      client.query(api.finishedGoods.jobScanLocations.resolve, scan),
+    ).resolves.toMatchObject({
       ok: true,
       value: { ok: false, error: { code: "LOCATION_UNAVAILABLE" } },
     });
