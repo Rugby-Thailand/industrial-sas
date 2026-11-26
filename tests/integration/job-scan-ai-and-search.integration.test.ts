@@ -196,6 +196,15 @@ describe("job-scan AI search and edit actions", () => {
       "Blue Box and mark it as deleted",
     ],
     [
+      "Change product name to Blue Box and set the status to deleted",
+      "Blue Box and set the status to deleted",
+    ],
+    [
+      "Change product name to Blue Box and update its owner: Alex",
+      "Blue Box and update its owner: Alex",
+    ],
+    ["แก้ชื่อสินค้าเป็น กล่อง และตั้งสถานะเป็นลบ", "กล่อง และตั้งสถานะเป็นลบ"],
+    [
       "Change product name to Outer 131 / please also delete this record",
       "Outer 131 / please also delete this record",
     ],
@@ -436,11 +445,12 @@ describe("job-scan AI search and edit actions", () => {
     },
   );
 
-  it("applies both building-code spellings returned by the provider to the same saved tickets", async () => {
+  it("applies building name and code aliases returned by the provider to the same saved tickets", async () => {
     const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
     const warehouseId = world.warehouses.alphaA;
-    const scanId = await world.t.run((ctx) =>
-      ctx.db.insert("finishedGoodsJobScans", {
+    const scanId = await world.t.run(async (ctx) => {
+      await ctx.db.patch(world.buildingId, { name: "North Wing" });
+      return ctx.db.insert("finishedGoodsJobScans", {
         orgId: world.orgA,
         warehouseId,
         factoryOrder: "FO12345",
@@ -453,14 +463,17 @@ describe("job-scan AI search and edit actions", () => {
         updatedAt: 1000,
         createdByUserId: world.userA,
         updatedByUserId: world.userA,
-      }),
-    );
+      });
+    });
     const client = world.t.withIdentity(PUBLIC_API_ACTOR);
-    for (const building of [
-      "Building PUBLIC-B",
-      "PUBLIC-B",
-      "อาคาร PUBLIC-B",
-    ]) {
+    for (const [prompt, building] of [
+      ["Find jobs in Building PUBLIC-B", "Building PUBLIC-B"],
+      ["Find jobs in Building PUBLIC-B", "PUBLIC-B"],
+      ["หาใบงานในอาคาร PUBLIC-B", "อาคาร PUBLIC-B"],
+      ["Find jobs in Building North Wing", "Building North Wing"],
+      ["Find jobs in Building North Wing", "North Wing"],
+      ["หาใบงานในอาคาร North Wing", "อาคาร North Wing"],
+    ] as const) {
       transport.mockResolvedValueOnce(
         openRouterOk(JSON.stringify(searchPayload({ building }))),
       );
@@ -468,13 +481,14 @@ describe("job-scan AI search and edit actions", () => {
         api.finishedGoods.jobScans.interpretJobScanSearch,
         {
           warehouseId,
-          prompt: building.startsWith("อาคาร")
-            ? "หาใบงานในอาคาร PUBLIC-B"
-            : "Find jobs in Building PUBLIC-B",
+          prompt,
         },
       );
       if (!proposal.ok || !proposal.value.ok || !proposal.value.value.facets)
         throw new Error("Expected valid building search proposal");
+      expect(proposal.value.value.facets.building).toBe(
+        building.includes("PUBLIC-B") ? "PUBLIC-B" : "North Wing",
+      );
       const results = await client.query(
         api.finishedGoods.jobScans.listJobScans,
         {
@@ -711,7 +725,7 @@ describe("job-scan AI search and edit actions", () => {
           filter: "ALL",
           search: "",
           facets: {
-            building: "Building A",
+            building: "A",
             floor: 2,
             storageFormat: "PALLET",
           },

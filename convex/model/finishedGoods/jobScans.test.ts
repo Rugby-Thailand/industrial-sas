@@ -185,7 +185,7 @@ describe("parseJobScanSearchIntent", () => {
         filter: "ALL",
         search: "",
         facets: {
-          building: "อาคารเหนือ",
+          building: "เหนือ",
           floor: 2,
           storageFormat: "PALLET",
         },
@@ -382,7 +382,7 @@ describe("parseJobScanSearchIntent", () => {
     };
     expect(parseJobScanSearchIntent(proposed, prompt)).toMatchObject({
       kind: "OK",
-      value: { facets: { building: "Building A", floor: 2 } },
+      value: { facets: { building: "A", floor: 2 } },
     });
     expect(
       parseJobScanSearchIntent(
@@ -420,7 +420,7 @@ describe("parseJobScanSearchIntent", () => {
       value: {
         search: "Gear Box",
         searchField: "partName",
-        facets: { building: "Building A", floor: 2, storageFormat: "PALLET" },
+        facets: { building: "A", floor: 2, storageFormat: "PALLET" },
       },
     });
   });
@@ -749,27 +749,33 @@ describe("parseJobScanSearchIntent", () => {
   });
 
   it("keeps buildings separate from statuses and respects quoted building names", () => {
-    for (const [prompt, building, filter] of [
-      ["Find records in building A without location", "A", "UNMAPPED"],
+    for (const [prompt, supplied, building, filter] of [
+      ["Find records in building A without location", "A", "A", "UNMAPPED"],
       [
         "Find records in Building A awaiting a location",
         "Building A",
+        "A",
         "UNMAPPED",
       ],
-      ["หาใบงานอาคารเหนือไม่มีตำแหน่ง", "เหนือ", "UNMAPPED"],
+      ["หาใบงานอาคารเหนือไม่มีตำแหน่ง", "เหนือ", "เหนือ", "UNMAPPED"],
       [
         'Find records in building "A without location"',
+        "A without location",
         "A without location",
         "ALL",
       ],
       [
         'Find records in building "BOX part name FO1234" unmapped',
         "BOX part name FO1234",
+        "BOX part name FO1234",
         "UNMAPPED",
       ],
     ] as const) {
       expect(
-        parseJobScanSearchIntent({ ...base, filter, building }, prompt),
+        parseJobScanSearchIntent(
+          { ...base, filter, building: supplied },
+          prompt,
+        ),
       ).toEqual({
         kind: "OK",
         value: { filter, search: "", facets: { building } },
@@ -1152,6 +1158,27 @@ describe("parseJobScanEditProposal", () => {
           prompt,
         ),
       ).toEqual({ kind: "UNSUPPORTED" });
+    }
+  });
+
+  it("rejects an assignment to an unsupported field before comparing values", () => {
+    for (const addition of [
+      " and set the status to deleted",
+      " and set status deleted",
+      " and change its owner to Alex",
+      " — update priority: high",
+      " และตั้งสถานะเป็นลบ",
+      " และตั้งสถานะลบ",
+    ]) {
+      const partName = "Blue Box" + addition;
+      for (const proposed of [partName, "Blue Box"]) {
+        expect(
+          parseJobScanEditProposal(
+            { ...emptyEdit, partName: proposed },
+            "Change product name to " + partName,
+          ),
+        ).toEqual({ kind: "UNSUPPORTED" });
+      }
     }
   });
 

@@ -330,7 +330,7 @@ const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก|ทำสำเนา|ถ่ายสำเนา)`,
 ].join("|");
 const UNSUPPORTED_SEARCH_ACTION = new RegExp(
-  String.raw`(?:^|[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?:${QUALIFIED_FOLLOW_UP})?(?:${UNSUPPORTED_RECORD_ACTION}|(?:move|set|change|update|edit|assign|remap|transfer)\b|ย้าย|แก้(?:ไข)?|เปลี่ยน|ระบุ)`,
+  String.raw`(?:^|[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?:${QUALIFIED_FOLLOW_UP})?(?:${UNSUPPORTED_RECORD_ACTION}|(?:move|set|change|update|edit|assign|remap|transfer)\b|ย้าย|แก้(?:ไข)?|เปลี่ยน|ตั้ง|ระบุ)`,
   "u",
 );
 
@@ -398,24 +398,31 @@ function explicitSearchField(label: string): JobScanSearchField {
 
 function requestedBuildings(
   clauses: RegExpMatchArray[],
-): Map<string, Set<string>> {
-  const buildings = new Map<string, Set<string>>();
+): Map<string, { operand: string; spellings: Set<string> }> {
+  const buildings = new Map<
+    string,
+    { operand: string; spellings: Set<string> }
+  >();
   for (const match of clauses) {
     const { quoted, thaiQuoted, plain } = match.groups ?? {};
-    const name = (
+    const operand = (
       quoted ??
       thaiQuoted ??
       plain?.trim().replace(/[.!?]+$/u, "") ??
       ""
-    ).toLocaleLowerCase("en-US");
+    ).trim();
+    const name = operand.toLocaleLowerCase("en-US");
     if (!name) continue;
     const label = match[0]
       .trim()
       .replace(/[.!?]+$/u, "")
       .toLocaleLowerCase("en-US");
-    const spellings = buildings.get(name) ?? new Set<string>([name]);
-    spellings.add(label);
-    buildings.set(name, spellings);
+    const entry = buildings.get(name) ?? {
+      operand,
+      spellings: new Set([name]),
+    };
+    entry.spellings.add(label);
+    buildings.set(name, entry);
   }
   return buildings;
 }
@@ -852,17 +859,18 @@ export function parseJobScanSearchIntent(
     return { kind: "UNSUPPORTED" };
 
   if (buildings.size) {
-    const building =
+    const supplied =
       typeof raw.building === "string" ? raw.building.trim() : "";
+    const entry = buildings.values().next().value;
     if (
-      !building ||
-      building.length > MAX_JOB_SCAN_SEARCH_LENGTH ||
-      ANY_CONTROL.test(building) ||
-      RESERVED_CODE_OR_URL.test(building) ||
-      ![...buildings.values()][0]?.has(building.toLocaleLowerCase("en-US"))
+      !entry ||
+      !entry.spellings.has(supplied.toLocaleLowerCase("en-US")) ||
+      entry.operand.length > MAX_JOB_SCAN_SEARCH_LENGTH ||
+      ANY_CONTROL.test(entry.operand) ||
+      RESERVED_CODE_OR_URL.test(entry.operand)
     )
       return { kind: "UNREADABLE" };
-    facets.building = building;
+    facets.building = entry.operand;
   } else if (raw.building !== null) return { kind: "UNREADABLE" };
 
   const floor = [...floors][0];
@@ -972,9 +980,10 @@ const EDIT_FIELD_NAMES: Record<EditableField, RegExp> = {
 };
 
 const ENGLISH_EDIT_VERB = String.raw`(?:please\s+)?(?:set|change|correct|update|edit)\s+`;
+const THAI_EDIT_VERB = String.raw`(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:เปลี่ยน|แก้ไข|แก้|ตั้งค่า|ตั้ง|ระบุ)\s*`;
 const OWNED_EDIT_FIELD = String.raw`(?:its|(?:this|the)\s+(?:record|ticket|job|scan)['’]s)\s+`;
 const EDIT_VERB = new RegExp(
-  String.raw`^(?:${ENGLISH_EDIT_VERB}(?:${OWNED_EDIT_FIELD}|the\s+)?|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:เปลี่ยน|แก้ไข|แก้|ระบุ)\s*)`,
+  String.raw`^(?:${ENGLISH_EDIT_VERB}(?:${OWNED_EDIT_FIELD}|the\s+)?|${THAI_EDIT_VERB})`,
   "iu",
 );
 const MOVE_VERB =
@@ -991,12 +1000,17 @@ const EDIT_TYPED_LABELS = EDIT_TYPED_FIELDS.map((field) =>
   EDIT_FIELD_NAMES[field].source.slice(1),
 ).join("|");
 const EDIT_ASSIGNMENT = /^(?:\s+(?:to|as)\s+|\s*(?:[:=]|ให้เป็น|เป็น)\s*)/iu;
+// Identify assignments before checking the field allowlist. An unsupported
+// assignment after a valid clause must not become part of its literal value.
+const EXPLICIT_EDIT_ASSIGNMENT = String.raw`(?:${ENGLISH_EDIT_VERB}|${THAI_EDIT_VERB})[\p{L}\p{M}\p{N}'’_ -]{1,64}(?=${EDIT_ASSIGNMENT.source.slice(1)})`;
 const EDIT_CLAUSE_START = [
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=${EDIT_ASSIGNMENT.source.slice(1)})`,
   String.raw`${EDIT_VERB.source.slice(1)}(?:${EDIT_LABELS})(?=\s|[:=]|เป็น|ให้เป็น|[\d๐-๙])`,
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=\s+from\b|\s*จาก)`,
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_TYPED_LABELS})(?=\s*[\d๐-๙])`,
-  String.raw`${ENGLISH_EDIT_VERB}${OWNED_EDIT_FIELD}(?=\S)`,
+  String.raw`${ENGLISH_EDIT_VERB}(?:${OWNED_EDIT_FIELD}|the\s+)(?=\S)`,
+  String.raw`${ENGLISH_EDIT_VERB}(?:status|state|priority|warehouse|owner)\b|${THAI_EDIT_VERB}(?:สถานะ|คลังสินค้า|ผู้รับผิดชอบ)`,
+  EXPLICIT_EDIT_ASSIGNMENT,
   MOVE_VERB.source.slice(1),
   UNSUPPORTED_RECORD_ACTION,
   QUALIFIED_FOLLOW_UP,

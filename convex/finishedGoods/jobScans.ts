@@ -1270,10 +1270,9 @@ export const listJobScans = queryWithOrg({
       args.facets?.building !== undefined
         ? normalizeJobScanSearch(args.facets.building)
         : "";
-    const buildingOperand = buildingNeedle.replace(
-      /^(?:building\s+|อาคาร\s*)(?=\S)/u,
-      "",
-    );
+    const removeBuildingLabel = (name: string) =>
+      name.replace(/^(?:building\s+|อาคาร\s*)(?=\S)/u, "");
+    const buildingOperand = removeBuildingLabel(buildingNeedle);
     // A known code identifies one building, even if another name contains it.
     // The AI can return either the code or the complete "Building <code>" label.
     const findBuildingByCode = async (operand: string) => {
@@ -1407,7 +1406,10 @@ export const listJobScans = queryWithOrg({
               ? building._id === exactBuilding._id
               : [buildingNeedle, buildingOperand].includes(
                   normalizeJobScanSearch(building.code),
-                ) || jobScanNameMatches(building.name, buildingNeedle))
+                ) ||
+                removeBuildingLabel(
+                  normalizeJobScanSearch(building.name),
+                ).includes(buildingOperand))
           )
         )
           return false;
