@@ -436,14 +436,14 @@ describe("scanned record deletion", () => {
       screen.getByRole("button", { name: "Set location for 1 record" }),
     );
     await user.click(screen.getByRole("button", { name: "Scan code" }));
-    // Assignment keeps the default scanner; only Scan job ticket opts in.
     expect(
       screen.getByRole("button", { name: "Scan test location" }),
-    ).toHaveAttribute("data-presentation", "default");
+    ).toHaveAttribute("data-presentation", "fullscreen");
     await user.click(
       screen.getByRole("button", { name: "Scan test location" }),
     );
     expect(mocks.resolveLocation).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: "Close camera" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     finish(location);
     await waitFor(() =>

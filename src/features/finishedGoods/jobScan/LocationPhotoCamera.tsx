@@ -17,6 +17,8 @@ export function LocationPhotoCamera({
   onClose,
   closeLabel,
   errorAction,
+  presentation = "fullscreen",
+  dock,
   ref,
 }: {
   ref?: Ref<LocationPhotoCameraHandle>;
@@ -25,6 +27,8 @@ export function LocationPhotoCamera({
   /** Name the actual return when this camera is nested over a retained photo. */
   closeLabel?: string;
   errorAction?: ReactNode;
+  presentation?: "default" | "fullscreen";
+  dock?: (shutter: ReactNode) => ReactNode;
 }) {
   const t = useTranslations("JobScan");
   return (
@@ -38,6 +42,8 @@ export function LocationPhotoCamera({
       fileName={locationFileName}
       stopAfterCapture
       errorAction={errorAction}
+      presentation={presentation}
+      {...(dock ? { dock } : {})}
     />
   );
 }

@@ -3513,10 +3513,10 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:cameraOpen",
+      "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:$overlay:Dialog:cameraOpen+photo",
       "policy": "overlay",
-      "expectation": "Retaking a photo owns its earlier camera step while retaining the original AI photo and corrected code; Back consumes retake before outer acquisition. The containing Photo AI mode uses the reader's live completion handle to cancel processing and stop capture synchronously, then consumes retake before closing outer acquisition. Late processing cannot replace a dismissed owner.",
-      "integration": "useBackDisclosure",
+      "expectation": "A retake over a reviewed photo owns a full-screen dialog. Dismissing it retains the existing photo and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
+      "integration": "dialog",
       "tests": [
         "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
       ],
@@ -3527,7 +3527,26 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "the Photo AI mode closes a retake before outer acquisition and the next Back restores the origin"
+          "name": "explicit retake Back to photo and outer Close consume their entries before the next Back"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:cameraOpen",
+      "policy": "overlay",
+      "expectation": "A retake over a reviewed photo owns a full-screen dialog. Dismissing it retains the existing photo and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back returns Location retake camera to its retained AI photo and corrected code"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "explicit retake Back to photo and outer Close consume their entries before the next Back"
         }
       ]
     },
@@ -3593,39 +3612,16 @@
     },
     {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:photo",
-      "policy": "presentation",
-      "expectation": "The retained photo supplies the inline preview and retry controls inside owned acquisition. Taking another photo is separately owned by cameraOpen disclosure, rather than treating a camera as presentation. Standalone readers retain their frame close by default. A picker hides the equivalent outer close in direct Photo AI mode; nested QR-to-AI keeps it to return to QR, and retake always retains its own return-to-photo control.",
-      "uses": ["branch"],
-      "render": [
+      "policy": "overlay",
+      "expectation": "The presence of an existing photo distinguishes a retake dialog from the initial acquisition. Retake owns a Back entry while the reviewed photo and any corrected code stay mounted below it.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+      ],
+      "cases": [
         {
-          "shape": "and",
-          "truthy": [
-            "div",
-            "lucide-react#RotateCcw",
-            "src/components/ui/IconButton#IconButton"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": ["div"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "div",
-            "img",
-            "lucide-react#RotateCcw",
-            "src/components/ui/IconButton#IconButton",
-            "src/features/finishedGoods/CameraFrame#CameraFrame"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/button#Button"],
-          "falsy": []
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back returns Location retake camera to its retained AI photo and corrected code"
         }
       ]
     },
@@ -3649,13 +3645,13 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:ai",
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:qrBeforeAi",
       "policy": "overlay",
-      "expectation": "The actual AI acquisition foreground has a specific shared disclosure owner and retains the underlying typed label. Direct Photo AI mode closes through its pressed mode action only. Nested QR-to-AI retains a frame close that returns to QR; pressing Photo AI instead completes both owned entries in order before the next Back. A one-shot Forward restores nested AI and its camera together, including after completion cleared the nested flag; remount retires both entries before Forward or a stale direct link.",
-      "integration": "useBackDisclosure",
+      "expectation": "Photo AI opened from the QR scanner owns a second full-screen dialog. Back returns to the QR scanner and invalidates pending work. Opening Photo AI directly uses the outer camera entry. Forward restores the acquisition mode and a remount retires the old owners.",
+      "integration": "dialog",
       "tests": [
         "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-        "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx"
+        "tests/e2e/workspace/barcode.spec.ts"
       ],
       "cases": [
         {
@@ -3668,11 +3664,74 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "nested Photo AI in %s keeps distinct return-to-QR and close-acquisition controls, then next Back restores the origin"
+          "name": "one-shot Forward restores nested %s Photo AI with its return and completion ownership"
         },
         {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx",
-          "name": "the pressed Photo AI action is the only %s outer close before and after reading a photo"
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "a remounted nested Photo AI picker retires both entries before Forward or a stale direct link"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "nested Photo AI in %s closes to QR, then camera Close leaves the draft and next Back restores the origin"
+        },
+        {
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "switching a live location camera to Photo AI keeps one stream and restores the typed location"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:$overlay:Dialog:ai+camera+qrBeforeAi",
+      "policy": "overlay",
+      "expectation": "Photo AI opened from the QR scanner owns a second full-screen dialog. Back returns to the QR scanner and invalidates pending work. Opening Photo AI directly uses the outer camera entry. Forward restores the acquisition mode and a remount retires the old owners.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "tests/e2e/workspace/barcode.spec.ts"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back closes Photo AI acquisition and retains the typed location; Forward restores the same mode"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "header Back closes nested Photo AI before the camera and ignores its late AI answer"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "one-shot Forward restores nested %s Photo AI with its return and completion ownership"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "a remounted nested Photo AI picker retires both entries before Forward or a stale direct link"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "nested Photo AI in %s closes to QR, then camera Close leaves the draft and next Back restores the origin"
+        },
+        {
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "switching a live location camera to Photo AI keeps one stream and restores the typed location"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:ai",
+      "policy": "overlay",
+      "expectation": "Photo AI opened from the QR scanner owns a second full-screen dialog. Back returns to the QR scanner and invalidates pending work. Opening Photo AI directly uses the outer camera entry. Forward restores the acquisition mode and a remount retires the old owners.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back closes Photo AI acquisition and retains the typed location; Forward restores the same mode"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "header Back closes nested Photo AI before the camera and ignores its late AI answer"
         },
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
@@ -3685,12 +3744,13 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:camera",
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:$overlay:Dialog:camera",
       "policy": "overlay",
-      "expectation": "The actual camera acquisition/registration foreground has a specific shared disclosure owner, retains the underlying typed label, protects dirty/pending writes and consumes explicit closure before the next Back. Its Forward restoration preserves nested AI restored in the same traversal without changing the remembered outer acquisition mode.",
-      "integration": "useBackDisclosure",
+      "expectation": "The location picker opens a full-screen dialog and keeps the search and building filter below it. Close or native Back releases acquisition and returns to the selected origin. A confirmed lookup consumes the camera before selecting a location.",
+      "integration": "dialog",
       "tests": [
-        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "tests/e2e/workspace/barcode.spec.ts"
       ],
       "cases": [
         {
@@ -3698,20 +3758,28 @@
           "name": "Location camera Close consumes its entry and the next native Back restores the actual locale query and hash"
         },
         {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "header Back closes nested Photo AI before the camera and ignores its late AI answer"
-        },
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "the location camera fills the viewport through rotation and Back releases its live track"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:camera",
+      "policy": "overlay",
+      "expectation": "The location picker opens a full-screen dialog and keeps the search and building filter below it. Close or native Back releases acquisition and returns to the selected origin. A confirmed lookup consumes the camera before selecting a location.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "tests/e2e/workspace/barcode.spec.ts"
+      ],
+      "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "nested Photo AI in %s keeps distinct return-to-QR and close-acquisition controls, then next Back restores the origin"
+          "name": "Location camera Close consumes its entry and the next native Back restores the actual locale query and hash"
         },
         {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "one-shot Forward restores nested %s Photo AI with its return and completion ownership"
-        },
-        {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "a remounted nested Photo AI picker retires both entries before Forward or a stale direct link"
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "the location camera fills the viewport through rotation and Back releases its live track"
         }
       ]
     },

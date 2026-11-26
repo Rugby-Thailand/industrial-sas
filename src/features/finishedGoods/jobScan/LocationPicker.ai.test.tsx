@@ -1,4 +1,10 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess } from "@tests/fixtures/finished-goods-ui";
@@ -90,7 +96,6 @@ function setup(canReadImage = true, allowUnmapped = true) {
     />,
     { locale: "en", preserveProviders: true },
   );
-  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   return { onPick, ...view };
 }
 function select() {
@@ -226,9 +231,8 @@ it.each([
     expect(mocks.action).toHaveBeenCalledOnce();
     // Explicit return renders the retained photo before native entry consumption finishes.
     await waitFor(() => expect(window.location.href).toBe(photoHref));
-    expect(ai).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(ai);
-    await waitFor(() => expect(ai).toHaveAttribute("aria-pressed", "false"));
+    fireEvent.click(screen.getByRole("button", { name: closeLabel }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   },
 );
 
@@ -265,12 +269,13 @@ it.each(["typing", "warehouse", "replacement", "cancel", "back", "unmount"])(
     const { onPick, rerender, unmount } = setup();
     startReading();
     await waitFor(() => expect(mocks.action).toHaveBeenCalledOnce());
-    if (change === "typing")
+    if (change === "typing") {
+      fireEvent.click(screen.getByRole("button", { name: "Close Photo AI" }));
       fireEvent.change(
         screen.getByRole("textbox", { name: "Search location" }),
         { target: { value: "Dock" } },
       );
-    else if (change === "warehouse")
+    } else if (change === "warehouse")
       rerender(
         <LocationPicker
           warehouseId="warehouse-b"
@@ -282,7 +287,7 @@ it.each(["typing", "warehouse", "replacement", "cancel", "back", "unmount"])(
     else if (change === "cancel")
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     else if (change === "back")
-      fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     else unmount();
     await act(async () => finish(extracted()));
     expect(mocks.query).not.toHaveBeenCalled();
@@ -304,6 +309,7 @@ it("discards a pending confirmed-code lookup after typing", async () => {
   startReading();
   await screen.findByRole("textbox", { name: "Review location code" });
   fireEvent.click(screen.getByRole("button", { name: "Use this code" }));
+  fireEvent.click(screen.getByRole("button", { name: "Close Photo AI" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Search location" }), {
     target: { value: "Dock" },
   });
@@ -319,6 +325,7 @@ it("reuses the selected barcode photo and invalidates its pending decode when sw
     }),
   );
   const { onPick } = setup();
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   fireEvent.change(screen.getByLabelText("Choose image"), {
     target: { files: [file()] },
   });
@@ -384,6 +391,10 @@ it("does not offer AI without the management affordance", () => {
   expect(
     screen.queryByRole("button", { name: "Photo AI" }),
   ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+  expect(
+    screen.queryByRole("button", { name: "Photo AI" }),
+  ).not.toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: "Read location with AI" }),
   ).not.toBeInTheDocument();
@@ -391,39 +402,30 @@ it("does not offer AI without the management affordance", () => {
 
 it("switches between one scan mode and one Photo AI mode without submitting an AI request", async () => {
   setup();
-  const ai = screen.getByRole("button", { name: "Photo AI" });
-  const scan = screen.getByRole("button", { name: "Scan code" });
-  expect(scan).toHaveAttribute("aria-pressed", "true");
-  // The barcode fallback to AI appears only for a selected image.
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+  const qr = screen.getByRole("dialog", { name: "Scan code" });
   expect(
-    screen.queryByRole("button", { name: "Read location with AI" }),
+    within(qr).queryByRole("button", { name: "Read location with AI" }),
   ).not.toBeInTheDocument();
-  fireEvent.click(ai);
-  expect(ai).toHaveAttribute("aria-pressed", "true");
-  expect(scan).toHaveAttribute("aria-pressed", "false");
-  const reader = screen.getByRole("region", { name: "Read a location label" });
-  expect(reader).toBeVisible();
-  expect(screen.getAllByRole("button", { name: "Choose photo" })).toHaveLength(
-    1,
+  fireEvent.click(within(qr).getByRole("button", { name: "Photo AI" }));
+  expect(qr).not.toBeInTheDocument();
+  const photo = screen.getByRole("dialog", { name: "Read a location label" });
+  expect(
+    within(photo).getAllByRole("button", { name: "Choose photo" }),
+  ).toHaveLength(1);
+  expect(
+    within(photo).queryByRole("button", { name: /Read .*with AI/ }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(
+    within(photo).getByRole("button", { name: "Close Photo AI" }),
   );
-  expect(
-    screen.queryByRole("button", { name: /Read .*with AI/ }),
-  ).not.toBeInTheDocument();
+  expect(photo).not.toBeInTheDocument();
+  expect(screen.getByRole("dialog", { name: "Scan code" })).toBeVisible();
   expect(mocks.action).not.toHaveBeenCalled();
-  fireEvent.click(scan);
-  expect(ai).toHaveAttribute("aria-pressed", "false");
-  expect(
-    screen.queryByRole("region", { name: "Read a location label" }),
-  ).not.toBeInTheDocument();
-  expect(scan).toHaveAttribute("aria-pressed", "true");
-  fireEvent.click(ai);
-  fireEvent.click(ai);
-  await waitFor(() => expect(ai).toHaveAttribute("aria-pressed", "false"));
-  expect(scan).toHaveAttribute("aria-pressed", "false");
 });
 
 it.each(["default", "jobScan"] as const)(
-  "the pressed Photo AI action is the only %s outer close before and after reading a photo",
+  "the %s Photo AI dialog has only one close before and after reading a photo",
   async (presentation) => {
     renderWithIntl(
       <LocationPicker
@@ -439,23 +441,27 @@ it.each(["default", "jobScan"] as const)(
     });
     const ai = screen.getByRole("button", { name: "Photo AI" });
     fireEvent.click(ai);
-    expect(ai).toHaveAttribute("aria-pressed", "true");
+    const dialog = screen.getByRole("dialog", {
+      name: "Read a location label",
+    });
     expect(
-      screen.getByLabelText("Camera preview", { selector: "video" }),
+      within(dialog).getByLabelText("Camera preview", { selector: "video" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Close Photo AI" }),
-    ).not.toBeInTheDocument();
+      within(dialog).getAllByRole("button", { name: "Close Photo AI" }),
+    ).toHaveLength(1);
     select();
-    await screen.findByRole("textbox", { name: "Review location code" });
+    await within(dialog).findByRole("textbox", {
+      name: "Review location code",
+    });
+    const [close] = within(dialog).getAllByRole("button", {
+      name: "Close Photo AI",
+    });
     expect(
-      screen.queryByRole("button", { name: "Close Photo AI" }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(ai);
-    await waitFor(() => expect(ai).toHaveAttribute("aria-pressed", "false"));
-    expect(
-      screen.queryByRole("region", { name: "Read a location label" }),
-    ).not.toBeInTheDocument();
+      within(dialog).getAllByRole("button", { name: "Close Photo AI" }),
+    ).toHaveLength(1);
+    fireEvent.click(close!);
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
     expect(
       screen.getByRole("textbox", { name: "Search location" }),
     ).toHaveValue("DOCK");
@@ -463,7 +469,7 @@ it.each(["default", "jobScan"] as const)(
 );
 
 it.each(["default", "jobScan"] as const)(
-  "the pressed Scan code action is the only %s QR camera close and keeps every acquisition channel",
+  "the %s QR dialog has one close and keeps image and manual channels available",
   (presentation) => {
     renderWithIntl(
       <LocationPicker
@@ -476,24 +482,33 @@ it.each(["default", "jobScan"] as const)(
     );
     const scan = screen.getByRole("button", { name: "Scan code" });
     fireEvent.click(scan);
-    const video = () =>
-      screen.queryByLabelText("Barcode and QR camera preview", {
-        selector: "video",
-      });
-    expect(video()).toBeInTheDocument();
-    expect(scan).toHaveAttribute("aria-pressed", "true");
+    const dialog = screen.getByRole("dialog", { name: "Scan code" });
     expect(
-      screen.queryByRole("button", { name: "Stop camera" }),
-    ).not.toBeInTheDocument();
-    // Image decoding, blank Photo AI and typing remain separate channels.
-    expect(screen.getByRole("button", { name: "Choose image" })).toBeEnabled();
+      within(dialog).getByLabelText("Barcode and QR camera preview", {
+        selector: "video",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("button", { name: "Stop camera" }),
+    ).toBeNull();
+    expect(
+      within(dialog).getByRole("button", { name: "Choose image" }),
+    ).toBeEnabled();
+    expect(
+      screen.queryByRole("textbox", { name: "Search location" }),
+    ).toBeNull();
+    const [close] = within(dialog).getAllByRole("button", {
+      name: "Close camera",
+    });
+    expect(
+      within(dialog).getAllByRole("button", { name: "Close camera" }),
+    ).toHaveLength(1);
+    fireEvent.click(close!);
+    expect(dialog).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Photo AI" })).toBeEnabled();
     expect(
       screen.getByRole("textbox", { name: "Search location" }),
     ).toBeEnabled();
-    fireEvent.click(scan);
-    expect(video()).not.toBeInTheDocument();
-    expect(scan).toHaveAttribute("aria-pressed", "false");
   },
 );
 
@@ -509,39 +524,25 @@ describe("Scan job ticket location step presentation", () => {
       />,
       { locale: "en", preserveProviders: true },
     );
-    fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
     return { onPick };
   }
-  const liveFrame = () =>
-    screen.getByLabelText("Barcode and QR camera preview", {
-      selector: "video",
-    }).parentElement!;
-
-  it("opts in to a larger whole-frame preview and an icon image picker", () => {
-    setupJobScan("jobScan");
-    const frame = liveFrame();
-    // Same aspect-ratio frame and object-contain media, with a taller bound.
-    expect(frame.style.aspectRatio).not.toBe("");
-    // jsdom reserialises nested calc() loosely; check the viewport bound only.
-    expect(frame.style.maxWidth).toContain("100dvh");
-    expect(frame.style.maxWidth).not.toContain("60dvh");
-    expect(
-      screen.getByLabelText("Barcode and QR camera preview", {
-        selector: "video",
-      }),
-    ).toHaveClass("object-contain");
-    const choose = screen.getByRole("button", { name: "Choose image" });
-    expect(choose).toHaveTextContent("");
-    expect(choose).not.toHaveClass("w-full");
-  });
-
-  it("keeps the default preview bound and full-width picker elsewhere", () => {
-    setupJobScan();
-    expect(liveFrame().style.maxWidth).toContain("60dvh");
-    const choose = screen.getByRole("button", { name: "Choose image" });
-    expect(choose).toHaveTextContent("Choose image");
-    expect(choose).toHaveClass("w-full");
-  });
+  it.each(["default", "jobScan"] as const)(
+    "uses a full-screen whole-frame preview and image picker in %s",
+    (presentation) => {
+      setupJobScan(presentation === "jobScan" ? presentation : undefined);
+      fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+      const dialog = screen.getByRole("dialog", { name: "Scan code" });
+      expect(dialog).toHaveAttribute("data-camera-dialog", "true");
+      expect(
+        within(dialog).getByLabelText("Barcode and QR camera preview", {
+          selector: "video",
+        }),
+      ).toHaveClass("object-contain");
+      expect(
+        within(dialog).getByRole("button", { name: "Choose image" }),
+      ).toBeEnabled();
+    },
+  );
 
   it("rereads the same photo once from the centre of the photo", async () => {
     mocks.action.mockResolvedValue(

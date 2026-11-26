@@ -4,6 +4,34 @@ import { expect, expectNoAxeViolations, test } from "../support/fixtures";
 
 const url = "http://127.0.0.1:3219";
 
+async function installCamera(page: Page) {
+  await page.evaluate(() => {
+    window.barcodeFixtureStreams = [];
+    const canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = 480;
+    const context = canvas.getContext("2d")!;
+
+    Object.defineProperty(navigator.mediaDevices, "getUserMedia", {
+      value: async () => {
+        const stream = canvas.captureStream(12);
+        window.barcodeFixtureStreams.push(stream);
+        context.fillRect(0, 0, 640, 480);
+        return stream;
+      },
+    });
+  });
+}
+
+function activeCameraTracks(page: Page) {
+  return page.evaluate(
+    () =>
+      window.barcodeFixtureStreams
+        .flatMap((stream) => stream.getTracks())
+        .filter((track) => track.readyState === "live").length,
+  );
+}
+
 async function choose(page: Page, codes: string[], qr = false) {
   await page.evaluate(
     async ({ codes, qr }) => {
@@ -28,6 +56,7 @@ async function accept(page: Page) {
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator.mediaDevices, "getUserMedia", {
+      configurable: true,
       value: () =>
         Promise.reject(new DOMException("Denied", "NotAllowedError")),
     });
@@ -89,6 +118,8 @@ test("camera denial still allows local location QR and paired ticket intake thro
   await review.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(review).toHaveCount(0);
   await accept(page);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
     "FO12345678",
   );
@@ -139,6 +170,8 @@ test("repeated image pairs retain two physical units and require duplicate revie
     await choose(page, ["FO12345678", "DEMO-PRODUCT"]);
     await accept(page);
   }
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: /Job No\./ })).toHaveCount(2);
   const save = page.getByRole("button", {
     name: "Save 2 tickets",
@@ -247,14 +280,21 @@ test("image controls fit narrow screens in both languages and themes", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 900 });
-  await page.getByRole("button", { name: "Scan code", exact: true }).click();
-  await choose(page, ["F2-L28-18"]);
-  await expect(
-    page.getByRole("button", { name: "Use scanned code(s)" }),
-  ).toBeVisible();
   for (const locale of ["en", "th"]) {
     if (locale === "th")
       await page.getByRole("button", { name: "ไทย", exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: locale === "en" ? "Scan code" : "สแกนรหัส",
+        exact: true,
+      })
+      .click();
+    await choose(page, ["F2-L28-18"]);
+    await expect(
+      page.getByRole("button", {
+        name: locale === "en" ? "Use scanned code(s)" : "ใช้รหัสที่อ่านได้",
+      }),
+    ).toBeVisible();
     for (const theme of ["dark", "light"]) {
       await page.evaluate(async (theme) => {
         document.documentElement.className = theme;
@@ -282,5 +322,120 @@ test("image controls fit narrow screens in both languages and themes", async ({
         })),
       ).toEqual([]);
     }
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   }
+});
+
+test("the location camera fills the viewport through rotation and Back releases its live track", async ({
+  page,
+}) => {
+  await installCamera(page);
+  const opener = page.getByRole("button", { name: "Scan code", exact: true });
+  await opener.click();
+  const dialog = page.getByRole("dialog");
+  const video = dialog.locator("video");
+  await expect
+    .poll(() =>
+      video.evaluate((node) =>
+        node instanceof HTMLVideoElement ? node.videoWidth : 0,
+      ),
+    )
+    .toBe(640);
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 844, height: 390 },
+    { width: 1280, height: 800 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect
+      .poll(() => dialog.boundingBox())
+      .toEqual({ x: 0, y: 0, ...viewport });
+    const frame = await video.boundingBox();
+    expect(frame!.width / frame!.height).toBeCloseTo(4 / 3, 1);
+    expect(frame!.height).toBeGreaterThan(120);
+    expect(
+      await video.evaluate((node) => getComputedStyle(node).objectFit),
+    ).toBe("contain");
+    await expect(
+      dialog.getByRole("button", { name: "Choose image", exact: true }),
+    ).toBeInViewport({ ratio: 1 });
+  }
+  await page.goBack();
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  await expect.poll(() => activeCameraTracks(page)).toBe(0);
+});
+
+test("ticket photo capture stays usable in landscape and retains its photo after Close", async ({
+  page,
+}) => {
+  await installCamera(page);
+  await page
+    .getByRole("textbox", { name: "Search location" })
+    .fill("F2-L28-18");
+  await page.getByRole("button", { name: /F2-L28-18/ }).click();
+  const opener = page.getByRole("button", { name: "Photo AI", exact: true });
+  await opener.click();
+  const dialog = page.getByRole("dialog");
+  const shutter = dialog.getByRole("button", {
+    name: "Take photo",
+    exact: true,
+  });
+  const feed = dialog.locator("video");
+  await expect
+    .poll(() =>
+      feed.evaluate((video) =>
+        video instanceof HTMLVideoElement ? video.videoWidth : 0,
+      ),
+    )
+    .toBe(640);
+  await shutter.click();
+  const send = dialog.getByRole("button", { name: "Read 1 photo with AI" });
+  await expect(send).toBeEnabled();
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect(shutter).toBeInViewport({ ratio: 1 });
+  await expect(send).toBeInViewport({ ratio: 1 });
+  const frame = await feed.boundingBox(),
+    button = await shutter.boundingBox();
+  expect(frame!.x + frame!.width).toBeLessThanOrEqual(button!.x);
+  await dialog.getByRole("button", { name: "Close camera" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  await expect.poll(() => activeCameraTracks(page)).toBe(0);
+  await opener.click();
+  await expect(send).toBeEnabled();
+});
+
+test("switching a live location camera to Photo AI keeps one stream and restores the typed location", async ({
+  page,
+}) => {
+  await installCamera(page);
+  const input = page.getByRole("textbox", { name: "Search location" });
+  await input.fill("dock");
+  await page.getByRole("button", { name: "Scan code", exact: true }).click();
+  const qr = page.getByRole("dialog", { name: "Scan code", exact: true });
+  await expect.poll(() => activeCameraTracks(page)).toBe(1);
+  await qr.getByRole("button", { name: "Photo AI", exact: true }).click();
+  const photo = page.getByRole("dialog", {
+    name: "Read a location label",
+    exact: true,
+  });
+  await expect(
+    photo.getByRole("button", { name: "Take location photo", exact: true }),
+  ).toBeEnabled();
+  await expect.poll(() => activeCameraTracks(page)).toBe(1);
+  await page.goBack();
+  await expect(
+    qr.getByRole("button", { name: "Choose image", exact: true }),
+  ).toBeVisible();
+  await page.goForward();
+  await expect(
+    photo.getByRole("button", { name: "Take location photo", exact: true }),
+  ).toBeEnabled();
+  await expect.poll(() => activeCameraTracks(page)).toBe(1);
+  await page.keyboard.press("Escape");
+  await qr.getByRole("button", { name: "Close camera", exact: true }).click();
+  await expect(input).toHaveValue("dock");
+  await expect.poll(() => activeCameraTracks(page)).toBe(0);
 });

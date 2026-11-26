@@ -11,13 +11,13 @@ for (const locale of ["en", "th"] as const) {
     const data = await page.evaluate(() => {
       const canvas = document.createElement("canvas");
       canvas.width = 1200;
-      canvas.height = 60;
+      canvas.height = 30;
       const context = canvas.getContext("2d")!;
       context.fillStyle = "white";
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.fillStyle = "black";
       context.font = "28px sans-serif";
-      context.fillText("Synthetic location photo", 20, 40);
+      context.fillText("Synthetic location photo", 20, 25);
       return canvas.toDataURL("image/png").split(",")[1]!;
     });
     await page
@@ -54,24 +54,17 @@ for (const locale of ["en", "th"] as const) {
       name: locale === "en" ? "Location label photo" : "รูปป้ายตำแหน่ง",
     });
     const imageBox = (await photo.boundingBox())!;
-    expect(imageBox.width / imageBox.height).toBeCloseTo(20, 2);
+    expect(imageBox.width / imageBox.height).toBeCloseTo(40, 2);
     const close = page.getByRole("button", {
       name: locale === "en" ? "Close Photo AI" : "ปิดถ่ายรูป AI",
       exact: true,
     });
     const closeBox = (await close.boundingBox())!;
     expect(imageBox.height).toBeLessThan(closeBox.height);
-    const frame = await close.evaluate((button) => {
-      const rect = button.parentElement!.getBoundingClientRect();
-      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-    });
-    expect(closeBox.x).toBeGreaterThanOrEqual(frame.x);
-    expect(closeBox.y).toBeGreaterThanOrEqual(frame.y);
-    expect(closeBox.x + closeBox.width).toBeLessThanOrEqual(
-      frame.x + frame.width,
-    );
-    expect(closeBox.y + closeBox.height).toBeLessThanOrEqual(
-      frame.y + frame.height,
+    await expect(close).toBeInViewport({ ratio: 1 });
+    expect(closeBox.height).toBeGreaterThanOrEqual(44);
+    await expect(page.getByRole("dialog")).toContainText(
+      locale === "en" ? "Read a location label" : "อ่านป้ายตำแหน่ง",
     );
     const cropBox = (await photo
       .locator("..")
@@ -152,7 +145,7 @@ test("Job location rereads the same photo once through its centred overlay", asy
   const requests = await page.evaluate(() => window.locationAiRequests);
   expect(requests).toHaveLength(2);
   expect(requests[1]).toEqual(requests[0]);
-  await expectNoAxeViolations(page, "main");
+  await expectNoAxeViolations(page);
 });
 
 test("Job location camera uses the available width and preserves the whole feed", async ({
@@ -236,7 +229,7 @@ for (const locale of ["en", "th"] as const) {
     });
     await expect(code).toHaveValue("F1-L3-11");
     await expect(page.getByLabel("Decoded codes")).toBeEmpty();
-    await expectNoAxeViolations(page, "main");
+    await expectNoAxeViolations(page);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth - innerWidth,

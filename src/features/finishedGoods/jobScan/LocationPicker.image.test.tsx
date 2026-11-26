@@ -137,12 +137,14 @@ it.each(["typing", "warehouse change"])(
     const { onPick, rerender } = setup();
     upload();
     await waitFor(() => expect(mocks.decode).toHaveBeenCalledOnce());
-    if (action === "typing")
+    if (action === "typing") {
+      fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
       fireEvent.change(
         screen.getByRole("textbox", { name: "Search location" }),
         { target: { value: "NEW" } },
       );
-    else rerender(<LocationPicker warehouseId="warehouse-b" onPick={onPick} />);
+    } else
+      rerender(<LocationPicker warehouseId="warehouse-b" onPick={onPick} />);
     await act(async () => finish(["F2-L28-1"]));
     expect(mocks.query).not.toHaveBeenCalled();
     expect(onPick).not.toHaveBeenCalled();

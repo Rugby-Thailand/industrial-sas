@@ -27,7 +27,14 @@ import { cn } from "@/lib/utils";
 import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import type { BarcodeCrop } from "../barcodeDecoder";
 import { Button } from "@/components/ui/button";
-import type { DialogCompletionHandle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  type DialogCompletionHandle,
+} from "@/components/ui/dialog";
 import { AddLocationForm } from "./AddLocationForm";
 import type { PickedLocation } from "./ticketDraft";
 import {
@@ -49,8 +56,8 @@ interface LocationPickerProps {
   browseWithoutSearch?: boolean;
   /**
    * `jobScan` is the Scan job ticket location step, where finding the area
-   * is the whole screen: a larger barcode preview, an icon image picker and
-   * a retry centred on the AI photo. Other pickers keep the default.
+   * is the whole screen: a retry centred on the AI photo. Both pickers use
+   * the full-screen camera dialog.
    */
   presentation?: "default" | "jobScan";
 }
@@ -112,34 +119,17 @@ function LocationPickerSession({
 
   const lookupVersion = useRef(0);
   const acquisitionOpen = useRef(false);
+  const completing = useRef(false);
   const [checking, setChecking] = useState(false);
   const [ai, setAi] = useState<{ photo?: LocationPhoto }>();
+  const cameraCompletion = useRef<DialogCompletionHandle>(null);
+  const nestedAiCompletion = useRef<DialogCompletionHandle>(null);
+  const cameraTitle = useRef<HTMLHeadingElement>(null);
+  const cameraOpener = useRef<HTMLElement>(null);
   const aiCompletion = useRef<DialogCompletionHandle>(null);
   const [qrBeforeAi, setQrBeforeAi] = useState(false);
   const lastCameraMode = useRef<"QR" | "AI">("QR");
   const lastAi = useRef<{ photo?: LocationPhoto }>({});
-  const aiDisclosure = useBackDisclosure(Boolean(ai) && qrBeforeAi, (open) => {
-    lookupVersion.current += 1;
-    acquisitionOpen.current = true;
-    // Forward may restore this child together with its camera entry, including
-    // after explicit completion cleared the nested presentation flag.
-    if (open) setQrBeforeAi(true);
-    setAi(open ? lastAi.current : undefined);
-  });
-  const cameraDisclosure = useBackDisclosure(camera, (open) => {
-    if (!open) cancelScan();
-    else {
-      acquisitionOpen.current = true;
-      setCamera(true);
-      // A one-shot Forward can restore AI in the same commit. Preserve that
-      // child while keeping lastCameraMode as the outer acquisition's mode.
-      setAi(
-        (restoredAi) =>
-          restoredAi ??
-          (lastCameraMode.current === "AI" ? lastAi.current : undefined),
-      );
-    }
-  });
   const registrationDisclosure = useBackDisclosure(adding, setAdding);
 
   useEffect(
@@ -156,8 +146,10 @@ function LocationPickerSession({
   function cancelScan() {
     lookupVersion.current += 1;
     acquisitionOpen.current = false;
+    completing.current = false;
     setCamera(false);
     setChecking(false);
+    setQrBeforeAi(false);
     setAi(undefined);
   }
   function finishAcquisition(action: () => void) {
@@ -165,14 +157,34 @@ function LocationPickerSession({
     // including while the owned history entry is still being consumed.
     lookupVersion.current += 1;
     acquisitionOpen.current = false;
+    completing.current = true;
     const finish = () => {
       cancelScan();
       action();
     };
-    if (camera && ai && qrBeforeAi)
-      aiDisclosure.complete(() => cameraDisclosure.complete(finish));
-    else if (camera) cameraDisclosure.complete(finish);
-    else finish();
+    const closeCamera = () => {
+      if (cameraCompletion.current)
+        cameraCompletion.current.complete(finish, cancelScan);
+      else finish();
+    };
+    if (camera && ai && qrBeforeAi) {
+      const closeNestedAi = () => {
+        if (nestedAiCompletion.current)
+          nestedAiCompletion.current.complete(closeCamera, cancelScan);
+        else closeCamera();
+      };
+      if (aiCompletion.current)
+        aiCompletion.current.complete(closeNestedAi, cancelScan);
+      else closeNestedAi();
+    } else if (camera && ai) {
+      if (aiCompletion.current)
+        aiCompletion.current.complete(closeCamera, cancelScan);
+      else closeCamera();
+    } else if (camera) {
+      closeCamera();
+    } else {
+      finish();
+    }
   }
   function choose(location: PickedLocation) {
     if (adding) {
@@ -252,7 +264,28 @@ function LocationPickerSession({
     }
   }
 
+  function readQrPhotoWithAi(file?: File, crop?: BarcodeCrop) {
+    if (!acquisitionOpen.current) return;
+    lookupVersion.current++;
+    lastAi.current = file ? { photo: locationPhoto(file, crop) } : {};
+    setQrBeforeAi(true);
+    setAi(lastAi.current);
+  }
+
   const scannerVersion = lookupVersion.current;
+  const nestedAiOpen = camera && Boolean(ai) && qrBeforeAi;
+  const cameraDescription = building
+    ? t("buildingFilterValue", { name: building.label })
+    : t("selectLocation");
+  const extractLocationLabel = async (imageDataUrl: string) => {
+    const result = await convex.action(fgRefs.extractLocationLabel, {
+      warehouseId,
+      imageDataUrl,
+    });
+    return result.ok
+      ? result.value
+      : ({ ok: false, error: { code: "AI_DENIED" } } as const);
+  };
 
   return (
     <div className="space-y-3">
@@ -272,47 +305,37 @@ function LocationPickerSession({
               <ScanCodeInput
                 {...control}
                 scanLabel={t("scanCode")}
-                scanning={camera && !ai}
-                onScan={() => {
-                  const opening = !camera || Boolean(ai);
+                scanDialog
+                onScan={(event) => {
+                  cameraOpener.current = event.currentTarget;
                   cancelScan();
                   setConfirmedMissing(undefined);
                   setAdding(false);
                   setNotice(undefined);
                   setMismatch(undefined);
-                  if (opening) {
-                    lastCameraMode.current = "QR";
-                    acquisitionOpen.current = true;
-                    setCamera(true);
-                  }
+                  lastCameraMode.current = "QR";
+                  acquisitionOpen.current = true;
+                  setCamera(true);
                 }}
                 trailingAction={
                   canReadImage ? (
                     <IconButton
                       label={t("photoAi")}
-                      variant={ai ? "active" : "ghost"}
-                      aria-pressed={Boolean(ai)}
+                      variant="ghost"
+                      aria-haspopup="dialog"
                       className="shrink-0"
-                      onClick={() => {
-                        const opening = !ai;
-                        if (!opening) {
-                          aiCompletion.current?.complete(() =>
-                            finishAcquisition(() => setQrBeforeAi(false)),
-                          );
-                          return;
-                        }
+                      onClick={(event) => {
+                        cameraOpener.current = event.currentTarget;
                         cancelScan();
                         setAdding(false);
                         setNotice(undefined);
                         setMismatch(undefined);
-                        if (opening) {
-                          lastCameraMode.current = "AI";
-                          lastAi.current = {};
-                          acquisitionOpen.current = true;
-                          setCamera(true);
-                          setQrBeforeAi(false);
-                          setAi(lastAi.current);
-                        }
+                        lastCameraMode.current = "AI";
+                        lastAi.current = {};
+                        acquisitionOpen.current = true;
+                        setQrBeforeAi(false);
+                        setAi(lastAi.current);
+                        setCamera(true);
                       }}
                     >
                       <Camera aria-hidden="true" className="size-5" />
@@ -363,52 +386,142 @@ function LocationPickerSession({
           </span>
         </div>
       )}
-      {camera &&
-        (ai ? (
-          <LocationImageReader
-            {...(ai.photo ? { initialPhoto: ai.photo } : {})}
-            closeControl={qrBeforeAi}
-            completionRef={aiCompletion}
-            extract={async (imageDataUrl) => {
-              const result = await convex.action(fgRefs.extractLocationLabel, {
-                warehouseId,
-                imageDataUrl,
-              });
-              return result.ok
-                ? result.value
-                : { ok: false, error: { code: "AI_DENIED" } };
+      <Dialog
+        open={camera}
+        completionRef={cameraCompletion}
+        onOpenChange={(open) => {
+          if (!open) cancelScan();
+          else {
+            completing.current = false;
+            acquisitionOpen.current = true;
+            setCamera(true);
+            // A one-shot Forward can restore AI in the same commit. Preserve that
+            // child while keeping lastCameraMode as the outer acquisition's mode.
+            setAi(
+              (restoredAi) =>
+                restoredAi ??
+                (lastCameraMode.current === "AI" ? lastAi.current : undefined),
+            );
+          }
+        }}
+      >
+        {/* Keep the QR history owner mounted while only the top dialog owns focus. */}
+        {!nestedAiOpen && (
+          <DialogContent
+            size="camera"
+            closeLabel={ai ? t("closePhotoAi") : t("closeCamera")}
+            onCloseAutoFocus={(event) => {
+              if (
+                acquisitionOpen.current ||
+                cameraOpener.current?.isConnected
+              ) {
+                event.preventDefault();
+                if (!acquisitionOpen.current) cameraOpener.current?.focus();
+              }
             }}
-            onConfirm={(code) => void onScan(code, scannerVersion)}
-            onClose={() => {
-              if (qrBeforeAi) aiDisclosure.onOpenChange(false);
-              else cameraDisclosure.onOpenChange(false);
-            }}
-            retryOverPhoto={presentation === "jobScan"}
-          />
-        ) : (
-          <BarcodeCameraBox
-            mode="LOCATION"
-            startOnMount
-            presentation={presentation === "jobScan" ? "expanded" : "default"}
-            onCode={(code) => void onScan(code, scannerVersion)}
-            // The pressed scan action owns closing; a second frame close would repeat it.
-            closeControl={false}
-            {...(canReadImage
-              ? {
-                  onReadWithAi: (file?: File, crop?: BarcodeCrop) => {
-                    if (!acquisitionOpen.current) return;
-                    lookupVersion.current++;
-                    lastAi.current = file
-                      ? { photo: locationPhoto(file, crop) }
-                      : {};
-                    setQrBeforeAi(true);
-                    setAi(lastAi.current);
-                  },
-                }
-              : {})}
-          />
-        ))}
-      {checking && (
+          >
+            <DialogHeader>
+              <DialogTitle ref={cameraTitle} tabIndex={-1}>
+                {ai ? t("locationAiTitle") : t("scanCode")}
+              </DialogTitle>
+              <DialogDescription>{cameraDescription}</DialogDescription>
+            </DialogHeader>
+            {camera &&
+              (ai ? (
+                <LocationImageReader
+                  {...(ai.photo ? { initialPhoto: ai.photo } : {})}
+                  closeControl={false}
+                  completionRef={aiCompletion}
+                  checking={checking}
+                  extract={extractLocationLabel}
+                  onConfirm={(code) => void onScan(code, scannerVersion)}
+                  onClose={() => cancelScan()}
+                  retryOverPhoto={presentation === "jobScan"}
+                />
+              ) : (
+                <BarcodeCameraBox
+                  mode="LOCATION"
+                  startOnMount
+                  presentation="fullscreen"
+                  disabled={checking}
+                  feedback={checking ? t("checkingLocation") : undefined}
+                  onCode={(code) => void onScan(code, scannerVersion)}
+                  closeControl={false}
+                  {...(canReadImage
+                    ? {
+                        onReadWithAi: readQrPhotoWithAi,
+                        actions: (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="min-h-12"
+                            disabled={checking}
+                            onClick={() => readQrPhotoWithAi()}
+                          >
+                            <Camera aria-hidden="true" className="size-4" />
+                            {t("photoAi")}
+                          </Button>
+                        ),
+                      }
+                    : {})}
+                />
+              ))}
+          </DialogContent>
+        )}
+      </Dialog>
+      <Dialog
+        open={nestedAiOpen}
+        completionRef={nestedAiCompletion}
+        onOpenChange={(open) => {
+          lookupVersion.current += 1;
+          if (open) {
+            completing.current = false;
+            acquisitionOpen.current = true;
+            // Forward may restore this child together with its camera entry, including
+            // after explicit completion cleared the nested presentation flag.
+            setQrBeforeAi(true);
+            setAi(lastAi.current);
+          } else if (!completing.current) {
+            acquisitionOpen.current = true;
+            setChecking(false);
+            setAi(undefined);
+          }
+        }}
+      >
+        <DialogContent
+          size="camera"
+          closeLabel={t("closePhotoAi")}
+          onCloseAutoFocus={(event) => {
+            const target = cameraTitle.current ?? cameraOpener.current;
+            if (target?.isConnected) {
+              event.preventDefault();
+              target.focus();
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{t("locationAiTitle")}</DialogTitle>
+            <DialogDescription>{cameraDescription}</DialogDescription>
+          </DialogHeader>
+          {camera && ai && qrBeforeAi && (
+            <LocationImageReader
+              {...(ai.photo ? { initialPhoto: ai.photo } : {})}
+              closeControl={false}
+              completionRef={aiCompletion}
+              checking={checking}
+              extract={extractLocationLabel}
+              onConfirm={(code) => void onScan(code, scannerVersion)}
+              onClose={() => {
+                lookupVersion.current += 1;
+                acquisitionOpen.current = true;
+                setAi(undefined);
+              }}
+              retryOverPhoto={presentation === "jobScan"}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      {checking && !camera && (
         <p role="status" className="text-sm text-muted">
           {t("checkingLocation")}
         </p>
