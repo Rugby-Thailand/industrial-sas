@@ -93,37 +93,37 @@ export function useMutation(reference: Reference) {
   };
 }
 
+const loaded = <T>(value: T) => ({ ok: true as const, value });
 const catalogueReads = {
-  "storageLayouts/catalogue:listStorageBuildingsPage": {
+  "storageLayouts/catalogue:listStorageBuildingsPage": loaded({
     status: "ready",
     page: [fixtureBuilding],
     isDone: true,
     continueCursor: "",
-  },
-  "storageLayouts/catalogue:buildingOccupancy": {
+  }),
+  "storageLayouts/catalogue:buildingOccupancy": loaded({
     ...fixtureBuilding,
     blocked: false,
-  },
-  "storageLayouts/writes:buildingLifecycleImpact": {
+  }),
+  "storageLayouts/writes:buildingLifecycleImpact": loaded({
     found: true,
     zoneCount: 3,
     positionCount: 4,
     namedRegistrationCount: 1,
     complete: true,
     canArchive: true,
-  },
-  "storageLayouts/writes:layoutReadiness": {
+  }),
+  "storageLayouts/writes:layoutReadiness": loaded({
     found: true,
     ready: true,
     version: fixtureBuilding.version,
-  },
+  }),
 };
 
 export function useQuery(reference: Reference, args: unknown) {
   if (args === "skip") return undefined;
   const name = getFunctionName(reference);
-  const value = catalogueReads[name as keyof typeof catalogueReads];
-  return value ? { ok: true, value } : undefined;
+  return catalogueReads[name as keyof typeof catalogueReads];
 }
 
 export function useQuery_experimental({
