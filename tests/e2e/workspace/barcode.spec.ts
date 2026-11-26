@@ -129,6 +129,8 @@ test("camera denial still allows local location QR and paired ticket intake thro
   await expect(
     page.getByRole("link", { name: "View full label image" }),
   ).toHaveCount(0);
+  // Measure the label viewer at its final opacity, after the dialog fade-in.
+  await expect(review).toHaveCSS("opacity", "1");
   await expectNoAxeViolations(page);
   await review.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(review).toHaveCount(0);
