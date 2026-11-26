@@ -2598,7 +2598,7 @@
     {
       "id": "src/features/finishedGoods/DestinationScanner.tsx#DestinationScanSession:$overlay:Dialog:cameraOpen",
       "policy": "overlay",
-      "expectation": "The full-screen verification dialog opens on explicit request. Native Back and Close release the stream, restore the verification form and preserve its manual draft. The active check protects dismissal; successful verification leaves physical confirmation with the caller.",
+      "expectation": "The full-screen verification dialog opens on explicit request. Native Back and Close release the stream, restore the verification form and preserve its manual draft. The active check protects dismissal. Rejected scans stop acquisition and leave the same entry open for retry or Close, with the scanned code available for manual entry after dismissal. A successful check consumes the camera entry and leaves physical confirmation with the caller.",
       "integration": "dialog",
       "tests": [
         "src/features/finishedGoods/MoveScreen.test.tsx",
@@ -2617,6 +2617,10 @@
         {
           "file": "src/features/finishedGoods/PalletScreens.test.tsx",
           "name": "requires the current operator to verify even if another operator already scanned"
+        },
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "guides stacked reservations to verify both pallet identities"
         },
         {
           "file": "src/features/finishedGoods/DestinationScanner.test.tsx",
@@ -2627,7 +2631,7 @@
     {
       "id": "src/features/finishedGoods/DestinationScanner.tsx#DestinationScanSession:cameraOpen",
       "policy": "overlay",
-      "expectation": "The full-screen verification dialog opens on explicit request. Native Back and Close release the stream, restore the verification form and preserve its manual draft. The active check protects dismissal; successful verification leaves physical confirmation with the caller.",
+      "expectation": "The full-screen verification dialog opens on explicit request. Native Back and Close release the stream, restore the verification form and preserve its manual draft. The active check protects dismissal. Rejected scans stop acquisition and leave the same entry open for retry or Close, with the scanned code available for manual entry after dismissal. A successful check consumes the camera entry and leaves physical confirmation with the caller.",
       "integration": "dialog",
       "tests": [
         "src/features/finishedGoods/MoveScreen.test.tsx",
@@ -2646,6 +2650,10 @@
         {
           "file": "src/features/finishedGoods/PalletScreens.test.tsx",
           "name": "requires the current operator to verify even if another operator already scanned"
+        },
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "guides stacked reservations to verify both pallet identities"
         },
         {
           "file": "src/features/finishedGoods/DestinationScanner.test.tsx",
@@ -3515,10 +3523,11 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:$overlay:Dialog:cameraOpen+photo",
       "policy": "overlay",
-      "expectation": "A retake over a reviewed photo owns a full-screen dialog. Dismissing it retains the existing photo and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
+      "expectation": "A retake over a reviewed photo owns a full-screen dialog. A rejected replacement photo stays in the retake with recovery actions. Dismissing the retake restores the existing photo, AI candidates, and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
       "integration": "dialog",
       "tests": [
-        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "tests/e2e/workspace/barcode.spec.ts"
       ],
       "cases": [
         {
@@ -3528,16 +3537,21 @@
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
           "name": "explicit retake Back to photo and outer Close consume their entries before the next Back"
+        },
+        {
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "confirming a location photo retains the unsaved ticket when changing its location"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:cameraOpen",
       "policy": "overlay",
-      "expectation": "A retake over a reviewed photo owns a full-screen dialog. Dismissing it retains the existing photo and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
+      "expectation": "A retake over a reviewed photo owns a full-screen dialog. A rejected replacement photo stays in the retake with recovery actions. Dismissing the retake restores the existing photo, AI candidates, and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
       "integration": "dialog",
       "tests": [
-        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "tests/e2e/workspace/barcode.spec.ts"
       ],
       "cases": [
         {
@@ -3547,6 +3561,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
           "name": "explicit retake Back to photo and outer Close consume their entries before the next Back"
+        },
+        {
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "confirming a location photo retains the unsaved ticket when changing its location"
         }
       ]
     },
@@ -3611,6 +3629,28 @@
       ]
     },
     {
+      "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:fileError",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "An invalid photo shows one inline validation alert in the active camera or photo review. Selecting it does not replace the photo, reset the reviewed code, or create another foreground entry.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back returns Location retake camera to its retained AI photo and corrected code"
+        }
+      ],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:photo",
       "policy": "overlay",
       "expectation": "The presence of an existing photo distinguishes a retake dialog from the initial acquisition. Retake owns a Back entry while the reviewed photo and any corrected code stay mounted below it.",
@@ -3647,13 +3687,18 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:qrBeforeAi",
       "policy": "overlay",
-      "expectation": "Photo AI opened from the QR scanner owns a second full-screen dialog. Back returns to the QR scanner and invalidates pending work. Opening Photo AI directly uses the outer camera entry. Forward restores the acquisition mode and a remount retires the old owners.",
+      "expectation": "Photo AI opened from the QR scanner owns a second full-screen dialog. Back returns to the QR scanner, restoring the selected gallery image, crop, and decoded result without restarting its camera, and invalidates pending AI work. Opening Photo AI directly uses the outer camera entry. Forward restores the acquisition mode and a remount retires the old owners.",
       "integration": "dialog",
       "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.image.test.tsx",
         "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
         "tests/e2e/workspace/barcode.spec.ts"
       ],
       "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.image.test.tsx",
+          "name": "restores a cropped QR image and its decoded result after %s closes or returns through Back and Forward"
+        },
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
           "name": "native Back closes Photo AI acquisition and retains the typed location; Forward restores the same mode"

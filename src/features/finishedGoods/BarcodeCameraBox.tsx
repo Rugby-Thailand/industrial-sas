@@ -8,7 +8,10 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Notice } from "@/components/ui/Notice";
 import { cn } from "@/lib/utils";
 import { useBarcodeCamera } from "./useBarcodeCamera";
-import { BarcodeImagePicker } from "./BarcodeImagePicker";
+import {
+  BarcodeImagePicker,
+  type BarcodeImageReview,
+} from "./BarcodeImagePicker";
 import {
   CameraFrame,
   CameraGuide,
@@ -36,6 +39,8 @@ export function BarcodeCameraBox({
   imageTarget = mode === "LOCATION" ? "LOCATION" : "ANY",
   onImageCodes,
   onReadWithAi,
+  initialImageReview,
+  onImageReviewChange,
   presentation = "default",
   guide = "barcode",
   progress,
@@ -57,6 +62,8 @@ export function BarcodeCameraBox({
   imageTarget?: BarcodeImageTarget;
   onImageCodes?: (codes: string[]) => void;
   onReadWithAi?: (file?: File, crop?: BarcodeCrop) => void;
+  initialImageReview?: BarcodeImageReview | undefined;
+  onImageReviewChange?: (review: BarcodeImageReview | undefined) => void;
   /**
    * `expanded` gives the live preview more of the viewport and reduces the
    * image picker to an icon. `fullscreen` uses a camera dialog's stage and dock.
@@ -69,7 +76,7 @@ export function BarcodeCameraBox({
 }) {
   const t = useTranslations("JobScan");
   const fullscreen = presentation === "fullscreen";
-  const [camera, setCamera] = useState(startOnMount);
+  const [camera, setCamera] = useState(startOnMount && !initialImageReview);
   const [imageSession, setImageSession] = useState(0);
   const video = useVideoAspect(16 / 9);
   if (disabled && camera) setCamera(false);
@@ -104,6 +111,7 @@ export function BarcodeCameraBox({
   function open() {
     if (scanDisabled) return;
     onStart?.();
+    onImageReviewChange?.(undefined);
     setImageSession((session) => session + 1);
     if (camera) start();
     else setCamera(true);
@@ -205,13 +213,16 @@ export function BarcodeCameraBox({
         <BarcodeImagePicker
           key={`${imageSession}:${imageTarget}:${disabled}`}
           target={imageTarget}
+          initialReview={initialImageReview}
+          onReviewChange={onImageReviewChange}
           compact={presentation === "expanded"}
           onReadWithAi={
             onReadWithAi
               ? (file, crop) => {
                   stop();
                   setCamera(false);
-                  setImageSession((session) => session + 1);
+                  if (!onImageReviewChange)
+                    setImageSession((session) => session + 1);
                   onReadWithAi(file, crop);
                 }
               : undefined

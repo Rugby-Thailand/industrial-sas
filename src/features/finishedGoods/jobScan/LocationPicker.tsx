@@ -25,6 +25,7 @@ import { useDebouncedSearch } from "@/hooks/useScanContinuation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { cn } from "@/lib/utils";
 import { BarcodeCameraBox } from "../BarcodeCameraBox";
+import type { BarcodeImageReview } from "../BarcodeImagePicker";
 import type { BarcodeCrop } from "../barcodeDecoder";
 import { Button } from "@/components/ui/button";
 import {
@@ -122,6 +123,7 @@ function LocationPickerSession({
   const completing = useRef(false);
   const [checking, setChecking] = useState(false);
   const [ai, setAi] = useState<{ photo?: LocationPhoto }>();
+  const [qrImageReview, setQrImageReview] = useState<BarcodeImageReview>();
   const cameraCompletion = useRef<DialogCompletionHandle>(null);
   const nestedAiCompletion = useRef<DialogCompletionHandle>(null);
   const cameraTitle = useRef<HTMLHeadingElement>(null);
@@ -147,6 +149,7 @@ function LocationPickerSession({
     lookupVersion.current += 1;
     acquisitionOpen.current = false;
     completing.current = false;
+    setQrImageReview(undefined);
     setCamera(false);
     setChecking(false);
     setQrBeforeAi(false);
@@ -442,6 +445,8 @@ function LocationPickerSession({
                 <BarcodeCameraBox
                   mode="LOCATION"
                   startOnMount
+                  initialImageReview={qrImageReview}
+                  onImageReviewChange={setQrImageReview}
                   presentation="fullscreen"
                   disabled={checking}
                   feedback={checking ? t("checkingLocation") : undefined}

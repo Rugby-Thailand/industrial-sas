@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,12 +28,14 @@ export function TicketFieldScanner({
   onClose,
   onRestore,
   revocationEpoch,
+  openerRef,
 }: {
   target: FieldTarget | null;
   onApply: (target: FieldTarget, code: string) => void;
   onClose: () => void;
   onRestore?: () => void;
   revocationEpoch?: number;
+  openerRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const t = useTranslations("JobScan");
   return (
@@ -47,7 +49,17 @@ export function TicketFieldScanner({
         else onClose();
       }}
     >
-      <DialogContent size="camera" closeLabel={t("cancel")}>
+      <DialogContent
+        size="camera"
+        closeLabel={t("cancel")}
+        onCloseAutoFocus={(event) => {
+          const opener = openerRef?.current;
+          if (opener?.isConnected && !opener.disabled) {
+            event.preventDefault();
+            opener.focus();
+          }
+        }}
+      >
         {target && (
           <TicketFieldScanSession
             key={`${target.key}:${target.field}`}

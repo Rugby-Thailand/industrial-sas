@@ -36,7 +36,7 @@ function TicketInput({
   ticket: TicketDraft;
   field: TicketField;
   onChange: (field: TicketField, value: string) => void;
-  onScan: (field: TicketCodeField) => void;
+  onScan: (field: TicketCodeField, opener: HTMLButtonElement) => void;
   disabled: boolean;
   large?: boolean;
 }) {
@@ -76,7 +76,7 @@ function TicketInput({
             {...inputProps}
             scanDialog
             scanLabel={t("scanField", { field: t(field) })}
-            onScan={() => onScan(codeField)}
+            onScan={(event) => onScan(codeField, event.currentTarget)}
           />
         ) : (
           <Input {...control} {...inputProps} />
@@ -103,7 +103,7 @@ export function TicketCard({
   onChange: (field: TicketField, value: string) => void;
   onRemove: () => void;
   onFormatChange?: (format: NonNullable<TicketDraft["storageFormat"]>) => void;
-  onScan: (field: TicketCodeField) => void;
+  onScan: (field: TicketCodeField, opener: HTMLButtonElement) => void;
   disabled?: boolean;
   duplicate?: boolean;
 }) {

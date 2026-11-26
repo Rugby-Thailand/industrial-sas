@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Camera } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -27,6 +27,8 @@ export interface DestinationScannerProps {
   readonly busy?: boolean;
   readonly verified?: boolean;
   readonly expectedLocation: string;
+  readonly expectedCode?: string | undefined;
+  readonly verificationError?: string | undefined;
   /** Parent workflows can show their precise business error without a duplicate generic notice. */
   readonly showVerificationErrors?: boolean;
   readonly purpose?: "DESTINATION" | "PALLET" | "SOURCE" | "SUPPORT";
@@ -38,7 +40,11 @@ export function DestinationScanner(props: DestinationScannerProps) {
   // A different verification target requires a fresh camera and manual draft.
   return (
     <DestinationScanSession
-      key={JSON.stringify([props.purpose, props.expectedLocation])}
+      key={JSON.stringify([
+        props.purpose,
+        props.expectedLocation,
+        props.expectedCode,
+      ])}
       {...props}
     />
   );
@@ -49,6 +55,8 @@ function DestinationScanSession({
   busy = false,
   verified = false,
   expectedLocation,
+  expectedCode,
+  verificationError,
   showVerificationErrors = true,
   purpose = "DESTINATION",
   storageFormat,
@@ -60,11 +68,17 @@ function DestinationScanSession({
   const [cameraOpen, setCameraOpen] = useState(false);
   const cameraCompletion = useRef<DialogCompletionHandle>(null);
   const expected = useRef<HTMLDivElement>(null);
+  const retryScan = useRef<HTMLButtonElement>(null);
   const verification = useAsyncOperation({
     navigation: "write",
-    describeError: () => "",
+    describeError: () => scanText("verificationFailed"),
   });
   const disabled = busy || verification.busy || verified;
+
+  const rejected = verification.error;
+  useEffect(() => {
+    if (rejected) retryScan.current?.focus();
+  }, [rejected]);
 
   function submit(value: string, method: "SCAN" | "MANUAL") {
     const trimmed = value.trim();
@@ -72,21 +86,9 @@ function DestinationScanSession({
     void verification.run(
       async () => {
         if (method === "SCAN") setCode(trimmed);
-        try {
-          await onCode(trimmed, method);
-          return true;
-        } catch {
-          // The camera closes after either result so the parent can announce its precise error.
-          return false;
-        }
+        await onCode(trimmed, method);
       },
-      (accepted) => {
-        if (!accepted && showVerificationErrors)
-          verification.setError(
-            t(
-              "copy.the-destination-could-not-be-verified-check-the-code-and-connection-then",
-            ),
-          );
+      () => {
         if (method === "SCAN")
           verification.complete(() =>
             cameraCompletion.current?.complete(() => setCameraOpen(false)),
@@ -170,22 +172,48 @@ function DestinationScanSession({
             <DialogTitle>{cameraTitle}</DialogTitle>
             <DialogDescription>
               {expectedLabel}: {expectedLocation}
+              {expectedCode && expectedCode !== expectedLocation
+                ? ` · ${expectedCode}`
+                : null}
             </DialogDescription>
           </DialogHeader>
-          <BarcodeCameraBox
-            mode={palletLabel ? "PACKAGES" : "LOCATION"}
-            presentation="fullscreen"
-            guide="label"
-            closeControl={false}
-            stopAfterScan
-            disabled={disabled}
-            onStart={() => verification.setError("")}
-            onCode={(value) => submit(value, "SCAN")}
-            videoLabel={cameraTitle}
-            feedback={
-              verification.busy || busy ? t("copy.verifying") : undefined
-            }
-          />
+          {rejected ? (
+            <div className="space-y-3">
+              <Notice
+                tone="warning"
+                title={verificationError || rejected}
+                role="alert"
+              >
+                <p className="text-sm text-muted">{scanText("scannedCode")}</p>
+                <p className="mt-1 text-sm break-all">{code}</p>
+              </Notice>
+              <Button
+                ref={retryScan}
+                type="button"
+                className="min-h-12 w-full"
+                disabled={disabled}
+                onClick={() => verification.setError("")}
+              >
+                <Camera className="size-4" aria-hidden="true" />
+                {scanText("scanAgain")}
+              </Button>
+            </div>
+          ) : (
+            <BarcodeCameraBox
+              mode={palletLabel ? "PACKAGES" : "LOCATION"}
+              presentation="fullscreen"
+              guide="label"
+              closeControl={false}
+              stopAfterScan
+              disabled={disabled}
+              onStart={() => verification.setError("")}
+              onCode={(value) => submit(value, "SCAN")}
+              videoLabel={cameraTitle}
+              feedback={
+                verification.busy || busy ? t("copy.verifying") : undefined
+              }
+            />
+          )}
         </DialogContent>
       </Dialog>
       <form
@@ -228,8 +256,8 @@ function DestinationScanSession({
             : t("copy.verify-entered-code")}
         </Button>
       </form>
-      {verification.error ? (
-        <Notice tone="warning" title={verification.error} role="alert" />
+      {showVerificationErrors && rejected ? (
+        <Notice tone="warning" title={rejected} role="alert" />
       ) : null}
       {verified ? (
         <Notice

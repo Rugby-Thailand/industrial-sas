@@ -92,6 +92,8 @@ export function LocationImageReader({
   >([]);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string>();
+  const [fileError, setFileError] =
+    useState<ReturnType<typeof barcodeImageProblem>>();
   const [attempt, setAttempt] = useState(0);
   const version = useRef(0);
   const pending = useRef(false);
@@ -108,12 +110,15 @@ export function LocationImageReader({
     setCandidates([]);
     setCode("");
     setError(undefined);
+    setFileError(undefined);
   }
   useCompletionHandle(completionRef, (action, onCancel) => {
     invalidate();
     photoCamera.current?.stop();
-    if (retakeCompletion.current) {
-      retakeCompletion.current.complete(() => {
+    // The review lives in its parent dialog. Only an open retake owns another
+    // entry; completing an inactive entry would guard the whole ticket draft.
+    if (cameraOpen && photo && retakeCompletion.current) {
+      retakeCompletion.current.completeOwned?.(() => {
         setCameraOpen(false);
         action();
       }, onCancel);
@@ -122,16 +127,15 @@ export function LocationImageReader({
     }
   });
   function select(file: File) {
-    invalidate();
-    // A gallery photo replaces the live camera before any late capture can land.
-    photoCamera.current?.stop();
-    setCameraOpen(false);
     const problem = barcodeImageProblem(file);
     if (problem) {
-      setPhoto(undefined);
-      setError(problem);
+      // A rejected source leaves both the current camera and any reviewed photo in place.
+      setFileError(problem);
       return;
     }
+    invalidate();
+    photoCamera.current?.stop();
+    setCameraOpen(false);
     setPhoto(locationPhoto(file));
   }
   function close() {
@@ -210,7 +214,15 @@ export function LocationImageReader({
 
   const canRetry = Boolean(photo) && !busy && candidates.length === 0;
   // Re-runs the read effect with the same file and crop, once per press.
-  const retry = () => setAttempt((value) => value + 1);
+  const retry = () => {
+    setFileError(undefined);
+    setAttempt((value) => value + 1);
+  };
+
+  function chooseImage() {
+    setFileError(undefined);
+    picker.current?.click();
+  }
 
   const chooseFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -225,6 +237,7 @@ export function LocationImageReader({
       variant="outline"
       className="min-h-12 flex-1"
       onClick={() => {
+        setFileError(undefined);
         photoCamera.current?.stop();
         capture.current?.click();
       }}
@@ -234,21 +247,23 @@ export function LocationImageReader({
     </Button>
   );
 
+  const fileWarning = fileError && (
+    <Notice role="alert" tone="warning" title={t(fileError)} />
+  );
   const cameraDock = (shutter: ReactNode) => (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg border border-border bg-surface p-3">
-      <div className="flex justify-start">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => picker.current?.click()}
-        >
-          <ImagePlus aria-hidden="true" className="size-5" />
-          {t("chooseLocationImage")}
-        </Button>
+    <>
+      {fileWarning}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg border border-border bg-surface p-3">
+        <div className="flex justify-start">
+          <Button type="button" variant="outline" onClick={chooseImage}>
+            <ImagePlus aria-hidden="true" className="size-5" />
+            {t("chooseLocationImage")}
+          </Button>
+        </div>
+        {shutter}
+        <div />
       </div>
-      {shutter}
-      <div />
-    </div>
+    </>
   );
 
   return (
@@ -333,6 +348,7 @@ export function LocationImageReader({
               </Button>
             ) : null}
             {error && <Notice role="alert" tone="warning" title={t(error)} />}
+            {!cameraOpen && fileWarning}
             {candidates.length > 0 && (
               <div className="space-y-3">
                 <p className="text-sm font-semibold">{t("locationAiReview")}</p>
@@ -387,7 +403,7 @@ export function LocationImageReader({
                 label={t("chooseLocationImage")}
                 variant="ghost"
                 disabled={checking}
-                onClick={() => picker.current?.click()}
+                onClick={chooseImage}
               >
                 <ImagePlus aria-hidden="true" className="size-5" />
               </IconButton>
@@ -402,6 +418,7 @@ export function LocationImageReader({
                     cancelPending();
                     pending.current = false;
                     setBusy(false);
+                    setFileError(undefined);
                     setCameraOpen(true);
                   }}
                 >
@@ -431,7 +448,10 @@ export function LocationImageReader({
       />
       <Dialog
         open={cameraOpen && photo !== undefined}
-        onOpenChange={setCameraOpen}
+        onOpenChange={(open) => {
+          setFileError(undefined);
+          setCameraOpen(open);
+        }}
         completionRef={retakeCompletion}
       >
         <DialogContent size="camera" closeLabel={t("backToPhoto")}>

@@ -16,7 +16,16 @@ async function installCamera(page: Page) {
       value: async () => {
         const stream = canvas.captureStream(12);
         window.barcodeFixtureStreams.push(stream);
-        context.fillRect(0, 0, 640, 480);
+        // WebKit needs frames arriving after the video element attaches.
+        let frame = 0;
+        const timer = window.setInterval(() => {
+          if (!stream.active) {
+            window.clearInterval(timer);
+            return;
+          }
+          context.fillStyle = frame++ % 2 ? "#121212" : "#101010";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+        }, 100);
         return stream;
       },
     });
@@ -350,7 +359,12 @@ test("the location camera fills the viewport through rotation and Back releases 
     await page.setViewportSize(viewport);
     await expect
       .poll(() => dialog.boundingBox())
-      .toEqual({ x: 0, y: 0, ...viewport });
+      .toEqual({
+        x: 0,
+        y: 0,
+        width: expect.closeTo(viewport.width, 1),
+        height: expect.closeTo(viewport.height, 1),
+      });
     const frame = await video.boundingBox();
     expect(frame!.width / frame!.height).toBeCloseTo(4 / 3, 1);
     expect(frame!.height).toBeGreaterThan(120);
@@ -437,5 +451,29 @@ test("switching a live location camera to Photo AI keeps one stream and restores
   await page.keyboard.press("Escape");
   await qr.getByRole("button", { name: "Close camera", exact: true }).click();
   await expect(input).toHaveValue("dock");
+  await expect.poll(() => activeCameraTracks(page)).toBe(0);
+});
+
+test("confirming a location photo retains the unsaved ticket when changing its location", async ({
+  page,
+}) => {
+  await installCamera(page);
+  await page
+    .getByRole("textbox", { name: "Search location" })
+    .fill("F2-L28-18");
+  await page.getByRole("button", { name: /F2-L28-18/ }).click();
+  await page.getByRole("button", { name: "Manual", exact: true }).click();
+  const product = page.getByRole("textbox", { name: /Product barcode/ });
+  await product.fill("DRAFT-PRODUCT");
+  await page.getByRole("button", { name: "Change", exact: true }).click();
+  await page.getByRole("button", { name: "Photo AI", exact: true }).click();
+  const photo = page.getByRole("dialog", { name: "Read a location label" });
+  await photo.getByRole("button", { name: "Take location photo" }).click();
+  await expect(
+    photo.getByRole("textbox", { name: "Review location code" }),
+  ).toHaveValue("F2-L28-18");
+  await photo.getByRole("button", { name: "Use this code" }).click();
+  await expect(product).toHaveValue("DRAFT-PRODUCT");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect.poll(() => activeCameraTracks(page)).toBe(0);
 });

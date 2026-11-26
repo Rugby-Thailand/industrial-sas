@@ -183,6 +183,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const photos = usePhotoSelection(MAX_JOB_SCAN_ITEMS - tickets.length);
   const [panel, setPanel] = useState<"PHOTO" | "BARCODE" | null>(null);
   const panelRef = useRef<typeof panel>(null);
+  const panelOpener = useRef<HTMLButtonElement>(null);
+  const fieldScanOpener = useRef<HTMLButtonElement>(null);
   const lastPanel = useRef<"PHOTO" | "BARCODE">("PHOTO");
   const [fieldScan, setFieldScan] = useState<FieldScanTarget | null>(null);
   const fieldScanRef = useRef<FieldScanTarget | null>(null);
@@ -270,10 +272,12 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     ticket: TicketDraft,
     field: TicketCodeField,
     index: number,
+    opener: HTMLButtonElement,
   ) {
     if (acquisitionBlocked.current || !canManage || ticket.status !== "ready")
       return;
     changePanel(null);
+    fieldScanOpener.current = opener;
     const target = {
       key: ticket.key,
       field,
@@ -709,14 +713,20 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               label: t("photoAi"),
               icon: Camera,
               pressed: panel === "PHOTO",
-              onSelect: () => changePanel("PHOTO"),
+              onSelect: (event) => {
+                panelOpener.current = event.currentTarget;
+                changePanel("PHOTO");
+              },
             },
             {
               key: "BARCODE",
               label: t("scanCode"),
               icon: ScanIcon,
               pressed: panel === "BARCODE",
-              onSelect: () => changePanel("BARCODE"),
+              onSelect: (event) => {
+                panelOpener.current = event.currentTarget;
+                changePanel("BARCODE");
+              },
             },
             {
               key: "MANUAL",
@@ -750,7 +760,17 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           backPending={saving}
           onOpenChange={(open) => changePanel(open ? lastPanel.current : null)}
         >
-          <DialogContent size="camera" closeLabel={t("closeCamera")}>
+          <DialogContent
+            size="camera"
+            closeLabel={t("closeCamera")}
+            onCloseAutoFocus={(event) => {
+              const opener = panelOpener.current;
+              if (opener?.isConnected && !opener.disabled) {
+                event.preventDefault();
+                opener.focus();
+              }
+            }}
+          >
             <DialogHeader>
               <DialogTitle>
                 {t(panel === "PHOTO" ? "photoAi" : "scanCode")}
@@ -850,7 +870,9 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                 duplicate={duplicateKeys.includes(ticket.key)}
                 index={index}
                 disabled={saving}
-                onScan={(field) => openFieldScan(ticket, field, index)}
+                onScan={(field, opener) =>
+                  openFieldScan(ticket, field, index, opener)
+                }
                 onChange={(field, value) => {
                   if (panelRef.current === "BARCODE") changePanel(null);
                   update(ticket.key, (row) => ({
@@ -896,6 +918,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               ? fieldScan
               : null
           }
+          openerRef={fieldScanOpener}
           onApply={applyFieldScan}
           onClose={closeFieldScan}
           onRestore={restoreFieldScan}

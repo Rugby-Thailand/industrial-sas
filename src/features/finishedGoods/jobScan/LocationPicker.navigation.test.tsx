@@ -399,6 +399,15 @@ it("pending Location registration protects Back and completion consumes its regi
 });
 
 it("native Back returns Location retake camera to its retained AI photo and corrected code", async () => {
+  mocks.action.mockResolvedValue(
+    querySuccess({
+      ok: true,
+      candidates: [
+        { code: "DOCK-A", labelText: null },
+        { code: "DOCK-B", labelText: null },
+      ],
+    }),
+  );
   show();
   fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
   fireEvent.change(
@@ -414,7 +423,29 @@ it("native Back returns Location retake camera to its retained AI photo and corr
   });
   fireEvent.change(code, { target: { value: "CORRECTED-DOCK" } });
   fireEvent.click(screen.getByRole("button", { name: "Take another photo" }));
-  expect(screen.getByRole("button", { name: "Back to photo" })).toBeVisible();
+  const retake = await screen.findByRole("dialog", {
+    name: "Take another photo",
+  });
+  const retakeHref = href();
+  const choosePhoto = within(retake).getByRole("button", {
+    name: "Choose photo",
+  });
+  const invalid = new File(["text"], "not-a-photo.txt", { type: "text/plain" });
+  const upload = screen.getByLabelText("Choose photo", { selector: "input" });
+  fireEvent.change(upload, { target: { files: [invalid] } });
+  expect(
+    within(retake).getByText("Choose a JPEG, PNG, or WebP image."),
+  ).toBeVisible();
+  expect(choosePhoto).toBeEnabled();
+  expect(
+    within(retake).getByRole("button", { name: "Back to photo" }),
+  ).toBeVisible();
+  expect(href()).toBe(retakeHref);
+  fireEvent.click(choosePhoto);
+  expect(
+    within(retake).queryByText("Choose a JPEG, PNG, or WebP image."),
+  ).toBeNull();
+  fireEvent.change(upload, { target: { files: [invalid] } });
   act(() => window.history.back());
   await waitFor(() =>
     expect(
@@ -424,6 +455,9 @@ it("native Back returns Location retake camera to its retained AI photo and corr
   expect(
     screen.getByRole("textbox", { name: "Review location code" }),
   ).toHaveValue("CORRECTED-DOCK");
+  expect(screen.getByRole("button", { name: "DOCK-A" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "DOCK-B" })).toBeVisible();
+  expect(screen.queryByText("Choose a JPEG, PNG, or WebP image.")).toBeNull();
   expect(mocks.action).toHaveBeenCalledOnce();
   closeAi();
   await waitFor(() => expect(href()).toBe(page));
@@ -508,9 +542,11 @@ it.each(["default", "jobScan"] as const)(
     expect(
       screen.queryByRole("dialog", { name: "Read a location label" }),
     ).toBeNull();
-    expect(
-      screen.getByRole("textbox", { name: "Search location" }),
-    ).toHaveValue("DOCK-A");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("textbox", { name: "Search location" }),
+      ).toHaveValue("DOCK-A"),
+    );
 
     // Restoring the completed entries still returns to QR first.
     act(() => window.history.go(2));

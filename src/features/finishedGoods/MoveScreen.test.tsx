@@ -568,27 +568,24 @@ describe("stored pallet movement", () => {
     renderMove();
     fireEvent.click(screen.getByRole("button", { name: "Scan QR (optional)" }));
     const start = screen.getByRole("button", { name: "Start move" });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Picked up/ }));
     fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
     const camera = screen.getByRole("dialog", { name: "Scan Pallet code" });
     expect(within(camera).getByText(/P-001/)).toBeVisible();
     act(() => mocks.cameraCode!("P-001"));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    const refusal = await within(camera).findByRole("alert");
+    expect(refusal).toHaveTextContent(
+      "Scan the QR label on this pallet, or type its code in the field.",
     );
-    expect(
-      await screen.findByText(
-        "Scan the QR label on this pallet, or type its code in the field.",
-      ),
-    ).toBeVisible();
-    expect(screen.queryByText("Pallet identified")).toBeNull();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Picked up/ }));
+    expect(refusal).toHaveTextContent("Scanned code");
+    expect(refusal).toHaveTextContent("P-001");
     expect(start).toBeDisabled();
     expect(callsFor("startMove")).toHaveLength(0);
-    // A rejected camera read leaves the field editable; the label QR identifies.
-    expect(screen.getByRole("textbox", { name: "Pallet code" })).toHaveValue(
-      "P-001",
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
+    const scanAgain = within(camera).getByRole("button", {
+      name: "Scan again",
+    });
+    expect(scanAgain).toHaveFocus();
+    fireEvent.click(scanAgain);
     act(() => mocks.cameraCode!("ISAS:PALLET:1:pallet-a"));
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),

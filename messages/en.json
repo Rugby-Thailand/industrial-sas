@@ -1758,6 +1758,8 @@
     "currentValue": "Current value",
     "scannedValue": "Scanned value",
     "replaceValue": "Replace value",
+    "scannedCode": "Scanned code",
+    "verificationFailed": "The code could not be verified. Check the label and connection, then try again.",
     "scanAgain": "Scan again",
     "invalidTicketBarcode": "Scan a job ticket barcode. This label cannot be used here.",
     "scanCodeTooLong": "This code is too long for the selected field.",

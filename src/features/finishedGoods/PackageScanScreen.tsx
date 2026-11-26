@@ -149,6 +149,7 @@ export function PackageAssignment({
   const [physical, setPhysical] = useState(restored?.physical ?? false);
   const [scanner, setScanner] = useState<"PACKAGES" | "LOCATION" | null>(null);
   const scannerRef = useRef<typeof scanner>(null);
+  const scannerOpener = useRef<HTMLButtonElement>(null);
   const lastScanner = useRef<"PACKAGES" | "LOCATION">("PACKAGES");
   const [review, setReview] = useState(restored?.uncertain ?? false);
   const [uncertain, setUncertain] = useState(restored?.uncertain ?? false);
@@ -431,7 +432,10 @@ export function PackageAssignment({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => scan("PACKAGES")}
+                onClick={(event) => {
+                  scannerOpener.current = event.currentTarget;
+                  scan("PACKAGES");
+                }}
               >
                 {tr("Scan packages", "สแกนบรรจุภัณฑ์")}
               </Button>
@@ -518,7 +522,10 @@ export function PackageAssignment({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => scan("LOCATION")}
+                onClick={(event) => {
+                  scannerOpener.current = event.currentTarget;
+                  scan("LOCATION");
+                }}
               >
                 {tr("Scan location", "สแกนตำแหน่ง")}
               </Button>
@@ -563,6 +570,13 @@ export function PackageAssignment({
         <DialogContent
           size="camera"
           closeLabel={tr("Close scanner", "ปิดเครื่องสแกน")}
+          onCloseAutoFocus={(event) => {
+            const opener = scannerOpener.current;
+            if (opener?.isConnected && !opener.disabled) {
+              event.preventDefault();
+              opener.focus();
+            }
+          }}
         >
           <DialogHeader>
             <DialogTitle>

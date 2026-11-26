@@ -712,12 +712,18 @@ function ActiveMove({
                         ? (move.targetDestination.supportCode ?? "")
                         : (move.targetDestination?.locationName ?? "")
                     }
+                    expectedCode={
+                      move.targetDestination?.supportPalletId
+                        ? move.targetDestination.supportCode
+                        : move.targetDestination?.locationCode
+                    }
                     purpose={
                       move.targetDestination?.supportPalletId
                         ? "SUPPORT"
                         : "DESTINATION"
                     }
                     showVerificationErrors={false}
+                    verificationError={op.error}
                   />
                 ) : (
                   <DestinationScanner
@@ -730,6 +736,7 @@ function ActiveMove({
                     verified={!!identified}
                     expectedLocation={detail.pallet.code}
                     showVerificationErrors={false}
+                    verificationError={op.error}
                     purpose="PALLET"
                   />
                 )}
@@ -856,9 +863,15 @@ function ActiveMove({
                         ? (move.sourceDestination.supportCode ?? "")
                         : (move.sourceDestination?.locationName ?? "")
                     }
+                    expectedCode={
+                      move.sourceDestination?.supportPalletId
+                        ? move.sourceDestination.supportCode
+                        : move.sourceDestination?.locationCode
+                    }
                     busy={op.busy}
                     verified={!!returnCode}
                     showVerificationErrors={false}
+                    verificationError={op.error}
                     onCode={async (code, method) => {
                       const accepted = move.sourceDestination?.supportPalletId
                         ? [

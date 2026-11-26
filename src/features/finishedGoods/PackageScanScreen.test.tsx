@@ -286,7 +286,10 @@ it("reports package lookup errors and queued package count inside the fullscreen
 it("native Back closes the package scanner and retains the group and query hash", async () => {
   show();
   await add();
-  fireEvent.click(screen.getByRole("button", { name: "Scan location" }));
+  const input = screen.getByRole("textbox", { name: "Storage location code" });
+  const opener = screen.getByRole("button", { name: "Scan location" });
+  input.focus();
+  fireEvent.click(opener);
   await waitFor(() =>
     expect(screen.getByRole("dialog", { name: "Scan location" })).toBeVisible(),
   );
@@ -297,16 +300,20 @@ it("native Back closes the package scanner and retains the group and query hash"
   expect(screen.getByRole("spinbutton", { name: "Fullness (%)" })).toHaveValue(
     100,
   );
+  await waitFor(() => expect(opener).toHaveFocus());
   expect(window.location.search).toContain("batchId=batch-a");
   expect(window.location.hash).toBe("#queue");
 });
 it("explicit scanner Close consumes its entry before the next Back and rejects late delivery", async () => {
   show();
-  fireEvent.click(screen.getByRole("button", { name: "Scan packages" }));
+  screen.getByRole("textbox", { name: "Package code" }).focus();
+  const opener = screen.getByRole("button", { name: "Scan packages" });
+  fireEvent.click(opener);
   await waitFor(() => expect(screen.getByRole("dialog")).toBeVisible());
   const late = mocks.decode!;
   fireEvent.click(screen.getByRole("button", { name: "Close scanner" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await waitFor(() => expect(opener).toHaveFocus());
   await act(async () => late("P-A"));
   expect(mocks.query).not.toHaveBeenCalled();
   await waitFor(() =>

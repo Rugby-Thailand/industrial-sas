@@ -679,14 +679,17 @@ it("keeps focus on the scan action after Escape and exposes accessible field and
   start();
   addTicket();
   const button = screen.getByRole("button", { name: "Scan Job No." });
-  await user.click(button);
+  const input = screen.getByRole("textbox", { name: /Job No\./ });
+  input.focus();
+  // Safari can dispatch a button click without focusing the button.
+  fireEvent.click(button);
   expect(screen.getByRole("dialog", { name: "Scan Job No." })).toBeVisible();
   expect(await axe(screen.getByRole("dialog"))).toHaveNoViolations();
   await user.keyboard("{Escape}");
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
-  expect(button).toHaveFocus();
+  await waitFor(() => expect(button).toHaveFocus());
 });
 
 it("applies an image JOB/product pair together and saves the decoded identities", async () => {
@@ -800,6 +803,7 @@ it("the fullscreen barcode camera Close consumes its entry before the next Back"
   ).not.toBeInTheDocument();
   const late = mocks.decode!;
   fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
+  await waitFor(() => expect(scan).toHaveFocus());
   expect(scan).toHaveAttribute("aria-pressed", "false");
   expect(screen.queryByText("QA barcode scanner active")).toBeNull();
   await waitFor(() => expect(window.location.search).not.toContain("overlay"));
@@ -858,6 +862,7 @@ it("the fullscreen photo camera Close retains photos and rejects late capture be
   );
   fireEvent.click(shutter);
   fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
+  await waitFor(() => expect(photo).toHaveFocus());
   expect(photo).toHaveAttribute("aria-pressed", "false");
   expect(stop).toHaveBeenCalledOnce();
   await waitFor(() => expect(window.location.search).not.toContain("overlay"));
