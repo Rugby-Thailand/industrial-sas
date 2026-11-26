@@ -656,7 +656,7 @@ describe("parseJobScanSearchIntent", () => {
       ["Find product name ", "Widget", " with priority high"],
       ["Find ", "Widget", " with priority high"],
       ["หาชื่อสินค้า ", "กล่อง Outer 131", " ที่มีจำนวนมากกว่า 20"],
-    ]) {
+    ] as const) {
       const prompt = lead + name + qualifier;
       for (const search of [name, name + qualifier]) {
         expect(parseJobScanSearchIntent({ ...base, search }, prompt)).toEqual({
@@ -1058,7 +1058,7 @@ describe("parseJobScanEditProposal", () => {
         "แก้ชื่อสินค้าเป็น กล่อง Outer 131 และลบบาร์โค้ด",
         "กล่อง Outer 131 และลบบาร์โค้ด",
       ],
-    ]) {
+    ] as const) {
       for (const value of [partName, "Widget"]) {
         expect(
           parseJobScanEditProposal({ ...emptyEdit, partName: value }, prompt),
