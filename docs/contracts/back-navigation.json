@@ -8230,6 +8230,34 @@
       ]
     },
     {
+      "id": "src/features/finishedGoods/PackageScanScreen.tsx#PackageAssignment:units",
+      "policy": "presentation",
+      "expectation": "The retained package queue shows inline reorder buttons only when at least two packages can move. Moving a row updates the draft and invalidates physical confirmation without opening or closing a foreground view.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "lucide-react#ChevronDown",
+            "lucide-react#ChevronUp",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/finishedGoods/PackageScanScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/PackageScanScreen.test.tsx",
+          "name": "reorders scanned packages without another lookup and requires renewed physical confirmation"
+        },
+        {
+          "file": "src/features/finishedGoods/PackageScanScreen.test.tsx",
+          "name": "keeps the direct-entry package first when reordering the rest of the queue"
+        }
+      ]
+    },
+    {
       "id": "src/features/finishedGoods/PackageScanScreen.tsx#PackageAssignment:receiptId",
       "policy": "presentation",
       "expectation": "Successful assignment replaces command fields with a terminal inventory receipt. Completion closes its owned review, and the receipt cannot resurrect an editable assignment on Back.",
@@ -8250,6 +8278,8 @@
             "form",
             "label",
             "li",
+            "lucide-react#ChevronDown",
+            "lucide-react#ChevronUp",
             "ol",
             "p",
             "p[role=alert]",

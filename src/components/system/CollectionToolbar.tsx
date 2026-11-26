@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/ui/IconButton";
@@ -25,6 +25,7 @@ export function CollectionToolbar({
   className?: string;
   searchType?: "search" | "text";
 }) {
+  const searchInput = useRef<HTMLInputElement>(null);
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       <div className="relative min-w-40 flex-1">
@@ -33,10 +34,11 @@ export function CollectionToolbar({
           className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
         />
         <Input
+          ref={searchInput}
           type={searchType}
           aria-label={searchLabel}
           placeholder={placeholder}
-          className="pr-11 pl-9"
+          className="pr-12 pl-9 dense:pr-10 [&::-webkit-search-cancel-button]:appearance-none"
           value={value}
           onChange={(event) => onValueChange(event.target.value)}
           onKeyDown={(event) => {
@@ -48,7 +50,10 @@ export function CollectionToolbar({
             label={clearLabel}
             variant="ghost"
             className="absolute inset-y-0 right-0 z-10 my-auto"
-            onClick={() => onValueChange("")}
+            onClick={() => {
+              onValueChange("");
+              searchInput.current?.focus();
+            }}
           >
             <X aria-hidden="true" />
           </IconButton>
