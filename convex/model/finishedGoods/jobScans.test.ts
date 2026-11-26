@@ -1515,6 +1515,9 @@ describe("parseJobScanEditProposal", () => {
     "scan one more ticket",
     "start scanning one more ticket",
     "begin to scan the next QR",
+    "start a new scan",
+    "perform another warehouse barcode scan",
+    "restart the scanner",
     "rescan both barcodes",
   ])(
     "requires quotes to treat follow-up command %s as literal text",

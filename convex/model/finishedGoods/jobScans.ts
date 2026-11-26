@@ -354,11 +354,13 @@ const ENGLISH_ACTION_TARGET = String.raw`(?:records?|tickets?|jobs?|scans?|dialo
 const THAI_LIFECYCLE_VERB = String.raw`(?:ปิด|เปิด(?:ใหม่)?|ล็อก|ปลดล็อก|ระงับ|พัก|จบ|สิ้นสุด|ส่งกลับ|คืนค่า|กู้คืน|รับรอง|ปฏิเสธ|รีเฟรช|โหลดใหม่|ออกจาก|สลับ|เปลี่ยน(?:ไป)?)`;
 const THAI_ACTION_TARGET = String.raw`(?:(?:ใบ)?งาน|รายการ(?:สแกน)?|การสแกน|ตั๋ว|หน้าต่าง|หน้าจอ|หน้าเว็บ|หน้านี้|หน้า|เมนู|กล้อง|แอป|ระบบ|บัญชี|คลัง(?:สินค้า)?|อาคาร|ชั้น|โซน|พาเลท|บาร์โค้ด|qr\b|คิวอาร์)`;
 const RECORD_ACTION_END = String.raw`(?=\s*(?:$|[,;.!?，；。！？\r\n])|${RECORD_FOLLOW_UP})`;
+const SCAN_ACTION_OBJECT = String.raw`(?:re[- ]?)?scan(?:ning|s|ners?)?\b`;
+// Recognize both the verb ("start scanning") and the action as an object
+// ("start a new scan"). Only inspect words within the same clause.
+const SCAN_ACTION = String.raw`(?:re[- ]?)?scan\b|(?:start|restart|begin|commence|initiate|launch|trigger|open|resume|continue|keep|stop|finish|retry|repeat|run|perform|make|do)\s+(?:(?!(?:and|or|then)\b)[\p{L}\p{M}\p{N}'’_-]+\s+){0,8}${SCAN_ACTION_OBJECT}|(?:(?:เริ่ม(?:ต้น)?|ลอง|เปิด|ทำ|หยุด)\s*(?:การ\s*)?)?สแกน`;
 const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b`,
-  // Once a new clause starts with a scanning verb, its object and
-  // qualifiers do not make it an editable ticket value.
-  String.raw`(?:re[- ]?)?scan\b|(?:start|begin|continue|resume|stop|finish|keep)\s+(?:to\s+)?(?:re[- ]?)?scan(?:ning)?\b|(?:เริ่ม|หยุด)?สแกน`,
+  SCAN_ACTION,
   String.raw`(?:make|take|generate|save)\s+(?:(?:a|an|another)\s+)?(?:copy|duplicate|backup|printout|snapshot)\b`,
   String.raw`(?:go|navigate|switch|return|jump)\s+(?:(?:back\s+)?to\s+\S|back\b)|(?:take|capture|attach|upload)\s+(?:(?:a|an|the)\s+)?(?:photos?|pictures?|images?|screenshots?|attachments?)\b`,
   String.raw`(?:log|sign)(?:[\s-]*|\s+(?:me|us|them)\s+)(?:in|out|off|on)\b|lock\s+(?:me|us|them)\s+out\b|(?:switch|change)\s+(?:(?:the|my|your)\s+)?accounts?\b|(?:เข้า|ออก)\s*(?:สู่)?\s*ระบบ|(?:สลับ|เปลี่ยน)\s*บัญชี|(?:ล็อ[กค]|ลอ[กค])\s*(?:เอา[ตท]์?|อิน)|(?:จบ|สิ้นสุด|ยุติ|ปิด|ตัด)\s*(?:เซสชั่?น|การเข้าสู่ระบบ|การเชื่อมต่อ)`,

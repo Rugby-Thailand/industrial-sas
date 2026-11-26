@@ -246,6 +246,11 @@ describe("job-scan AI search and edit actions", () => {
       "Set part name to Gear and start scanning one more ticket",
       "Gear and start scanning one more ticket",
     ],
+    ["Set part name to Gear and start a new scan", "Gear and start a new scan"],
+    [
+      "แก้ชื่อสินค้าเป็น กล่อง และเริ่มการสแกนใหม่",
+      "กล่อง และเริ่มการสแกนใหม่",
+    ],
     ["แก้ชื่อสินค้าเป็น กล่อง และสลับคลัง", "กล่อง และสลับคลัง"],
     ["แก้ชื่อสินค้าเป็น กล่อง และสแกนใบงานถัดไป", "กล่อง และสแกนใบงานถัดไป"],
     ["แก้ชื่อสินค้าเป็น กล่อง และสแกน QR ถัดไป", "กล่อง และสแกน QR ถัดไป"],
