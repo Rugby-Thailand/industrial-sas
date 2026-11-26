@@ -318,12 +318,13 @@ const EXPLICIT_FOLLOW_UP = String.raw`(?:\s+(?:as\s+well\s+as|in\s+addition(?:\s
 // inside codes. In either case, look for a command after the separator.
 const FOLLOW_UP_MARK = String.raw`[\p{Pd}:/|¦·•…→⇒：／｜]`;
 const COMPACT_FOLLOW_UP_MARK = String.raw`(?:(?!-)\p{Pd}|[|¦·•…→⇒：／｜])`;
+const WITH_FOLLOW_UP = String.raw`(?:(?:along|together)\s+)?with`;
 const RECORD_FOLLOW_UP = String.raw`(?:${EXPLICIT_FOLLOW_UP}|\s+(?:and|plus)\s+|\s*[&+＆]\s*|\s*${COMPACT_FOLLOW_UP_MARK}\s*|\s+${FOLLOW_UP_MARK}\s*|${FOLLOW_UP_MARK}\s+|\s*(?:พร้อมทั้ง|พร้อมกับ|และ)\s*)`;
 // Apply the same optional lead-in after punctuation, conjunctions, and
 // sentence breaks. Validate the action that follows, not its politeness.
 const FOLLOW_UP_MODIFIERS = String.raw`(?:(?:and|also|additionally|furthermore|then|next|finally|moreover|subsequently|afterwards|now|please|kindly|(?:can|could|would|will)\s+you|go\s+ahead\s+and|be\s+sure\s+to)\s+|(?:และ|ก็|จึง|ยัง|ให้|กรุณา|โปรด|ช่วย|รบกวน)\s*)*`;
 const QUALIFIED_FOLLOW_UP = String.raw`(?:(?:do\s+not|don['’]t|instead|rather\s+than)\s+|(?:อย่า|ห้าม|ไม่ต้อง|แทนที่จะ)\s*)`;
-const FOLLOW_UP_FIELD = String.raw`[\p{L}](?:(?!\s+(?:and|or|plus|then|as\s+well\s+as)\b|และ|แล้ว|รวมทั้ง|จากนั้น)[\p{L}\p{M}\p{N}'’_ -]){0,63}`;
+const FOLLOW_UP_FIELD = String.raw`[\p{L}](?:(?!\s+(?:${WITH_FOLLOW_UP}|and|plus|or|then|as\s+well\s+as)\b|และ|แล้ว|รวมทั้ง|จากนั้น|พร้อมกับ|พร้อมทั้ง)[\p{L}\p{M}\p{N}'’_ -]){0,63}`;
 const WORD_FIELD_ASSIGNMENT = String.raw`\s+(?:to|as|is|are|was|were|becomes?|equals?|should\s+be|must\s+be|needs?\s+to\s+be)\b`;
 const BARE_FIELD_ASSIGNMENT = String.raw`(?:${FOLLOW_UP_FIELD}(?:\s*[:=：＝]|${WORD_FIELD_ASSIGNMENT})|(?=\p{Script=Thai})${FOLLOW_UP_FIELD}\s*(?:ให้เป็น|เป็น))`;
 const PROTECTED_RECORD_FIELD = String.raw`(?:\b(?:(?:record|job|ticket|scan|location)\s+)?(?:status|state|priority|owner|approval|warehouse)\b|สถานะ|คลังสินค้า|ผู้รับผิดชอบ|ระดับความสำคัญ)`;
@@ -336,6 +337,7 @@ const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b`,
   String.raw`(?:make|take|generate|save)\s+(?:(?:a|an|another)\s+)?(?:copy|duplicate|backup|printout|snapshot)\b`,
   String.raw`(?:mark|flag|tag|classify)\s+(?:it|them|this|that|the|as|records?|tickets?|jobs?|scans?)\b`,
+  String.raw`(?:mark|flag|tag)\s+(?:for|deleted|void(?:ed)?|archived|cancelled|canceled|closed|complete(?:d)?|done|inactive|active|pending|on\s+hold|ready|approved|rejected|mapped|unmapped)\b`,
   String.raw`(?:[\p{L}’'-]+\s+){1,6}(?:this|that|these|those|another)\s+(?:(?:saved|scanned)\s+)?(?:records?|tickets?|jobs?|scans?)\b`,
   String.raw`(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก|ทำสำเนา|ถ่ายสำเนา)`,
 ].join("|");
@@ -998,6 +1000,10 @@ const EDIT_VERB = new RegExp(
   String.raw`^(?:${ENGLISH_EDIT_VERB}(?:${OWNED_EDIT_FIELD}|the\s+)?|${THAI_EDIT_VERB})`,
   "iu",
 );
+const EDIT_FIELD_PREFIX = new RegExp(
+  String.raw`^(?:${EDIT_VERB.source.slice(1)}|${OWNED_EDIT_FIELD}|the\s+)`,
+  "iu",
+);
 const MOVE_VERB =
   /^(?:(?:please\s+)?move(?:\s+it)?\s+to\s+|(?:(?:กรุณา|โปรด|ช่วย)\s*)?ย้ายไป\s*)/iu;
 const EDIT_LABELS = Object.values(EDIT_FIELD_NAMES)
@@ -1016,10 +1022,10 @@ const EDIT_ASSIGNMENT = /^(?:\s+(?:to|as)\s+|\s*(?:[:=]|ให้เป็น|�
 // assignment after a valid clause must not become part of its literal value.
 const EXPLICIT_EDIT_ASSIGNMENT = String.raw`(?:${ENGLISH_EDIT_VERB}|${THAI_EDIT_VERB})${FOLLOW_UP_FIELD}(?=${EDIT_ASSIGNMENT.source.slice(1)})`;
 const EDIT_CLAUSE_START = [
-  String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=${EDIT_ASSIGNMENT.source.slice(1)})`,
+  String.raw`(?:${EDIT_FIELD_PREFIX.source.slice(1)})?(?:${EDIT_LABELS})(?=${EDIT_ASSIGNMENT.source.slice(1)})`,
   String.raw`${EDIT_VERB.source.slice(1)}(?:${EDIT_LABELS})(?=\s|[:=]|เป็น|ให้เป็น|[\d๐-๙])`,
-  String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=\s+from\b|\s*จาก)`,
-  String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_TYPED_LABELS})(?=\s*[\d๐-๙])`,
+  String.raw`(?:${EDIT_FIELD_PREFIX.source.slice(1)})?(?:${EDIT_LABELS})(?=\s+from\b|\s*จาก)`,
+  String.raw`(?:${EDIT_FIELD_PREFIX.source.slice(1)})?(?:${EDIT_TYPED_LABELS})(?=\s*[\d๐-๙])`,
   String.raw`${ENGLISH_EDIT_VERB}(?:${OWNED_EDIT_FIELD}|the\s+)(?=\S)`,
   String.raw`${ENGLISH_EDIT_VERB}(?:status|state|priority|warehouse|owner)\b|${THAI_EDIT_VERB}(?:สถานะ|คลังสินค้า|ผู้รับผิดชอบ)`,
   EXPLICIT_EDIT_ASSIGNMENT,
@@ -1035,7 +1041,7 @@ const EDIT_CLAUSE_START = [
 // to distinguish a value from an assignment or an unsupported action.
 const EDIT_QUOTED_VALUE = /"([^"\r\n]+)"|“([^”\r\n]+)”/u;
 const EDIT_CLAUSE_BOUNDARY = new RegExp(
-  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>(?:\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|${EXPLICIT_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}|(?:${RECORD_FOLLOW_UP}|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))`,
+  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>(?:\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|${EXPLICIT_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}|(?:${RECORD_FOLLOW_UP}|\s+${WITH_FOLLOW_UP}\s+|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))`,
   "giu",
 );
 const EDIT_CONDITION =
@@ -1090,7 +1096,7 @@ function requestedEditValues(
       values.set("locationCode", value);
       continue;
     }
-    const instruction = clause.replace(EDIT_VERB, "");
+    const instruction = clause.replace(EDIT_FIELD_PREFIX, "");
     const field = (Object.keys(EDIT_FIELD_NAMES) as EditableField[]).find(
       (name) => {
         const label = EDIT_FIELD_NAMES[name].exec(instruction)?.[0];

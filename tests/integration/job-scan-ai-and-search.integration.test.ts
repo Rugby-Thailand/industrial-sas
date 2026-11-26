@@ -196,6 +196,10 @@ describe("job-scan AI search and edit actions", () => {
       "Blue Box and mark it as deleted",
     ],
     [
+      "Change product name to Blue Box and mark deleted",
+      "Blue Box and mark deleted",
+    ],
+    [
       "Change product name to Blue Box and set the status to deleted",
       "Blue Box and set the status to deleted",
     ],
@@ -246,46 +250,53 @@ describe("job-scan AI search and edit actions", () => {
     },
   );
 
-  it("keeps a possessive quantity clause separate from the product name", async () => {
-    const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
-    const client = world.t.withIdentity(PUBLIC_API_ACTOR);
-    const args = {
-      warehouseId: world.warehouses.alphaA,
-      prompt: "Change product name to Blue Box and set its quantity to 10",
-    };
-    transport
-      .mockResolvedValueOnce(
-        openRouterOk(
-          JSON.stringify(
-            editPayload({
-              partName: "Blue Box and set its quantity to 10",
-            }),
+  it.each([
+    "and set its quantity to 10",
+    "with quantity 10",
+    "along with its quantity: 10",
+  ])(
+    "keeps a quantity clause separate from the name with %s",
+    async (clause) => {
+      const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
+      const client = world.t.withIdentity(PUBLIC_API_ACTOR);
+      const args = {
+        warehouseId: world.warehouses.alphaA,
+        prompt: "Change product name to Blue Box " + clause,
+      };
+      transport
+        .mockResolvedValueOnce(
+          openRouterOk(
+            JSON.stringify(
+              editPayload({
+                partName: "Blue Box " + clause,
+              }),
+            ),
           ),
-        ),
-      )
-      .mockResolvedValueOnce(
-        openRouterOk(
-          JSON.stringify(
-            editPayload({
-              partName: "Blue Box",
-              quantity: 10,
-            }),
+        )
+        .mockResolvedValueOnce(
+          openRouterOk(
+            JSON.stringify(
+              editPayload({
+                partName: "Blue Box",
+                quantity: 10,
+              }),
+            ),
           ),
-        ),
-      );
-    const action = api.finishedGoods.jobScans.proposeJobScanEdit;
-    await expect(client.action(action, args)).resolves.toMatchObject({
-      ok: true,
-      value: { ok: false, error: { code: "AI_UNREADABLE" } },
-    });
-    await expect(client.action(action, args)).resolves.toMatchObject({
-      ok: true,
-      value: {
+        );
+      const action = api.finishedGoods.jobScans.proposeJobScanEdit;
+      await expect(client.action(action, args)).resolves.toMatchObject({
         ok: true,
-        value: { fields: { partName: "Blue Box", quantity: 10 } },
-      },
-    });
-  });
+        value: { ok: false, error: { code: "AI_UNREADABLE" } },
+      });
+      await expect(client.action(action, args)).resolves.toMatchObject({
+        ok: true,
+        value: {
+          ok: true,
+          value: { fields: { partName: "Blue Box", quantity: 10 } },
+        },
+      });
+    },
+  );
 
   it("accepts a Thai quantity adjacent to its field name", async () => {
     const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");

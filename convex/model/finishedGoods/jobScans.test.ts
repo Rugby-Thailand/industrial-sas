@@ -1069,6 +1069,12 @@ describe("parseJobScanEditProposal", () => {
   it("accepts a compound edit that names a typed quantity without an assignment word", () => {
     for (const [prompt, partName] of [
       ["Change product name to Outer 131 and set quantity 10", "Outer 131"],
+      ["Change product name to Outer 131 with quantity 10", "Outer 131"],
+      [
+        "Change product name to Outer 131 together with its quantity 10",
+        "Outer 131",
+      ],
+      ["แก้ชื่อสินค้าเป็น กล่อง Outer 131 พร้อมกับจำนวน ๑๐", "กล่อง Outer 131"],
       [
         "Change product name to Outer 131 and set its quantity to 10",
         "Outer 131",
@@ -1119,6 +1125,15 @@ describe("parseJobScanEditProposal", () => {
     ).toEqual({
       kind: "OK",
       value: { fields: { partName: "Outer 131 – Blue" } },
+    });
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, partName: "Outer 131 with Mark II" },
+        "Change product name to Outer 131 with Mark II",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { fields: { partName: "Outer 131 with Mark II" } },
     });
   });
 
