@@ -163,6 +163,9 @@ it("applies scanned codes and AI filters to the actual records query and restore
     "pallets on floor 2",
   );
   await user.click(dialog.getByRole("button", { name: "Search tickets" }));
+  const apply = await dialog.findByRole("button", { name: "Apply search" });
+  expect(mocks.list.mock.lastCall?.[0]).toHaveProperty("exactCode", true);
+  await user.click(apply);
   await waitFor(() =>
     expect(mocks.list).toHaveBeenLastCalledWith(
       expect.objectContaining({

@@ -185,7 +185,7 @@ it("does not fall back to a ticket code when a warehouse QR is unavailable", asy
   expect(mocks.change).not.toHaveBeenCalled();
 });
 
-it("applies validated AI facets after the search popup closes and keeps manual search usable on failure", async () => {
+it("reviews validated AI facets before applying them and keeps manual search usable on failure", async () => {
   mocks.interpret.mockResolvedValueOnce(null).mockResolvedValueOnce({
     filter: "MAPPED",
     search: "",
@@ -204,6 +204,12 @@ it("applies validated AI facets after the search popup closes and keeps manual s
   );
   expect(mocks.change).not.toHaveBeenCalled();
   await user.click(dialog.getByRole("button", { name: "Search tickets" }));
+  const apply = await dialog.findByRole("button", { name: "Apply search" });
+  expect(dialog.getByRole("status")).toHaveTextContent(
+    /location set.*floor 2.*pallet/i,
+  );
+  expect(mocks.change).not.toHaveBeenCalled();
+  await user.click(apply);
   await waitFor(() =>
     expect(mocks.change).toHaveBeenCalledWith({
       filter: "MAPPED",
@@ -214,6 +220,43 @@ it("applies validated AI facets after the search popup closes and keeps manual s
     }),
   );
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+it("clears a search review when its request changes and Back dismisses an unapplied search", async () => {
+  mocks.interpret.mockResolvedValue({
+    filter: "ALL",
+    search: "Gear Box",
+    facets: { building: "Building A" },
+  });
+  const user = show();
+  await user.click(screen.getByRole("button", { name: "AI search" }));
+  const dialog = within(screen.getByRole("dialog", { name: "AI search" }));
+  const input = dialog.getByRole("textbox", { name: "Find tickets" });
+  await user.type(input, "Gear Box in Building A");
+  await user.click(dialog.getByRole("button", { name: "Search tickets" }));
+  expect(await dialog.findByRole("status")).toHaveTextContent(
+    "All · Gear Box · Building A",
+  );
+  await user.type(input, "?");
+  expect(
+    dialog.queryByRole("button", { name: "Apply search" }),
+  ).not.toBeInTheDocument();
+  await user.click(dialog.getByRole("button", { name: "Search tickets" }));
+  expect(
+    await dialog.findByRole("button", { name: "Apply search" }),
+  ).toBeVisible();
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  expect(mocks.change).not.toHaveBeenCalled();
+  act(() => window.history.forward());
+  expect(
+    await screen.findByRole("textbox", { name: "Find tickets" }),
+  ).toHaveValue("");
+  expect(
+    screen.queryByRole("button", { name: "Apply search" }),
+  ).not.toBeInTheDocument();
 });
 
 it("Back during AI search ignores the late response and Forward offers a fresh search", async () => {

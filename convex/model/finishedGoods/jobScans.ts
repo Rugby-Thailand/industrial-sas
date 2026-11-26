@@ -219,27 +219,77 @@ function containsGroundedText(prompt: string, value: string): boolean {
 
 const FLOOR_WORDS: Readonly<Record<number, readonly string[]>> = Object.freeze({
   0: ["ground floor", "ชั้นล่าง", "ชั้นจี"],
-  1: ["first floor", "ชั้นหนึ่ง"],
-  2: ["second floor", "ชั้นสอง"],
-  3: ["third floor", "ชั้นสาม"],
-  4: ["fourth floor", "ชั้นสี่"],
-  5: ["fifth floor", "ชั้นห้า"],
-  6: ["sixth floor", "ชั้นหก"],
-  7: ["seventh floor", "ชั้นเจ็ด"],
-  8: ["eighth floor", "ชั้นแปด"],
-  9: ["ninth floor", "ชั้นเก้า"],
-  10: ["tenth floor", "ชั้นสิบ"],
+  1: ["first floor"],
+  2: ["second floor"],
+  3: ["third floor"],
+  4: ["fourth floor"],
+  5: ["fifth floor"],
+  6: ["sixth floor"],
+  7: ["seventh floor"],
+  8: ["eighth floor"],
+  9: ["ninth floor"],
+  10: ["tenth floor"],
+  11: ["eleventh floor"],
+  12: ["twelfth floor"],
 });
+
+const THAI_FLOOR_DIGITS = [
+  "ศูนย์",
+  "หนึ่ง",
+  "สอง",
+  "สาม",
+  "สี่",
+  "ห้า",
+  "หก",
+  "เจ็ด",
+  "แปด",
+  "เก้า",
+];
+const THAI_UNIT = THAI_FLOOR_DIGITS.join("|");
+const THAI_NUMERAL = String.raw`(?:${THAI_UNIT}|เอ็ด|ยี่|สิบ|ร้อย|พัน)+`;
+const THAI_FLOOR_WORD = new RegExp(String.raw`ชั้น\s*(${THAI_NUMERAL})`, "gu");
+const THAI_CARDINAL = new RegExp(
+  String.raw`^(?:(${THAI_UNIT})ร้อย)?(?:(${THAI_UNIT}|ยี่)?(สิบ))?(${THAI_UNIT}|เอ็ด)?$`,
+  "u",
+);
+const FLOOR_VALUE = String.raw`(?:\d+(?:st|nd|rd|th)?|\b(?:ground|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\b|${THAI_NUMERAL})`;
+const FLOOR_PAIR = String.raw`${FLOOR_VALUE}\s*(?:\b(?:or|and|to|through)\b|หรือ|และ|ถึง|[-–—])\s*${FLOOR_VALUE}`;
+const FLOOR_ALTERNATIVE = new RegExp(
+  String.raw`(?:\bfloors?\s*|ชั้น\s*)${FLOOR_PAIR}|${FLOOR_PAIR}\s+floors?\b`,
+  "u",
+);
+
+function parseThaiFloor(word: string): number {
+  const parts = THAI_CARDINAL.exec(word);
+  if (!parts) return NaN;
+  const [, hundreds, tens, hasTens, units] = parts;
+  const digit = (value: string | undefined) =>
+    value === "เอ็ด"
+      ? 1
+      : value === "ยี่"
+        ? 2
+        : value
+          ? THAI_FLOOR_DIGITS.indexOf(value)
+          : 0;
+  return (
+    100 * digit(hundreds) +
+    (hasTens ? 10 * digit(tens ?? "หนึ่ง") : 0) +
+    digit(units)
+  );
+}
 
 function requestedFloors(prompt: string): Set<number> {
   const numbers = new Set<number>();
   // Consume the entire number, including an unsupported decimal or negative
   // floor, so a trailing digit cannot be interpreted as a separate floor.
   const found = prompt.matchAll(
-    /(?:\bfloor\s*|ชั้น\s*)([+-]?\d+(?:[.,]\d+)?)|(?<![\p{L}\p{N}.,+-])([+-]?\d+(?:[.,]\d+)?)(?:st|nd|rd|th)?\s+floor\b/gu,
+    /(?:\bfloors?\s*|ชั้น\s*)([+-]?\d+(?:[.,]\d+)?)|(?<![\p{L}\p{N}.,+-])([+-]?\d+(?:[.,]\d+)?)(?:st|nd|rd|th)?\s+floors?\b/gu,
   );
   for (const match of found) {
     numbers.add(Number((match[1] ?? match[2])!.replace(",", ".")));
+  }
+  for (const match of prompt.matchAll(THAI_FLOOR_WORD)) {
+    numbers.add(parseThaiFloor(match[1]!));
   }
   for (const [floor, words] of Object.entries(FLOOR_WORDS)) {
     if (words.some((word) => prompt.includes(word))) numbers.add(Number(floor));
@@ -248,7 +298,10 @@ function requestedFloors(prompt: string): Set<number> {
 }
 
 const BUILDING_HINT =
-  /(?:\bbuilding\s+|อาคาร\s*)([^,;]+?)(?=$|[,;]|\s+(?:and|on\s+floor|floor|at\s+floor|with|mapped|unmapped)\b|\s*(?:ชั้น|และ))/gu;
+  /(?:\bbuilding\s+|อาคาร\s*)([^,;]+?)(?=$|[,;]|\s+(?:and|floors?|with|mapped|unmapped)\b|\s+(?:on|at|in|from)\s+(?:the\s+)?(?:[\w-]+\s+)?floors?\b|\s*(?:ชั้น|และ))/gu;
+
+const SEARCH_LITERAL =
+  /(?:\b(?:part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number))\s*[:=]?\s+|(?:ชื่อสินค้า|ชื่อชิ้นส่วน|ชื่อลูกค้า|บาร์โค้ด|เลขที่ใบงาน)\s*[:=]?\s*)(?:"([^"]+)"|“([^”]+)”|(.+?))(?=$|[.!?]$|[,;]\s*(?:building|floor|format|อาคาร|ชั้น|รูปแบบ)|\s+(?:in|at|on)\s+(?:the\s+)?(?:building|(?:[\w-]+\s+)?floors?)\b|\s*ที่(?:อาคาร|ชั้น))/gu;
 
 function requestedBuildings(prompt: string): Map<string, Set<string>> {
   const buildings = new Map<string, Set<string>>();
@@ -534,13 +587,19 @@ export function parseJobScanSearchIntent(
     return { kind: "UNREADABLE" };
   const filter = raw.filter as JobScanFilter;
   const normalizedPrompt = normalizeForGrounding(prompt);
+  const literals = [...normalizedPrompt.matchAll(SEARCH_LITERAL)];
+  if (literals.length > 1) return { kind: "UNSUPPORTED" };
+  const literal = literals[0];
+  const instructions = literal
+    ? normalizedPrompt.replace(literal[0], " ")
+    : normalizedPrompt;
   const requestedFilter =
     /\b(?:unmapped|unassigned|without (?:a )?location)\b|ยังไม่ระบุ|ยังไม่จัดเก็บ|ไม่มีตำแหน่ง/u.test(
-      normalizedPrompt,
+      instructions,
     )
       ? "UNMAPPED"
       : /\b(?:mapped|assigned|stored|with (?:a )?location)\b|ระบุตำแหน่งแล้ว|จัดเก็บแล้ว|มีตำแหน่ง/u.test(
-            normalizedPrompt,
+            instructions,
           )
         ? "MAPPED"
         : "ALL";
@@ -556,17 +615,28 @@ export function parseJobScanSearchIntent(
     return { kind: "UNREADABLE" };
   if (search && !containsGroundedText(prompt, search))
     return { kind: "UNREADABLE" };
+  if (
+    literal &&
+    normalizeForGrounding(search) !==
+      (literal[1] ?? literal[2] ?? literal[3])?.trim()
+  )
+    return { kind: "UNREADABLE" };
 
   const facets: JobScanSearchFacets = {};
-  const buildings = requestedBuildings(normalizedPrompt);
-  const floors = requestedFloors(normalizedPrompt);
-  const formats = requestedFormats(normalizedPrompt);
-  if (buildings.size > 1 || floors.size > 1 || formats.length > 1)
+  const buildings = requestedBuildings(instructions);
+  const floors = requestedFloors(instructions);
+  const formats = requestedFormats(instructions);
+  if (
+    buildings.size > 1 ||
+    floors.size > 1 ||
+    formats.length > 1 ||
+    FLOOR_ALTERNATIVE.test(instructions)
+  )
     return { kind: "UNSUPPORTED" };
   if (
     !floors.size &&
     /\b(?:on|at|from|in)\s+(?:the\s+)?floor\b|ชั้น(?:\d|\s|$)/u.test(
-      normalizedPrompt,
+      instructions,
     )
   )
     return { kind: "UNSUPPORTED" };
@@ -680,7 +750,7 @@ const EDIT_DATE_LABELS = [
   .join("|");
 const EDIT_CLAUSE_START = [
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=\s+(?:to|as)\s|\s*[:=]|\s*(?:เป็น|ให้เป็น))`,
-  String.raw`(?:${EDIT_DATE_LABELS})(?=\s*[\d๐-๙]+[/.-])`,
+  String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_DATE_LABELS})(?=\s*[\d๐-๙]+[/.-])`,
   MOVE_VERB.source.slice(1),
   String.raw`(?:delete|remove|void)\s+(?:(?:this|the|all)\s+)?(?:records?|tickets?|jobs?)\b|(?:ลบ|ยกเลิก)(?:ใบงาน|รายการ)`,
 ].join("|");

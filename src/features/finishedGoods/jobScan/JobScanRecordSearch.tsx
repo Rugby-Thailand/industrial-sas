@@ -153,7 +153,7 @@ export function JobScanRecordSearch({
             <RecordSearchPrompt
               active={aiOpen && !disabled}
               interpret={interpret}
-              onResult={(intent) => {
+              onApply={(intent) => {
                 ai.current?.completeOwned?.(() => {
                   setAiOpen(false);
                   onChange({
@@ -267,21 +267,26 @@ function RecordCodeCapture({
 function RecordSearchPrompt({
   active,
   interpret,
-  onResult,
+  onApply,
 }: {
   active: boolean;
   interpret: (prompt: string) => Promise<JobScanSearchIntent | null>;
-  onResult: (result: JobScanSearchIntent) => void;
+  onApply: (result: JobScanSearchIntent) => void;
 }) {
   const t = useTranslations("JobScan");
   const [prompt, setPrompt] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
+  const [intent, setIntent] = useState<JobScanSearchIntent>();
   const request = useRef<AbortController | null>(null);
   useLayoutEffect(() => () => request.current?.abort(), [active]);
 
   async function submit() {
     if (!active || request.current || !prompt.trim()) return;
+    if (intent) {
+      onApply(intent);
+      return;
+    }
     const attempt = new AbortController();
     request.current = attempt;
     setPending(true);
@@ -289,7 +294,7 @@ function RecordSearchPrompt({
     try {
       const result = await interpret(prompt.trim());
       if (attempt.signal.aborted) return;
-      if (result) onResult(result);
+      if (result) setIntent(result);
       else setError(true);
     } catch {
       if (!attempt.signal.aborted) setError(true);
@@ -316,12 +321,40 @@ function RecordSearchPrompt({
           className="min-h-20 w-full rounded-lg border border-border-strong bg-background px-3 py-2 text-base outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
           placeholder={t("recordTools.searchExample")}
           value={prompt}
-          onChange={(event) => setPrompt(event.target.value)}
+          onChange={(event) => {
+            setPrompt(event.target.value);
+            setIntent(undefined);
+            setError(false);
+          }}
           maxLength={500}
           disabled={pending}
           required
         />
       </label>
+      {intent && (
+        <p
+          role="status"
+          className="rounded-lg border border-border px-3 py-2 text-sm break-words"
+        >
+          {[
+            t(
+              intent.filter === "MAPPED"
+                ? "mapped"
+                : intent.filter === "UNMAPPED"
+                  ? "unmapped"
+                  : "all",
+            ),
+            intent.search,
+            intent.facets?.building,
+            intent.facets?.floor !== undefined &&
+              t("floorNumber", { number: intent.facets.floor }),
+            intent.facets?.storageFormat &&
+              t(`format.${intent.facets.storageFormat}`),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      )}
       {error && (
         <Notice
           tone="warning"
@@ -331,7 +364,13 @@ function RecordSearchPrompt({
       )}
       <DialogFooter>
         <Button type="submit" disabled={!active || pending || !prompt.trim()}>
-          {t(pending ? "recordTools.requesting" : "recordTools.searchAction")}
+          {t(
+            pending
+              ? "recordTools.requesting"
+              : intent
+                ? "recordTools.applySearch"
+                : "recordTools.searchAction",
+          )}
         </Button>
       </DialogFooter>
     </form>

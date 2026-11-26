@@ -305,6 +305,79 @@ describe("parseJobScanSearchIntent", () => {
     });
   });
 
+  it("rejects alternative floors and preserves supported compound floor expressions", () => {
+    for (const prompt of [
+      "boxes on floor 2 or 3",
+      "กล่องชั้น 2 หรือ 3",
+      "boxes on 2–3 floors",
+    ]) {
+      expect(
+        parseJobScanSearchIntent(
+          { ...base, floor: 2, storageFormat: "BOX" },
+          prompt,
+        ),
+      ).toEqual({ kind: "UNSUPPORTED" });
+    }
+    expect(
+      parseJobScanSearchIntent({ ...base, floor: 10 }, "หาใบงานชั้นสิบสอง"),
+    ).toEqual({ kind: "UNREADABLE" });
+    expect(
+      parseJobScanSearchIntent({ ...base, floor: 12 }, "หาใบงานชั้นสิบสอง"),
+    ).toEqual({
+      kind: "OK",
+      value: { filter: "ALL", search: "", facets: { floor: 12 } },
+    });
+    const prompt = "boxes in Building A on the second floor";
+    const proposed = {
+      ...base,
+      building: "Building A",
+      floor: 2,
+      storageFormat: "BOX",
+    };
+    expect(parseJobScanSearchIntent(proposed, prompt)).toMatchObject({
+      kind: "OK",
+      value: { facets: { building: "Building A", floor: 2 } },
+    });
+    expect(
+      parseJobScanSearchIntent(
+        { ...proposed, building: "Building A on the second" },
+        prompt,
+      ),
+    ).toEqual({ kind: "UNREADABLE" });
+  });
+
+  it("keeps an explicitly named part literal separate from format and location filters", () => {
+    const prompt = "find records for part name Gear Box";
+    const proposed = { ...base, search: "Gear Box" };
+    expect(parseJobScanSearchIntent(proposed, prompt)).toEqual({
+      kind: "OK",
+      value: { filter: "ALL", search: "Gear Box" },
+    });
+    expect(
+      parseJobScanSearchIntent({ ...proposed, storageFormat: "BOX" }, prompt),
+    ).toEqual({ kind: "UNREADABLE" });
+    expect(
+      parseJobScanSearchIntent({ ...base, storageFormat: "BOX" }, prompt),
+    ).toEqual({ kind: "UNREADABLE" });
+    expect(
+      parseJobScanSearchIntent(
+        {
+          ...proposed,
+          building: "Building A",
+          floor: 2,
+          storageFormat: "PALLET",
+        },
+        "find pallets for part name Gear Box in Building A on the second floor",
+      ),
+    ).toMatchObject({
+      kind: "OK",
+      value: {
+        search: "Gear Box",
+        facets: { building: "Building A", floor: 2, storageFormat: "PALLET" },
+      },
+    });
+  });
+
   it("rejects untrusted, ungrounded, extra-key, ID or truncated responses", () => {
     expect(
       parseJobScanSearchIntent({ ...base, jobScanId: "scan_123" }, "unmapped"),
@@ -562,6 +635,18 @@ describe("parseJobScanEditProposal", () => {
     ).toEqual({
       kind: "OK",
       value: { fields: { partName: "Red and Set Screws" } },
+    });
+  });
+
+  it("accepts a compound edit that names a date without an assignment word", () => {
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, quantity: 15, deliveryDate: "6/7/2569" },
+        "change quantity to 15 and change delivery date 6/7/2569",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { fields: { quantity: 15, deliveryDate: "6/7/2569" } },
     });
   });
 });

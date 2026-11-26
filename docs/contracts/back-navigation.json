@@ -8886,14 +8886,14 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:aiOpen",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "The shared read-only AI search Dialog owns its foreground; validated criteria apply to the underlay only after consuming that entry.",
+      "expectation": "The shared read-only AI search Dialog owns its foreground. Reviewed criteria apply to the underlay only after explicit confirmation consumes that entry.",
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx"
       ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
-          "name": "applies validated AI facets after the search popup closes and keeps manual search usable on failure"
+          "name": "reviews validated AI facets before applying them and keeps manual search usable on failure"
         }
       ]
     },
@@ -8908,7 +8908,7 @@
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
-          "name": "applies validated AI facets after the search popup closes and keeps manual search usable on failure"
+          "name": "reviews validated AI facets before applying them and keeps manual search usable on failure"
         }
       ]
     },
@@ -8929,6 +8929,22 @@
           "shape": "and",
           "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
           "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#RecordSearchPrompt:intent",
+      "policy": "presentation",
+      "expectation": "A compact summary of the inferred filter values appears inside the same AI search Dialog. Editing resets the summary and Back dismisses the unchanged records query.",
+      "uses": ["branch"],
+      "render": [{ "shape": "and", "truthy": ["p[role=status]"], "falsy": [] }],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "clears a search review when its request changes and Back dismisses an unapplied search"
         }
       ]
     },

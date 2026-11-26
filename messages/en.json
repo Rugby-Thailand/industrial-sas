@@ -1880,6 +1880,7 @@
       "searchPrompt": "Find tickets",
       "searchExample": "For example, pallets on floor 2",
       "searchAction": "Search tickets",
+      "applySearch": "Apply search",
       "noFacetMatches": "No records match these filters",
       "aiEdit": "Edit with AI",
       "aiEditRecord": "Edit {job} with AI",
