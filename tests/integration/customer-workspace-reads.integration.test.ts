@@ -468,6 +468,42 @@ describe("customer workspace reads", () => {
     },
   );
 
+  it("rejects a continuation from a different customer or a deleted activity row", async () => {
+    const world = await setup();
+    const other = allowed(
+      await world.actorA.mutation(api.customers.writes.createCustomer, {
+        name: "Another buyer",
+        requestId: "different-workspace-buyer",
+      }),
+    );
+    if (!other.ok) throw new Error("Unable to create the second customer");
+    const cursor = await world.t.run(async (ctx) => {
+      const row = await ctx.db
+        .query("customerWarehouseActivity")
+        .withIndex("by_orgId_customerId_warehouseId", (q) =>
+          q
+            .eq("orgId", world.orgA)
+            .eq("customerId", world.customerId)
+            .eq("warehouseId", world.alpha),
+        )
+        .unique();
+      return row!._id;
+    });
+    const read = async (customerId: Id<"customers">) =>
+      allowed(
+        await world.actorA.query(workspace.continueCustomerOverview, {
+          customerId,
+          cursor,
+        }),
+      );
+    const otherId = await world.t.run(async (ctx) =>
+      ctx.db.normalizeId("customers", other.customerId),
+    );
+    expect(await read(otherId!)).toBeNull();
+    await world.t.run((ctx) => ctx.db.delete(cursor));
+    expect(await read(world.customerId)).toBeNull();
+  });
+
   it("marks stored pallets incomplete when the first warehouse exactly consumes the product budget", async () => {
     const world = await setup();
     await world.t.run(async (ctx) => {

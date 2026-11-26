@@ -285,23 +285,34 @@ async function overviewTotalsPage(
   ctx: TenantFunctionContext,
   customerId: Id<"customers">,
   allowed: Awaited<ReturnType<typeof allowedCustomerWarehouses>>,
-  cursor?: string,
+  startWarehouse?: Id<"warehouses">,
 ) {
-  const page = await ctx.tenantDb
+  // Recompute the lookahead on every subscription update. An insertion can
+  // move the boundary without growing a fixed native pagination window.
+  const rows = await ctx.tenantDb
     .byIndex<Doc<"customerWarehouseActivity">>(
       "customerWarehouseActivity",
       "by_orgId_customerId_warehouseId",
       [{ field: "customerId", value: customerId }],
+      startWarehouse && {
+        field: "warehouseId",
+        lower: { value: startWarehouse, inclusive: true },
+      },
     )
-    .page({ limit: TENANT_INDEX_MAX_PAGE_SIZE, cursor });
-  const visible = await visibleActivity(ctx, allowed, page.page);
+    .take(TENANT_INDEX_MAX_PAGE_SIZE);
+  const lookahead = rows[TENANT_INDEX_MAX_PAGE_SIZE - 1];
+  const visible = await visibleActivity(
+    ctx,
+    allowed,
+    lookahead ? rows.slice(0, -1) : rows,
+  );
   return {
     latestJobs: await newestJobs(ctx, customerId, visible),
     linkedProductCount: visible.reduce(
       (count, entry) => count + entry.row.linkedProductCount,
       0,
     ),
-    ...(page.isDone ? {} : { nextCursor: page.continueCursor }),
+    ...(lookahead && { nextCursor: lookahead._id }),
   };
 }
 
@@ -324,7 +335,14 @@ export const continueCustomerOverview = queryWithOrg({
     if (!customer) return null;
     const allowed = await allowedCustomerWarehouses(ctx);
     if (!allowed.hasWarehouseRead) return null;
-    return overviewTotalsPage(ctx, customer._id, allowed, cursor);
+    // The cursor identifies a customer activity row, including when its
+    // warehouse is outside the caller's scope. Only visible rows contribute.
+    const start = await ctx.tenantDb.get<Doc<"customerWarehouseActivity">>(
+      "customerWarehouseActivity",
+      cursor,
+    );
+    if (start?.customerId !== customer._id) return null;
+    return overviewTotalsPage(ctx, customer._id, allowed, start.warehouseId);
   },
 });
 

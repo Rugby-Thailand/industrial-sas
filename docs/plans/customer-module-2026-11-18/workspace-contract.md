@@ -84,7 +84,7 @@ null | {
 
 `pendingReview` counts names in "Names to review" that the queue would propose for this customer. A name qualifies when it matches the customer's canonical name or an approved alias exactly. It also qualifies through the queue's compact-stem similarity rule, which applies only when the customer is active and the name has no exact match anywhere. The count uses the same candidate reader as the queue, including its active-customer sample and suggestion limits. The overview checks up to 300 source rows and 50 distinct names in scope. `complete: false` means the window was truncated.
 
-When the selector is truncated, the overview reads compact activity rows in pages of 100. It sums permitted product counts and merges the three newest jobs from each page before displaying either metric. Scope and permission checks apply to every continuation.
+When the selector is truncated, the overview reads up to 99 compact activity rows plus one lookahead on the customer–warehouse index. Each live query recomputes its boundary as rows change. The next query starts at the lookahead row. It sums permitted product counts and merges the three newest jobs from each page before displaying either metric. Scope and permission checks apply to every continuation. Run `node scripts/performance/customer-overview-growth.mjs` to verify both metrics while writes move the boundary on a live local subscription.
 
 Archived customers keep their history. Show the archived notice and still load the rollup. `canScan` is false for them.
 

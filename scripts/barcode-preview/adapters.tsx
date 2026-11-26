@@ -8,6 +8,9 @@ export function QueryGate({
 }) {
   return children("demo-warehouse");
 }
+export function useWorkspace() {
+  return { navigationPermissions: [] };
+}
 export function useDraftKey() {
   return "preview-actor";
 }
@@ -20,6 +23,9 @@ export function useUploadThing() {
       throw new Error("Uploads disabled in preview");
     },
   };
+}
+export function useSearchParams() {
+  return new URLSearchParams(window.location.search);
 }
 export function useRouter() {
   return { push: () => {}, replace: () => {}, back: () => {} };
