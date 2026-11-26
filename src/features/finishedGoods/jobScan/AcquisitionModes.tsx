@@ -1,5 +1,6 @@
 "use client";
 
+import type { MouseEventHandler } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,7 +12,7 @@ export interface AcquisitionMode {
   /** Omitted for a one-shot action that opens no panel. */
   readonly pressed?: boolean;
   readonly disabled?: boolean;
-  readonly onSelect: () => void;
+  readonly onSelect: MouseEventHandler<HTMLButtonElement>;
 }
 
 /** One row of ways to acquire a value; at most one mode panel is pressed. */

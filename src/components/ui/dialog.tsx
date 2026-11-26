@@ -142,14 +142,16 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   readonly closeLabel?: string;
   readonly showCloseButton?: boolean;
-  readonly size?: "sm" | "md" | "lg" | "wide";
+  readonly size?: "sm" | "md" | "lg" | "wide" | "camera";
 }) {
   const opener = React.useRef<HTMLElement | null>(null);
+  const camera = size === "camera";
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        data-camera-dialog={camera || undefined}
         onOpenAutoFocus={(event) => {
           opener.current =
             document.activeElement instanceof HTMLElement
@@ -169,7 +171,9 @@ function DialogContent({
           }
         }}
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 overflow-y-auto rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-2xl duration-150 sm:p-6 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          camera
+            ? "dark fixed inset-0 z-50 flex h-dvh flex-col gap-3 overflow-y-auto overscroll-contain bg-[#0d1117] pt-[max(1rem,env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] text-popover-foreground [&>[data-slot=dialog-header]]:shrink-0"
+            : "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 overflow-y-auto rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-2xl duration-150 sm:p-6 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           {
             "max-w-lg": size === "sm",
             "max-w-2xl": size === "md",
@@ -187,9 +191,13 @@ function DialogContent({
               type="button"
               variant="ghost"
               size="icon"
-              className="absolute top-3 right-3"
+              className={
+                camera
+                  ? "fixed top-[max(.75rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-10 size-11 rounded-full border border-border bg-surface text-text"
+                  : "absolute top-3 right-3"
+              }
             >
-              <XIcon className="size-4" />
+              <XIcon className={camera ? "size-5" : "size-4"} />
               <span className="sr-only">{closeLabel}</span>
             </Button>
           </DialogPrimitive.Close>

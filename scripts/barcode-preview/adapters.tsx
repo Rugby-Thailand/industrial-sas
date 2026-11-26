@@ -86,6 +86,20 @@ export function useQuery(
 }
 export function useConvex() {
   return {
+    action: async (reference: Parameters<typeof getFunctionName>[0]) => {
+      if (
+        getFunctionName(reference) !==
+        "finishedGoods/locationImage:extractLocationLabel"
+      )
+        throw new Error("Unexpected preview action");
+      return {
+        ok: true,
+        value: {
+          ok: true,
+          candidates: [{ code: "F2-L28-18", labelText: null }],
+        },
+      };
+    },
     query: async (
       reference: Parameters<typeof getFunctionName>[0],
       args: { code: string; warehouseId: string },

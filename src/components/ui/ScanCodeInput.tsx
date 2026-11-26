@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, MouseEventHandler, ReactNode } from "react";
 import { IconButton } from "./IconButton";
 import { Input } from "./input";
 import { ScanIcon } from "./ScanIcon";
@@ -19,7 +19,7 @@ export function ScanCodeInput({
   readOnly,
   ...props
 }: ComponentProps<typeof Input> & {
-  onScan: () => void;
+  onScan: MouseEventHandler<HTMLButtonElement>;
   scanLabel: string;
   scanning?: boolean;
   scanDisabled?: boolean;

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { CheckboxControl } from "@/components/ui/CheckboxControl";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -148,6 +149,7 @@ export function PackageAssignment({
   const [physical, setPhysical] = useState(restored?.physical ?? false);
   const [scanner, setScanner] = useState<"PACKAGES" | "LOCATION" | null>(null);
   const scannerRef = useRef<typeof scanner>(null);
+  const scannerOpener = useRef<HTMLButtonElement>(null);
   const lastScanner = useRef<"PACKAGES" | "LOCATION">("PACKAGES");
   const [review, setReview] = useState(restored?.uncertain ?? false);
   const [uncertain, setUncertain] = useState(restored?.uncertain ?? false);
@@ -430,7 +432,10 @@ export function PackageAssignment({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => scan("PACKAGES")}
+                onClick={(event) => {
+                  scannerOpener.current = event.currentTarget;
+                  scan("PACKAGES");
+                }}
               >
                 {tr("Scan packages", "สแกนบรรจุภัณฑ์")}
               </Button>
@@ -517,7 +522,10 @@ export function PackageAssignment({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => scan("LOCATION")}
+                onClick={(event) => {
+                  scannerOpener.current = event.currentTarget;
+                  scan("LOCATION");
+                }}
               >
                 {tr("Scan location", "สแกนตำแหน่ง")}
               </Button>
@@ -559,7 +567,17 @@ export function PackageAssignment({
           if (!op.busy && !receiptId) scan(open ? lastScanner.current : null);
         }}
       >
-        <DialogContent closeLabel={tr("Close scanner", "ปิดเครื่องสแกน")}>
+        <DialogContent
+          size="camera"
+          closeLabel={tr("Close scanner", "ปิดเครื่องสแกน")}
+          onCloseAutoFocus={(event) => {
+            const opener = scannerOpener.current;
+            if (opener?.isConnected && !opener.disabled) {
+              event.preventDefault();
+              opener.focus();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>
               {scanner === "LOCATION"
@@ -578,9 +596,35 @@ export function PackageAssignment({
               key={scanner}
               mode={scanner}
               onCode={(raw) => void resolve(raw, scanner, true)}
-              onClose={() => scan(null)}
               disabled={op.busy}
+              presentation="fullscreen"
+              guide={scanner === "LOCATION" ? "barcode" : "label"}
               closeControl={false}
+              progress={
+                <div className="space-y-2">
+                  <ErrorNotice message={op.error} />
+                  <p role="status" className="text-sm break-words">
+                    {scanner === "LOCATION"
+                      ? location && locationMethod === "SCAN"
+                        ? `${location.code} · ${location.name}`
+                        : tr(
+                            "Aim at the storage location label.",
+                            "เล็งกล้องไปที่ฉลากตำแหน่งจัดเก็บ",
+                          )
+                      : tr(
+                          `${units.length} / 50 packages in this group`,
+                          `บรรจุภัณฑ์ในกลุ่มนี้ ${units.length} / 50 ชิ้น`,
+                        )}
+                  </p>
+                </div>
+              }
+              actions={
+                <DialogClose asChild>
+                  <Button type="button" className="w-full">
+                    {tr("Done", "เสร็จ")}
+                  </Button>
+                </DialogClose>
+              }
             />
           )}
         </DialogContent>

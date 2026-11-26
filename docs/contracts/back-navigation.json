@@ -2545,12 +2545,15 @@
     {
       "id": "src/features/finishedGoods/BarcodeCameraBox.tsx#BarcodeCameraBox:camera",
       "policy": "presentation",
-      "expectation": "Hardware camera start/stop only hides the inline CameraFrame and shows start/retry/error controls inside retained source acquisition. All production foreground callers independently own dismissal: PackageAssignment and TicketFieldScanner shared Dialogs, and JobScanWorkflow.panel and LocationPickerSession.camera disclosures, whose pressed acquisition mode is the single close control (closeControl=false). DestinationScanner starts the camera only on request inside its containing verification step; the frame's Start, Stop and Retry are its only camera controls, and unmounting with that step releases the stream. Expanded changes preview size only; repurposing this flag to a whole-view scanner requires another ownership audit.",
+      "expectation": "This flag controls acquisition hardware inside the current scanner. Starting, retrying or stopping replaces the live guide, permission notice or local Start control. The enclosing package, field, ticket, location or verification dialog owns focus and Back while the camera and image picker share its content.",
       "uses": ["branch", "hidden"],
       "render": [
         {
           "shape": "and",
-          "truthy": ["div"],
+          "truthy": [
+            "div",
+            "src/features/finishedGoods/CameraFrame#CameraGuide"
+          ],
           "falsy": []
         },
         {
@@ -2589,6 +2592,72 @@
             "src/features/finishedGoods/CameraFrame#CameraFrame"
           ],
           "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/DestinationScanner.tsx#DestinationScanSession:$overlay:Dialog:cameraOpen",
+      "policy": "overlay",
+      "expectation": "The full-screen verification dialog opens on explicit request. Native Back and Close release the stream, restore the verification form and preserve its manual draft. The active check protects dismissal. Rejected scans stop acquisition and leave the same entry open for retry or Close, with the scanned code available for manual entry after dismissal. A successful check consumes the camera entry and leaves physical confirmation with the caller.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/MoveScreen.test.tsx",
+        "src/features/finishedGoods/PalletScreens.test.tsx",
+        "src/features/finishedGoods/DestinationScanner.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "closes the move camera before leaving, restores it on Forward, and retains the manual draft"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "requires the pallet QR for a camera read while still accepting the QR payload"
+        },
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "requires the current operator to verify even if another operator already scanned"
+        },
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "guides stacked reservations to verify both pallet identities"
+        },
+        {
+          "file": "src/features/finishedGoods/DestinationScanner.test.tsx",
+          "name": "blocks dismissal during scan verification and ignores late frames"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/DestinationScanner.tsx#DestinationScanSession:cameraOpen",
+      "policy": "overlay",
+      "expectation": "The full-screen verification dialog opens on explicit request. Native Back and Close release the stream, restore the verification form and preserve its manual draft. The active check protects dismissal. Rejected scans stop acquisition and leave the same entry open for retry or Close, with the scanned code available for manual entry after dismissal. A successful check consumes the camera entry and leaves physical confirmation with the caller.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/MoveScreen.test.tsx",
+        "src/features/finishedGoods/PalletScreens.test.tsx",
+        "src/features/finishedGoods/DestinationScanner.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "closes the move camera before leaving, restores it on Forward, and retains the manual draft"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "requires the pallet QR for a camera read while still accepting the QR payload"
+        },
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "requires the current operator to verify even if another operator already scanned"
+        },
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "guides stacked reservations to verify both pallet identities"
+        },
+        {
+          "file": "src/features/finishedGoods/DestinationScanner.test.tsx",
+          "name": "blocks dismissal during scan verification and ignores late frames"
         }
       ]
     },
@@ -3183,12 +3252,16 @@
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:fieldScan",
       "policy": "workflow",
       "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by JobScanWorkflow.fieldScan, preserving route intent and retained drafts; pending writes remain protected.",
+      "expectation": "The ticket field target opens the dedicated shared scanner dialog for the selected ticket and field. Back retains the draft. Forward validates that the ticket and field are still eligible before restoring a camera.",
       "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
           "name": "native Back closes the %s scanner and ignores late acquisition callbacks"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "native Forward restores only a still-valid ticket field camera"
         }
       ]
     },
@@ -3256,10 +3329,34 @@
       ]
     },
     {
+      "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:$overlay:Dialog:panel",
+      "policy": "overlay",
+      "expectation": "The full-screen intake dialog owns one entry across code and photo modes. Switching modes retains the photo collection. Close and Done consume the entry and release acquisition while keeping the ticket draft. The ScanProgress live region and Undo stay inside the barcode dock. Undo restores only the last intake and leaves the dialog open.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "retains unsent photos when switching to Scan code and back to Photo AI"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "native Back closes Photo AI and then the ticket step without discarding unsent photos for the same location choice"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "the fullscreen barcode camera Close consumes its entry before the next Back"
+        }
+      ]
+    },
+    {
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:panel",
-      "policy": "workflow",
-      "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by JobScanWorkflow.panel, preserving route intent and retained drafts; pending writes remain protected. The pressed Scan code or Photo AI mode is the panel's single explicit close, consumes its acquisition entry before the next Back and releases the camera while retaining the photo collection. Manual cross-module presentation audit: JobScanWorkflow:lastWrite passes through ScanProgress:written to src/features/finishedGoods/jobScan/ScanProgress#ScanProgress, an inline div[role=status] above the barcode camera. Waiting/latest text uses p; required-field progress uses p/span and lucide-react#Check or lucide-react#Circle; incomplete count uses p. Beside that status region, outside the live region, the latest branch adds an inline src/components/ui/button#Button with lucide-react#Undo2 that reverts only that one intake in place: the camera, panel and its Back entry stay unchanged, the undone code is ignored until a different code is written, and any later ticket change clears the undo. Both waiting and latest branches keep this same status surface, create no foreground or Back entry, and reset when the panel changes. The static gate does not follow this imported-component prop flow.",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The full-screen intake dialog owns one entry across code and photo modes. Switching modes retains the photo collection. Close and Done consume the entry and release acquisition while keeping the ticket draft. The ScanProgress live region and Undo stay inside the barcode dock. Undo restores only the last intake and leaves the dialog open.",
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
         "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx"
@@ -3271,7 +3368,7 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
-          "name": "the pressed Photo AI mode is the photo panel's only close, retaining photos and rejecting late capture before the next Back"
+          "name": "the fullscreen photo camera Close retains photos and rejects late capture before the next Back"
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
@@ -3283,7 +3380,7 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
-          "name": "shows above the camera which ticket each scan filled, even an older one, and keeps its result visible while the camera is paused"
+          "name": "shows which ticket each scan filled in the fullscreen dock, even while paused"
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
@@ -3394,13 +3491,6 @@
           "falsy": []
         },
         {
-          "shape": "and",
-          "truthy": [
-            "src/features/finishedGoods/jobScan/TicketFieldScanner#TicketFieldScanner"
-          ],
-          "falsy": []
-        },
-        {
           "shape": "conditional",
           "truthy": [
             "ol",
@@ -3442,12 +3532,13 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:cameraOpen",
+      "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:$overlay:Dialog:cameraOpen+photo",
       "policy": "overlay",
-      "expectation": "Retaking a photo owns its earlier camera step while retaining the original AI photo and corrected code; Back consumes retake before outer acquisition. The containing Photo AI mode uses the reader's live completion handle to cancel processing and stop capture synchronously, then consumes retake before closing outer acquisition. Late processing cannot replace a dismissed owner.",
-      "integration": "useBackDisclosure",
+      "expectation": "A retake over a reviewed photo owns a full-screen dialog. A replacement is locally prepared before it replaces the review. Invalid photos stay in the retake with recovery actions; Back cancels pending preparation. Dismissing the retake restores the existing photo, AI candidates, and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
+      "integration": "dialog",
       "tests": [
-        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "tests/e2e/workspace/barcode.spec.ts"
       ],
       "cases": [
         {
@@ -3456,7 +3547,43 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "the Photo AI mode closes a retake before outer acquisition and the next Back restores the origin"
+          "name": "native Back cancels pending retake preparation and keeps the corrected photo review"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "explicit retake Back to photo and outer Close consume their entries before the next Back"
+        },
+        {
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "confirming a location photo retains the unsaved ticket when changing its location"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:cameraOpen",
+      "policy": "overlay",
+      "expectation": "A retake over a reviewed photo owns a full-screen dialog. A replacement is locally prepared before it replaces the review. Invalid photos stay in the retake with recovery actions; Back cancels pending preparation. Dismissing the retake restores the existing photo, AI candidates, and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "tests/e2e/workspace/barcode.spec.ts"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back returns Location retake camera to its retained AI photo and corrected code"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back cancels pending retake preparation and keeps the corrected photo review"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "explicit retake Back to photo and outer Close consume their entries before the next Back"
+        },
+        {
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "confirming a location photo retains the unsaved ticket when changing its location"
         }
       ]
     },
@@ -3521,40 +3648,44 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:photo",
+      "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:fileError",
       "policy": "presentation",
-      "expectation": "The retained photo supplies the inline preview and retry controls inside owned acquisition. Taking another photo is separately owned by cameraOpen disclosure, rather than treating a camera as presentation. Standalone readers retain their frame close by default. A picker hides the equivalent outer close in direct Photo AI mode; nested QR-to-AI keeps it to return to QR, and retake always retains its own return-to-photo control.",
       "uses": ["branch"],
+      "expectation": "An invalid photo shows one inline validation alert in the active camera or photo review. Selecting it does not replace the photo, reset the reviewed code, or create another foreground entry.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back returns Location retake camera to its retained AI photo and corrected code"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx",
+          "name": "keeps the existing review when %s preparation fails and reuses the next prepared photo"
+        }
+      ],
       "render": [
         {
           "shape": "and",
-          "truthy": [
-            "div",
-            "lucide-react#RotateCcw",
-            "src/components/ui/IconButton#IconButton"
-          ],
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
           "falsy": []
-        },
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:photo",
+      "policy": "overlay",
+      "expectation": "The presence of an existing photo distinguishes a retake dialog from the initial acquisition. Retake owns a Back entry while the reviewed photo and any corrected code stay mounted below it.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+      ],
+      "cases": [
         {
-          "shape": "and",
-          "truthy": ["div"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "div",
-            "img",
-            "lucide-react#RotateCcw",
-            "src/components/ui/IconButton#IconButton",
-            "src/features/finishedGoods/CameraFrame#CameraFrame"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/button#Button"],
-          "falsy": []
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back returns Location retake camera to its retained AI photo and corrected code"
         }
       ]
     },
@@ -3578,13 +3709,54 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:ai",
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:qrBeforeAi",
       "policy": "overlay",
-      "expectation": "The actual AI acquisition foreground has a specific shared disclosure owner and retains the underlying typed label. Direct Photo AI mode closes through its pressed mode action only. Nested QR-to-AI retains a frame close that returns to QR; pressing Photo AI instead completes both owned entries in order before the next Back. A one-shot Forward restores nested AI and its camera together, including after completion cleared the nested flag; remount retires both entries before Forward or a stale direct link.",
-      "integration": "useBackDisclosure",
+      "expectation": "Photo AI opened from the QR scanner owns a second full-screen dialog. Back returns to the QR scanner, restoring the selected gallery image, crop, and decoded result without restarting its camera, and invalidates pending AI work. Opening Photo AI directly uses the outer camera entry. Forward restores the acquisition mode and a remount retires the old owners.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.image.test.tsx",
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "tests/e2e/workspace/barcode.spec.ts"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.image.test.tsx",
+          "name": "restores a cropped QR image and its decoded result after %s closes or returns through Back and Forward"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back closes Photo AI acquisition and retains the typed location; Forward restores the same mode"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "header Back closes nested Photo AI before the camera and ignores its late AI answer"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "one-shot Forward restores nested %s Photo AI with its return and completion ownership"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "a remounted nested Photo AI picker retires both entries before Forward or a stale direct link"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "nested Photo AI in %s closes to QR, then camera Close leaves the draft and next Back restores the origin"
+        },
+        {
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "switching a live location camera to Photo AI keeps one stream and restores the typed location"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:$overlay:Dialog:ai+camera+qrBeforeAi",
+      "policy": "overlay",
+      "expectation": "Photo AI opened from the QR scanner owns a second full-screen dialog. Back returns to the QR scanner and invalidates pending work. Opening Photo AI directly uses the outer camera entry. Forward restores the acquisition mode and a remount retires the old owners.",
+      "integration": "dialog",
       "tests": [
         "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-        "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx"
+        "tests/e2e/workspace/barcode.spec.ts"
       ],
       "cases": [
         {
@@ -3597,11 +3769,38 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "nested Photo AI in %s keeps distinct return-to-QR and close-acquisition controls, then next Back restores the origin"
+          "name": "one-shot Forward restores nested %s Photo AI with its return and completion ownership"
         },
         {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx",
-          "name": "the pressed Photo AI action is the only %s outer close before and after reading a photo"
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "a remounted nested Photo AI picker retires both entries before Forward or a stale direct link"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "nested Photo AI in %s closes to QR, then camera Close leaves the draft and next Back restores the origin"
+        },
+        {
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "switching a live location camera to Photo AI keeps one stream and restores the typed location"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:ai",
+      "policy": "overlay",
+      "expectation": "Photo AI opened from the QR scanner owns a second full-screen dialog. Back returns to the QR scanner and invalidates pending work. Opening Photo AI directly uses the outer camera entry. Forward restores the acquisition mode and a remount retires the old owners.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back closes Photo AI acquisition and retains the typed location; Forward restores the same mode"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "header Back closes nested Photo AI before the camera and ignores its late AI answer"
         },
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
@@ -3614,12 +3813,13 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:camera",
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:$overlay:Dialog:camera",
       "policy": "overlay",
-      "expectation": "The actual camera acquisition/registration foreground has a specific shared disclosure owner, retains the underlying typed label, protects dirty/pending writes and consumes explicit closure before the next Back. Its Forward restoration preserves nested AI restored in the same traversal without changing the remembered outer acquisition mode.",
-      "integration": "useBackDisclosure",
+      "expectation": "The location picker opens a full-screen dialog and keeps the search and building filter below it. Close or native Back releases acquisition and returns to the selected origin. A confirmed lookup consumes the camera before selecting a location.",
+      "integration": "dialog",
       "tests": [
-        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "tests/e2e/workspace/barcode.spec.ts"
       ],
       "cases": [
         {
@@ -3627,20 +3827,28 @@
           "name": "Location camera Close consumes its entry and the next native Back restores the actual locale query and hash"
         },
         {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "header Back closes nested Photo AI before the camera and ignores its late AI answer"
-        },
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "the location camera fills the viewport through rotation and Back releases its live track"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:camera",
+      "policy": "overlay",
+      "expectation": "The location picker opens a full-screen dialog and keeps the search and building filter below it. Close or native Back releases acquisition and returns to the selected origin. A confirmed lookup consumes the camera before selecting a location.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "tests/e2e/workspace/barcode.spec.ts"
+      ],
+      "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "nested Photo AI in %s keeps distinct return-to-QR and close-acquisition controls, then next Back restores the origin"
+          "name": "Location camera Close consumes its entry and the next native Back restores the actual locale query and hash"
         },
         {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "one-shot Forward restores nested %s Photo AI with its return and completion ownership"
-        },
-        {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
-          "name": "a remounted nested Photo AI picker retires both entries before Forward or a stale direct link"
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "the location camera fills the viewport through rotation and Back releases its live track"
         }
       ]
     },
@@ -3808,17 +4016,28 @@
       "id": "src/features/finishedGoods/jobScan/TicketFieldScanner.tsx#TicketFieldScanner:$overlay:Dialog:controlled",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
-      "tests": ["src/components/ui/ForegroundOrdering.test.tsx"],
+      "expectation": "The full-screen field scanner owns one foreground. Validating a read and confirming a replacement happen inside it. Escape discards an unconfirmed replacement and restores the retained ticket field.",
+      "tests": [
+        "tests/e2e/workspace/barcode.spec.ts",
+        "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"
+      ],
       "cases": [
         {
-          "file": "src/components/ui/ForegroundOrdering.test.tsx",
-          "name": "real PageBackButton in foreground dismisses the topmost and next Back dismisses remaining root"
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "field image replacement requires confirmation and Escape preserves the prior value"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "applying a field replacement consumes the camera before the next native Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "native Forward restores only a still-valid ticket field camera"
         }
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/TicketFieldScanner.tsx#TicketFieldScanner:candidate",
+      "id": "src/features/finishedGoods/jobScan/TicketFieldScanner.tsx#TicketFieldScanSession:candidate",
       "policy": "presentation",
       "uses": ["branch"],
       "expectation": "A scanned candidate is confirmation data within the existing shared scanner dialog, not a new route.",
@@ -3841,7 +4060,7 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/TicketFieldScanner.tsx#TicketFieldScanner:error",
+      "id": "src/features/finishedGoods/jobScan/TicketFieldScanner.tsx#TicketFieldScanSession:error",
       "policy": "presentation",
       "expectation": "Scanner decode feedback is an inline alert inside the existing owned field-scanner Dialog, not another foreground surface.",
       "uses": ["branch"],
@@ -3918,7 +4137,7 @@
     {
       "id": "src/features/finishedGoods/MoveScreen.tsx#ActiveMove:scanMode",
       "policy": "presentation",
-      "expectation": "The optional inline DestinationScanner changes verification method while the move stays mounted. BarcodeCameraBox owns actual hardware acquisition; changing method resets acknowledgement rather than replacing the move.",
+      "expectation": "The selected verification method controls whether the retained move form renders DestinationScanner. Its separate camera dialog owns acquisition, Close and Back. Changing verification method clears the acknowledgement.",
       "tests": ["src/features/finishedGoods/MoveScreen.test.tsx"],
       "uses": ["branch"],
       "render": [

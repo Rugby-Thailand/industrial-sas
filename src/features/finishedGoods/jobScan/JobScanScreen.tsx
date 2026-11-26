@@ -21,7 +21,14 @@ import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { api } from "../../../../convex/_generated/api";
 import { NAVIGATION_PERMISSION } from "../../../../convex/model/authorization/navigationPermissions";
 import { normalizeCustomerName } from "../../../../convex/model/customers/customers";
-import { useBackDisclosure } from "@/hooks/useBackDisclosure";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useWorkflowStep } from "@/hooks/useWorkflowStep";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { QueryGate } from "@/components/system/QueryGate";
@@ -176,9 +183,13 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const photos = usePhotoSelection(MAX_JOB_SCAN_ITEMS - tickets.length);
   const [panel, setPanel] = useState<"PHOTO" | "BARCODE" | null>(null);
   const panelRef = useRef<typeof panel>(null);
+  const panelOpener = useRef<HTMLButtonElement>(null);
+  const fieldScanOpener = useRef<HTMLButtonElement>(null);
   const lastPanel = useRef<"PHOTO" | "BARCODE">("PHOTO");
   const [fieldScan, setFieldScan] = useState<FieldScanTarget | null>(null);
   const fieldScanRef = useRef<FieldScanTarget | null>(null);
+  const lastFieldScan = useRef<FieldScanTarget | null>(null);
+  const [fieldScanEpoch, retireFieldScan] = useState(0);
   const [feedback, setFeedback] = useState<string>();
   // The ticket the last barcode-panel intake wrote, shown above the camera.
   // It is also the one-step undo; any other ticket change clears it.
@@ -230,9 +241,6 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     if (next) lastPanel.current = next;
     setPanel(next);
   }
-  useBackDisclosure(panel !== null, (open) =>
-    changePanel(open ? lastPanel.current : null),
-  );
   const locationStep = useWorkflowStep(
     "jobScanStep",
     `job-scan:${warehouseId}`,
@@ -264,10 +272,12 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     ticket: TicketDraft,
     field: TicketCodeField,
     index: number,
+    opener: HTMLButtonElement,
   ) {
     if (acquisitionBlocked.current || !canManage || ticket.status !== "ready")
       return;
     changePanel(null);
+    fieldScanOpener.current = opener;
     const target = {
       key: ticket.key,
       field,
@@ -275,7 +285,29 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       index,
     };
     fieldScanRef.current = target;
+    lastFieldScan.current = target;
     setFieldScan(target);
+  }
+  function restoreFieldScan() {
+    const target = lastFieldScan.current;
+    if (!target || acquisitionBlocked.current) {
+      retireFieldScan((epoch) => epoch + 1);
+      return;
+    }
+    const index = ticketsRef.current.findIndex(
+      (ticket) => ticket.key === target.key,
+    );
+    const ticket = ticketsRef.current[index];
+    if (
+      ticket?.status !== "ready" ||
+      (ticket.values[target.field] ?? "") !== target.value
+    ) {
+      retireFieldScan((epoch) => epoch + 1);
+      return;
+    }
+    const restored = { ...target, index };
+    fieldScanRef.current = restored;
+    setFieldScan(restored);
   }
   function applyFieldScan(target: FieldScanTarget, code: string) {
     if (
@@ -681,15 +713,20 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               label: t("photoAi"),
               icon: Camera,
               pressed: panel === "PHOTO",
-              onSelect: () => changePanel(panel === "PHOTO" ? null : "PHOTO"),
+              onSelect: (event) => {
+                panelOpener.current = event.currentTarget;
+                changePanel("PHOTO");
+              },
             },
             {
               key: "BARCODE",
               label: t("scanCode"),
               icon: ScanIcon,
               pressed: panel === "BARCODE",
-              onSelect: () =>
-                changePanel(panel === "BARCODE" ? null : "BARCODE"),
+              onSelect: (event) => {
+                panelOpener.current = event.currentTarget;
+                changePanel("BARCODE");
+              },
             },
             {
               key: "MANUAL",
@@ -718,44 +755,102 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             },
           ]}
         />
-        {panel === "PHOTO" && (
-          <PhotoCapture
-            selection={photos}
-            onSubmit={(files) => {
-              if (acquisitionBlocked.current) return false;
-              if (
-                ticketsRef.current.length + files.length >
-                MAX_JOB_SCAN_ITEMS
-              ) {
-                setFeedback(t("groupLimit", { max: MAX_JOB_SCAN_ITEMS }));
-                return false;
+        <Dialog
+          open={panel !== null && !saving}
+          backPending={saving}
+          onOpenChange={(open) => changePanel(open ? lastPanel.current : null)}
+        >
+          <DialogContent
+            size="camera"
+            closeLabel={t("closeCamera")}
+            onCloseAutoFocus={(event) => {
+              const opener = panelOpener.current;
+              if (opener?.isConnected && !opener.disabled) {
+                event.preventDefault();
+                opener.focus();
               }
-              changePanel(null);
-              // Every photo becomes its own ticket; the AI reads them all at once.
-              files.forEach((file) => void onPhoto(file));
-              return true;
             }}
-          />
-        )}
-        {panel === "BARCODE" && !saving && (
-          <ScanProgress
-            tickets={tickets}
-            written={lastWrite}
-            onUndo={undoLastScan}
-          />
-        )}
-        {panel === "BARCODE" && !saving && (
-          <BarcodeCameraBox
-            mode="PACKAGES"
-            imageTarget="TICKET"
-            onImageCodes={onImageCodes}
-            onCode={onBarcode}
-            // The pressed Scan code mode owns closing this panel.
-            closeControl={false}
-            feedback={feedback}
-          />
-        )}
-        {feedback && panel !== "BARCODE" && !fieldScan && (
+          >
+            <DialogHeader>
+              <DialogTitle>
+                {t(panel === "PHOTO" ? "photoAi" : "scanCode")}
+              </DialogTitle>
+              <DialogDescription className="break-words">
+                {t("palletStepTitle")} · {locationCode}
+              </DialogDescription>
+            </DialogHeader>
+            {panel === "PHOTO" && (
+              <PhotoCapture
+                feedback={feedback}
+                actions={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => changePanel("BARCODE")}
+                  >
+                    {t("scanCode")}
+                  </Button>
+                }
+                selection={photos}
+                onSubmit={(files) => {
+                  if (
+                    acquisitionBlocked.current ||
+                    panelRef.current !== "PHOTO"
+                  )
+                    return false;
+                  if (
+                    ticketsRef.current.length + files.length >
+                    MAX_JOB_SCAN_ITEMS
+                  ) {
+                    setFeedback(t("groupLimit", { max: MAX_JOB_SCAN_ITEMS }));
+                    return false;
+                  }
+                  changePanel(null);
+                  // Every photo becomes its own ticket; the AI reads them all at once.
+                  files.forEach((file) => void onPhoto(file));
+                  return true;
+                }}
+              />
+            )}
+            {panel === "BARCODE" && !saving && (
+              <BarcodeCameraBox
+                mode="PACKAGES"
+                imageTarget="TICKET"
+                onImageCodes={onImageCodes}
+                onCode={onBarcode}
+                closeControl={false}
+                presentation="fullscreen"
+                feedback={feedback}
+                progress={
+                  <ScanProgress
+                    tickets={tickets}
+                    written={lastWrite}
+                    onUndo={undoLastScan}
+                  />
+                }
+                actions={
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={
+                        tickets.length >= MAX_JOB_SCAN_ITEMS &&
+                        !photos.photos.length
+                      }
+                      onClick={() => changePanel("PHOTO")}
+                    >
+                      {t("photoAi")}
+                    </Button>
+                    <DialogClose asChild>
+                      <Button type="button">{t("cameraDone")}</Button>
+                    </DialogClose>
+                  </div>
+                }
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+        {feedback && panel === null && !fieldScan && (
           <p role="status" className="text-sm text-success">
             {feedback}
           </p>
@@ -775,7 +870,9 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                 duplicate={duplicateKeys.includes(ticket.key)}
                 index={index}
                 disabled={saving}
-                onScan={(field) => openFieldScan(ticket, field, index)}
+                onScan={(field, opener) =>
+                  openFieldScan(ticket, field, index, opener)
+                }
                 onChange={(field, value) => {
                   if (panelRef.current === "BARCODE") changePanel(null);
                   update(ticket.key, (row) => ({
@@ -810,21 +907,23 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         ) : (
           !panel && <p className="text-sm text-muted">{t("noTickets")}</p>
         )}
-        {fieldScan &&
-          !saving &&
-          tickets.some(
-            (ticket) =>
-              ticket.key === fieldScan.key && ticket.status === "ready",
-          ) && (
-            <TicketFieldScanner
-              key={`${fieldScan.key}:${fieldScan.field}`}
-              field={fieldScan.field}
-              index={fieldScan.index}
-              value={fieldScan.value}
-              onApply={(code) => applyFieldScan(fieldScan, code)}
-              onClose={closeFieldScan}
-            />
-          )}
+        <TicketFieldScanner
+          target={
+            fieldScan &&
+            !saving &&
+            tickets.some(
+              (ticket) =>
+                ticket.key === fieldScan.key && ticket.status === "ready",
+            )
+              ? fieldScan
+              : null
+          }
+          openerRef={fieldScanOpener}
+          onApply={applyFieldScan}
+          onClose={closeFieldScan}
+          onRestore={restoreFieldScan}
+          revocationEpoch={fieldScanEpoch}
+        />
         {duplicateKeys.length > 0 && (
           <label className="flex min-h-11 items-start gap-3 rounded-md border border-warning p-3 text-sm">
             <CheckboxControl

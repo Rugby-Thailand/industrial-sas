@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, type DragEvent } from "react";
+import { useRef, type DragEvent, type ReactNode } from "react";
 import { ImagePlus, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { IconButton } from "@/components/ui/IconButton";
+
 import { Notice } from "@/components/ui/Notice";
 import { JobScanPhotoPreview } from "./JobScanPhotoPreview";
 import {
@@ -17,16 +17,20 @@ export { MAX_PHOTOS } from "./usePhotoSelection";
 
 const ticketFileName = () => `job-ticket-${Date.now()}.jpg`;
 
-/** In-page camera plus multi-select; each collected photo becomes one AI ticket. */
+/** Camera and multi-select for collecting one photo per AI ticket. */
 export function PhotoCapture({
   onSubmit,
   onClose,
   selection,
+  actions,
+  feedback,
 }: {
   onSubmit: (files: File[]) => boolean | void;
   /** Omit when the containing acquisition mode owns closing. */
   onClose?: () => void;
   selection?: ReturnType<typeof usePhotoSelection>;
+  actions?: ReactNode;
+  feedback?: string | undefined;
 }) {
   const t = useTranslations("JobScan");
   const input = useRef<HTMLInputElement>(null);
@@ -50,7 +54,7 @@ export function PhotoCapture({
 
   return (
     <div
-      className="space-y-3"
+      className="flex min-h-0 flex-1 flex-col"
       onDragOver={(event) => event.preventDefault()}
       onDrop={drop}
     >
@@ -63,89 +67,103 @@ export function PhotoCapture({
         fileName={ticketFileName}
         canCapture={canCapture}
         captureDisabled={full}
-      />
-      <input
-        ref={input}
-        type="file"
-        accept="image/*"
-        multiple
-        hidden
-        aria-label={t("choosePhotos")}
-        onChange={(event) => {
-          const files = [...(event.target.files ?? [])];
-          event.target.value = "";
-          add(files);
-        }}
-      />
+        presentation="fullscreen"
+        dock={(shutter) => (
+          <>
+            <input
+              ref={input}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              aria-label={t("choosePhotos")}
+              onChange={(event) => {
+                const files = [...(event.target.files ?? [])];
+                event.target.value = "";
+                add(files);
+              }}
+            />
 
-      {photos.length > 0 && (
-        <div className="flex items-center gap-3">
-          <ul
-            aria-label={t("collectedPhotos")}
-            className="flex min-w-0 flex-1 gap-3 overflow-x-auto pt-3 pr-3 pb-1"
-          >
-            {photos.map((photo, index) => (
-              <li key={photo.id} className="relative shrink-0">
-                <JobScanPhotoPreview
-                  src={photo.preview}
-                  thumbnailClassName="h-20 w-16 rounded-md border border-border object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => remove(photo.id)}
-                  aria-label={t("removePhoto", { index: index + 1 })}
-                  className="absolute -top-3 -right-3 flex size-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-ring"
+            {photos.length > 0 && (
+              <div className="flex items-center gap-3">
+                <ul
+                  aria-label={t("collectedPhotos")}
+                  className="flex min-w-0 flex-1 gap-3 overflow-x-auto pt-3 pr-3 pb-1"
                 >
-                  <span className="flex size-6 items-center justify-center rounded-full bg-black/70 text-white">
-                    <X className="size-4" aria-hidden="true" />
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p
-            role="status"
-            className="shrink-0 text-sm whitespace-nowrap text-muted"
-          >
-            {t("photoCount", { count: photos.length, max: limit })}
-          </p>
-        </div>
-      )}
+                  {photos.map((photo, index) => (
+                    <li key={photo.id} className="relative shrink-0">
+                      <JobScanPhotoPreview
+                        src={photo.preview}
+                        thumbnailClassName="h-20 w-16 rounded-md border border-border object-cover [@media(orientation:landscape)_and_(max-height:35rem)]:h-12 [@media(orientation:landscape)_and_(max-height:35rem)]:w-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => remove(photo.id)}
+                        aria-label={t("removePhoto", { index: index + 1 })}
+                        className="absolute -top-3 -right-3 flex size-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-ring"
+                      >
+                        <span className="flex size-6 items-center justify-center rounded-full bg-black/70 text-white">
+                          <X className="size-4" aria-hidden="true" />
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p
+                  role="status"
+                  className="shrink-0 text-sm whitespace-nowrap text-muted"
+                >
+                  {t("photoCount", { count: photos.length, max: limit })}
+                </p>
+              </div>
+            )}
 
-      {problem && (
-        <Notice
-          tone="warning"
-          role="alert"
-          title={t(problem, { max: limit })}
-        />
-      )}
+            {problem && (
+              <Notice
+                tone="warning"
+                role="alert"
+                title={t(problem, { max: limit })}
+              />
+            )}
 
-      <div className="flex items-center gap-2">
-        <IconButton
-          label={t("choosePhotos")}
-          variant="ghost"
-          disabled={full}
-          onClick={() => input.current?.click()}
-        >
-          <ImagePlus className="size-5" aria-hidden="true" />
-        </IconButton>
-        <Button
-          type="button"
-          className="min-h-12 min-w-0 flex-1 whitespace-normal"
-          disabled={!photos.length || photos.length > limit}
-          onClick={() => {
-            const files = getFiles();
-            if (!files.length) return;
-            if (onSubmit(files) === false) return;
-            camera.current?.stop();
-            clear();
-          }}
-        >
-          <Sparkles className="size-4" aria-hidden="true" />
-          {t("sendToAi", { count: photos.length })}
-        </Button>
-      </div>
-      <p className="text-sm text-muted">{t("photoHint")}</p>
+            {feedback && (
+              <p role="status" className="text-sm">
+                {feedback}
+              </p>
+            )}
+            <p className="text-sm text-muted">{t("photoHint")}</p>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-12 whitespace-normal"
+                disabled={full}
+                onClick={() => input.current?.click()}
+              >
+                <ImagePlus className="size-5" aria-hidden="true" />
+                {t("choosePhotos")}
+              </Button>
+              {shutter}
+              <Button
+                type="button"
+                className="min-h-12 whitespace-normal"
+                disabled={!photos.length || photos.length > limit}
+                onClick={() => {
+                  const files = getFiles();
+                  if (!files.length) return;
+                  if (onSubmit(files) === false) return;
+                  camera.current?.stop();
+                  clear();
+                }}
+              >
+                <Sparkles className="size-4" aria-hidden="true" />
+                {t("sendToAi", { count: photos.length })}
+              </Button>
+            </div>
+            {actions}
+          </>
+        )}
+      />
     </div>
   );
 }

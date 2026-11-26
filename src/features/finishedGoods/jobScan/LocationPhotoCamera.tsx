@@ -11,12 +11,15 @@ export type LocationPhotoCameraHandle = StillPhotoCameraHandle;
 
 const locationFileName = () => "location-label.jpg";
 
-/** One camera stream, one still photo; the stream stops before the photo is handed over. */
+/** One camera stream, one still photo; the caller can keep a retake live until its replacement is validated. */
 export function LocationPhotoCamera({
   onPhoto,
   onClose,
   closeLabel,
   errorAction,
+  presentation = "fullscreen",
+  stopAfterCapture = true,
+  dock,
   ref,
 }: {
   ref?: Ref<LocationPhotoCameraHandle>;
@@ -25,6 +28,9 @@ export function LocationPhotoCamera({
   /** Name the actual return when this camera is nested over a retained photo. */
   closeLabel?: string;
   errorAction?: ReactNode;
+  presentation?: "default" | "fullscreen";
+  stopAfterCapture?: boolean;
+  dock?: (shutter: ReactNode) => ReactNode;
 }) {
   const t = useTranslations("JobScan");
   return (
@@ -36,8 +42,10 @@ export function LocationPhotoCamera({
         : {})}
       captureLabel={t("takeLocationPhoto")}
       fileName={locationFileName}
-      stopAfterCapture
+      stopAfterCapture={stopAfterCapture}
       errorAction={errorAction}
+      presentation={presentation}
+      {...(dock ? { dock } : {})}
     />
   );
 }

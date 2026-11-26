@@ -45,10 +45,14 @@ vi.mock("../BarcodeCameraBox", () => ({
     onCode,
     onImageCodes,
     closeControl = true,
+    progress,
+    actions,
   }: {
     onImageCodes?: (codes: string[]) => void;
     onCode: (code: string) => void;
     closeControl?: boolean;
+    progress?: ReactNode;
+    actions?: ReactNode;
   }) => {
     mocks.decode = onCode;
     mocks.imageCodes = onImageCodes;
@@ -57,6 +61,8 @@ vi.mock("../BarcodeCameraBox", () => ({
         QA barcode scanner active
         {/* The real frame renders its Stop camera close unless opted out. */}
         {closeControl && <button>Stop camera</button>}
+        {progress}
+        {actions}
       </div>
     );
   },
@@ -159,15 +165,18 @@ vi.mock("./PhotoCapture", async (original) => {
       mocks.realPhotos ? (
         <actual.PhotoCapture {...props} />
       ) : (
-        <button
-          onClick={() =>
-            props.onSubmit([
-              new File(["bad-image"], "demo.jpg", { type: "image/jpeg" }),
-            ])
-          }
-        >
-          Submit demo photo
-        </button>
+        <>
+          {props.actions}
+          <button
+            onClick={() =>
+              props.onSubmit([
+                new File(["bad-image"], "demo.jpg", { type: "image/jpeg" }),
+              ])
+            }
+          >
+            Submit demo photo
+          </button>
+        </>
       ),
   };
 });
@@ -474,6 +483,7 @@ it("locks editing and prevents a second write while a save is pending", async ()
   fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   expect(screen.getByText("QA barcode scanner active")).toBeVisible();
   const lateDecode = mocks.decode!;
+  fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
   fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
   expect(
     screen.queryByText("QA barcode scanner active"),
@@ -554,6 +564,7 @@ it("ignores a closed global scanner while a field scanner is open", () => {
   addTicket();
   fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   const oldGlobalDecode = mocks.decode!;
+  fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
   fireEvent.click(screen.getByRole("button", { name: "Scan Product barcode" }));
   act(() => oldGlobalDecode("LATE-GLOBAL-BOX"));
   expect(screen.getByRole("dialog")).not.toHaveTextContent("LATE-GLOBAL-BOX");
@@ -603,25 +614,89 @@ it("matches code length limits and rejects storage QR payloads without changing 
   );
 });
 
+it("applying a field replacement consumes the camera before the next native Back", async () => {
+  window.history.replaceState(
+    { __NA: true },
+    "",
+    "/th/finished-goods/scan?source=field#tickets",
+  );
+  start();
+  addTicket();
+  const trigger = screen.getByRole("button", { name: "Scan Product barcode" });
+  const user = userEvent.setup();
+  await user.click(trigger);
+  await waitFor(() => expect(window.location.search).toContain("overlay"));
+  act(() => mocks.decode!("NEW-BOX"));
+  await user.click(screen.getByRole("button", { name: "Replace value" }));
+  await waitFor(() => expect(window.location.search).not.toContain("overlay"));
+  expect(screen.getByRole("textbox", { name: /Product barcode/ })).toHaveValue(
+    "NEW-BOX",
+  );
+  expect(trigger).toHaveFocus();
+
+  act(() => window.history.back());
+  await screen.findByRole("button", { name: "Choose demo location" });
+  expect(
+    window.location.pathname + window.location.search + window.location.hash,
+  ).toBe("/th/finished-goods/scan?source=field#tickets");
+});
+
+it("native Forward restores only a still-valid ticket field camera", async () => {
+  start();
+  addTicket();
+  fireEvent.click(screen.getByRole("button", { name: "Scan Product barcode" }));
+  await waitFor(() => expect(window.location.search).toContain("overlay"));
+
+  act(() => window.history.back());
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  act(() => window.history.forward());
+  expect(
+    await screen.findByRole("dialog", { name: "Scan Product barcode" }),
+  ).toBeVisible();
+
+  act(() => window.history.back());
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  fireEvent.change(screen.getByRole("textbox", { name: /Product barcode/ }), {
+    target: { value: "EDITED-BOX" },
+  });
+  const traversals = vi.fn();
+  window.addEventListener("popstate", traversals);
+  try {
+    act(() => window.history.forward());
+    await waitFor(() => expect(traversals).toHaveBeenCalledTimes(2));
+  } finally {
+    window.removeEventListener("popstate", traversals);
+  }
+  expect(window.location.search).not.toContain("overlay");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("textbox", { name: /Product barcode/ })).toHaveValue(
+    "EDITED-BOX",
+  );
+});
+
 it("keeps focus on the scan action after Escape and exposes accessible field and dialog names", async () => {
   const user = userEvent.setup();
   start();
   addTicket();
   const button = screen.getByRole("button", { name: "Scan Job No." });
-  await user.click(button);
+  const input = screen.getByRole("textbox", { name: /Job No\./ });
+  input.focus();
+  // Safari can dispatch a button click without focusing the button.
+  fireEvent.click(button);
   expect(screen.getByRole("dialog", { name: "Scan Job No." })).toBeVisible();
   expect(await axe(screen.getByRole("dialog"))).toHaveNoViolations();
   await user.keyboard("{Escape}");
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
-  expect(button).toHaveFocus();
+  await waitFor(() => expect(button).toHaveFocus());
 });
 
 it("applies an image JOB/product pair together and saves the decoded identities", async () => {
   start();
   fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
   expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
     "FO12345678",
   );
@@ -645,6 +720,7 @@ it("requires duplicate review before saving repeated photographed physical units
   fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
   act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
   expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(2);
   const save = screen.getByRole("button", { name: /Save 2/ });
   expect(save).toBeDisabled();
@@ -666,11 +742,12 @@ it("requires duplicate review before saving repeated photographed physical units
   await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
   expect(mocks.save.mock.calls[0]![0].items).toHaveLength(2);
 });
-it("manual edits close image intake and reject its late results", () => {
+it("rejects late image results after closing the camera and editing a ticket", () => {
   start();
   addTicket();
   fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   const late = mocks.imageCodes!;
+  fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
   fireEvent.change(screen.getByRole("textbox", { name: /Product barcode/ }), {
     target: { value: "EDITED-PRODUCT" },
   });
@@ -713,18 +790,20 @@ it.each([
   },
 );
 
-it("the pressed Scan code mode is the barcode panel's only close and consumes its entry before the next Back", async () => {
+it("the fullscreen barcode camera Close consumes its entry before the next Back", async () => {
   start();
   await waitFor(() => expect(window.location.search).toContain("jobScanStep"));
   const scan = screen.getByRole("button", { name: "Scan code" });
   fireEvent.click(scan);
+  expect(screen.getByRole("dialog", { name: "Scan code" })).toBeVisible();
   expect(screen.getByText("QA barcode scanner active")).toBeVisible();
   await waitFor(() => expect(window.location.search).toContain("overlay"));
   expect(
     screen.queryByRole("button", { name: "Stop camera" }),
   ).not.toBeInTheDocument();
   const late = mocks.decode!;
-  fireEvent.click(scan);
+  fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
+  await waitFor(() => expect(scan).toHaveFocus());
   expect(scan).toHaveAttribute("aria-pressed", "false");
   expect(screen.queryByText("QA barcode scanner active")).toBeNull();
   await waitFor(() => expect(window.location.search).not.toContain("overlay"));
@@ -738,7 +817,7 @@ it("the pressed Scan code mode is the barcode panel's only close and consumes it
   );
 });
 
-it("the pressed Photo AI mode is the photo panel's only close, retaining photos and rejecting late capture before the next Back", async () => {
+it("the fullscreen photo camera Close retains photos and rejects late capture before the next Back", async () => {
   mocks.realPhotos = true;
   const stop = vi.fn();
   let encoded!: (blob: Blob | null) => void;
@@ -782,7 +861,8 @@ it("the pressed Photo AI mode is the photo panel's only close, retaining photos 
     { target: { files: [file] } },
   );
   fireEvent.click(shutter);
-  fireEvent.click(photo);
+  fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
+  await waitFor(() => expect(photo).toHaveFocus());
   expect(photo).toHaveAttribute("aria-pressed", "false");
   expect(stop).toHaveBeenCalledOnce();
   await waitFor(() => expect(window.location.search).not.toContain("overlay"));
@@ -795,7 +875,7 @@ it("the pressed Photo AI mode is the photo panel's only close, retaining photos 
     expect(screen.getByRole("button", { name: "Take photo" })).toBeEnabled(),
   );
   expect(screen.getByText("1 / 20 photos")).toBeVisible();
-  fireEvent.click(photo);
+  fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
   await waitFor(() => expect(window.location.search).not.toContain("overlay"));
   act(() => window.history.back());
   await screen.findByRole("button", { name: "Choose demo location" });
@@ -805,23 +885,17 @@ it("the pressed Photo AI mode is the photo panel's only close, retaining photos 
   expect(mocks.save).not.toHaveBeenCalled();
 });
 
-it("keeps one acquisition panel open and Manual closes the barcode scanner", () => {
+it("switches acquisition modes in one fullscreen dialog and returns to Manual through Done", () => {
   start();
-  const photo = screen.getByRole("button", { name: "Photo AI" });
-  const scan = screen.getByRole("button", { name: "Scan code" });
-  fireEvent.click(photo);
-  expect(photo).toHaveAttribute("aria-pressed", "true");
-  fireEvent.click(scan);
-  expect(photo).toHaveAttribute("aria-pressed", "false");
-  expect(scan).toHaveAttribute("aria-pressed", "true");
-  expect(
-    screen.queryByRole("button", { name: "Submit demo photo" }),
-  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
+  expect(screen.getByRole("dialog", { name: "Photo AI" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  expect(screen.getByRole("dialog", { name: "Scan code" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Manual" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Manual" }));
-  expect(scan).toHaveAttribute("aria-pressed", "false");
-  expect(
-    screen.queryByText("QA barcode scanner active"),
-  ).not.toBeInTheDocument();
   expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(1);
 });
 
@@ -853,24 +927,22 @@ it("keeps drafts when the location changes and saves them at the new location", 
 });
 
 it("preserves the photo collection when adding a manual ticket", async () => {
+  mocks.realPhotos = true;
   start();
   fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
-  const collection = screen.getByRole("button", { name: "Submit demo photo" });
+  fireEvent.change(
+    screen.getByLabelText("Choose photos", { selector: "input" }),
+    {
+      target: {
+        files: [new File(["retained"], "retained.jpg", { type: "image/jpeg" })],
+      },
+    },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
   fireEvent.click(screen.getByRole("button", { name: "Manual" }));
-  // The same mounted collection must survive, along with its unsent photos.
-  expect(screen.getByRole("button", { name: "Submit demo photo" })).toBe(
-    collection,
-  );
-  expect(screen.getByRole("button", { name: "Photo AI" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  fireEvent.click(collection);
-  await waitFor(() =>
-    expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(
-      2,
-    ),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
+  expect(screen.getByText("1 / 20 photos")).toBeVisible();
+  expect(URL.revokeObjectURL).not.toHaveBeenCalled();
 });
 
 it("opts only its location step into the job-scan scanner presentation", () => {
@@ -919,7 +991,7 @@ it("leaves barcode and AI customer values untouched by scan context", async () =
   start();
   fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   act(() => mocks.decode?.("FO69070074"));
-  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
   submitPhoto();
   await screen.findByText(/name on the ticket differs/);
   for (const button of screen.getAllByRole("button", { name: /More details/ }))
@@ -1358,7 +1430,7 @@ it("Forward restores unsent Photo AI photos after Back returns to the location q
     },
   );
   expect(screen.getByText("1 / 20 photos")).toBeVisible();
-  fireEvent.click(photo);
+  fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
   await waitFor(() => expect(window.location.search).not.toContain("overlay"));
   act(() => window.history.back());
   await screen.findByRole("button", { name: "Choose demo location" });

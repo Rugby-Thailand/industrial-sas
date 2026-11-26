@@ -1231,8 +1231,12 @@ function PalletDetailScreen({
                 expectedLocation={
                   detail.supportPallet?.code ?? destination?.locationName ?? ""
                 }
+                expectedCode={
+                  detail.supportPallet?.code ?? destination?.locationCode
+                }
                 purpose={detail.supportPallet ? "SUPPORT" : "DESTINATION"}
                 showVerificationErrors={false}
+                verificationError={op.error}
                 onCode={verify}
                 busy={op.busy}
                 verified={verified}

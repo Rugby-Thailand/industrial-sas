@@ -2,7 +2,7 @@
 
 Run `pnpm exec vite --config scripts/barcode-preview/vite.config.mjs`, then open <http://localhost:3219>.
 
-The harness renders the production location picker, JOB ticket page, shared camera/image scanner, and field replacement dialogs with the application CSS and English/Thai translations. Only authentication, backend access, navigation, upload, and Next image presentation are adapted. Location lookup and saves use synthetic sample responses; no inventory is written. AI and uploads throw if accidentally invoked.
+The harness renders the production location picker, JOB ticket page, shared camera/image scanner, and field replacement dialogs with the application CSS and English/Thai translations. Only authentication, backend access, navigation, upload, and Next image presentation are adapted. Location lookup and saves use synthetic sample responses; no inventory is written. Location photo review uses a fixed label result. Ticket AI and uploads throw if accidentally invoked.
 
 The actual production worker and local reader WASM decode every image. In the browser console, run `await runSyntheticBarcodeRegression()` for eleven cases covering Code128, QR, Code39 product codes, JOB/product pairing, rotation, multiple codes, crop isolation, printed-text-only negatives, and JOB-only negatives. `await barcodeFixture(["FO12345678", "DEMO-PRODUCT"])` creates a synthetic File for file-input automation. Text printed below each barcode deliberately differs from the encoded value.
 

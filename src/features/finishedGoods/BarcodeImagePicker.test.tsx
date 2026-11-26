@@ -213,9 +213,12 @@ it("a JOB-only image cannot populate a product field", async () => {
   const apply = vi.fn();
   renderWithIntl(
     <TicketFieldScanner
-      field="productBarcodeText"
-      index={0}
-      value=""
+      target={{
+        key: "ticket-a",
+        field: "productBarcodeText",
+        index: 0,
+        value: "",
+      }}
       onApply={apply}
       onClose={vi.fn()}
     />,
@@ -235,9 +238,12 @@ it("image scans retain explicit field replacement confirmation", async () => {
   const apply = vi.fn();
   renderWithIntl(
     <TicketFieldScanner
-      field="productBarcodeText"
-      index={0}
-      value="OLD-CODE"
+      target={{
+        key: "ticket-a",
+        field: "productBarcodeText",
+        index: 0,
+        value: "OLD-CODE",
+      }}
       onApply={apply}
       onClose={vi.fn()}
     />,
@@ -249,7 +255,10 @@ it("image scans retain explicit field replacement confirmation", async () => {
   expect(apply).not.toHaveBeenCalled();
   expect(screen.getByText("OLD-CODE")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Replace value" }));
-  expect(apply).toHaveBeenCalledWith("DEMO-PRODUCT");
+  expect(apply).toHaveBeenCalledWith(
+    expect.objectContaining({ key: "ticket-a", field: "productBarcodeText" }),
+    "DEMO-PRODUCT",
+  );
 });
 
 it("disabling acquisition aborts pending work and prevents a late result", async () => {

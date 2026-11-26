@@ -1,6 +1,13 @@
 import type { ReactElement } from "react";
+import { trackAppHistory } from "@/lib/browser/appHistory";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/i18n/navigation", () => ({
@@ -47,7 +54,12 @@ beforeEach(() => {
     mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
   });
 });
-afterEach(() => vi.unstubAllGlobals());
+let releaseHistory: (() => void) | undefined;
+afterEach(() => {
+  releaseHistory?.();
+  releaseHistory = undefined;
+  vi.unstubAllGlobals();
+});
 
 async function startCamera() {
   fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
@@ -95,6 +107,9 @@ describe("DestinationScanner", () => {
     await waitFor(() => expect(onCode).toHaveBeenCalledTimes(1));
     expect(onCode).toHaveBeenCalledWith("ISAS:LOCATION:1:abc", "SCAN");
     expect(stop).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
     expect(screen.getByRole("button", { name: "Start camera" })).toBeVisible();
     expect(screen.queryByText("Destination verified")).not.toBeInTheDocument();
   });
@@ -223,13 +238,17 @@ describe("DestinationScanner", () => {
       <DestinationScanner onCode={onCode} expectedLocation="FG-1" verified />,
     );
     expect(stop).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
     expect(screen.getByText("Destination verified")).toBeVisible();
     expect(screen.getByLabelText("Destination code")).toBeDisabled();
     expect(
       screen.queryByRole("button", { name: "Confirm stored" }),
     ).not.toBeInTheDocument();
   });
-  it("waits for a cancelled startup to finish before allowing another camera", async () => {
+  it("releases late startup after Close and returns focus to its opener", async () => {
     const stop = vi.fn();
     let finish: ((value: { stop(): void }) => void) | undefined;
     scanner.decode.mockImplementation(
@@ -239,15 +258,19 @@ describe("DestinationScanner", () => {
         }),
     );
     renderIntl(<DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />);
+    const opener = screen.getByRole("button", { name: "Start camera" });
+    opener.focus();
     await startCamera();
-    fireEvent.click(screen.getByRole("button", { name: "Stop camera" }));
-    expect(screen.getByRole("button", { name: "Start camera" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
     expect(screen.getByLabelText("Destination code")).toBeEnabled();
     await act(async () => {
       finish?.({ stop });
     });
     expect(stop).toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled();
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 
   it("handles a decode arriving before camera startup resolves", async () => {
@@ -263,7 +286,11 @@ describe("DestinationScanner", () => {
       expect(onCode).toHaveBeenCalledWith("early-qr", "SCAN"),
     );
     expect(stop).toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Start camera" }),
+      ).toBeEnabled(),
+    );
   });
   it("lets the parent display a precise verification refusal without a second generic error", async () => {
     const onCode = vi.fn().mockRejectedValue(new Error("DESTINATION_MISMATCH"));
@@ -297,7 +324,7 @@ it.each([
   ["SOURCE", "Source code"],
   ["SUPPORT", "Supporting pallet code"],
 ] as const)(
-  "offers one camera start and stop control for %s and reports camera evidence",
+  "offers one camera opener and dismissal for %s and reports camera evidence",
   async (purpose, label) => {
     const stop = vi.fn();
     scanner.decode.mockResolvedValue({ stop });
@@ -309,24 +336,31 @@ it.each([
         expectedLocation="DEMO"
       />,
     );
-    // The field is for typed or handheld input; the camera box owns the camera.
+    // The manual field stays in the verification form behind the camera dialog.
     expect(
       screen.queryByRole("button", { name: `Scan ${label}` }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Choose image" })).toBeEnabled();
     expect(
-      screen.queryByRole("button", { name: "Stop camera" }),
+      screen.queryByRole("button", { name: "Close camera" }),
     ).not.toBeInTheDocument();
     await startCamera();
+    const camera = screen.getByRole("dialog", { name: `Scan ${label}` });
+    expect(within(camera).getByText(/DEMO/)).toBeVisible();
+    expect(
+      within(camera).getByRole("button", { name: "Choose image" }),
+    ).toBeEnabled();
     expect(
       screen.getByLabelText(`Scan ${label}`, { selector: "video" }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /camera/i })).toEqual([
-      screen.getByRole("button", { name: "Stop camera" }),
+      screen.getByRole("button", { name: "Close camera" }),
     ]);
     emitCode("DEMO-CODE", stop);
     await waitFor(() =>
       expect(onCode).toHaveBeenCalledWith("DEMO-CODE", "SCAN"),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
     expect(onCode).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText(label)).toHaveValue("DEMO-CODE");
@@ -374,7 +408,18 @@ it("resets verification input and rejects old frames when the expected identity 
   expect(scanner.decode).toHaveBeenCalledTimes(1);
 });
 
-it("stops the shared camera during manual verification and ignores repeated submits and late frames", async () => {
+it("blocks dismissal during scan verification and ignores late frames", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods",
+  );
+  releaseHistory = trackAppHistory();
+  const page = "/en/finished-goods/pallets/pallet-a?position=north#verify";
+  window.history.pushState({}, "", page);
+  const href = () =>
+    window.location.pathname + window.location.search + window.location.hash;
+  const stop = vi.fn();
   let finish!: () => void;
   const onCode = vi.fn(
     () =>
@@ -383,27 +428,31 @@ it("stops the shared camera during manual verification and ignores repeated subm
         finish = resolve;
       }),
   );
-  const stop = vi.fn();
   scanner.decode.mockResolvedValue({ stop });
   renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
   await startCamera();
   const late = scanner.decode.mock.calls[0]![2];
-  fireEvent.change(screen.getByLabelText("Destination code"), {
-    target: { value: "TYPED-CODE" },
+  const cameraHref = href();
+  expect(cameraHref).not.toBe(page);
+  emitCode("SCANNED", stop);
+  const camera = screen.getByRole("dialog", { name: "Scan Destination code" });
+  expect(within(camera).getByRole("status")).toHaveTextContent("Verifying");
+  fireEvent.click(within(camera).getByRole("button", { name: "Close camera" }));
+  expect(camera).toBeVisible();
+  await act(async () => {
+    window.history.back();
+    await new Promise((resolve) => setTimeout(resolve, 30));
   });
-  const form = screen.getByLabelText("Destination code").closest("form")!;
-  act(() => {
-    fireEvent.submit(form);
-    fireEvent.submit(form);
-  });
-  expect(onCode.mock.calls).toEqual([["TYPED-CODE", "MANUAL"]]);
-  expect(stop).toHaveBeenCalled();
-  expect(screen.getByLabelText("Destination code")).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Start camera" })).toBeDisabled();
+  await waitFor(() => expect(href()).toBe(cameraHref));
+  expect(camera).toBeVisible();
   act(() => late({ getText: () => "LATE" }, undefined, { stop }));
-  expect(onCode).toHaveBeenCalledTimes(1);
+  expect(onCode.mock.calls).toEqual([["SCANNED", "SCAN"]]);
   await act(async () => finish());
-  expect(screen.getByLabelText("Destination code")).toHaveValue("TYPED-CODE");
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  await waitFor(() => expect(href()).toBe(page));
+  expect(screen.getByLabelText("Destination code")).toHaveValue("SCANNED");
   expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled();
 });
 
@@ -418,11 +467,11 @@ it("retries denied camera access through the camera box's Retry camera action", 
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Camera access was denied",
   );
-  // Stop and Retry are distinct; there is no second start control.
+  // Close and Retry are distinct; there is no second start control.
   expect(
     screen.queryByRole("button", { name: "Start camera" }),
   ).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Stop camera" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Close camera" })).toBeVisible();
   expect(screen.getByLabelText("Destination code")).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "Retry camera" }));
   await waitFor(() => expect(scanner.decode).toHaveBeenCalledOnce());
@@ -444,7 +493,13 @@ it("clears the previous verification warning on camera Start while retaining the
       }),
   );
   const onCode = vi.fn().mockRejectedValue(new Error("Verification failed"));
-  renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+  renderIntl(
+    <DestinationScanner
+      onCode={onCode}
+      expectedLocation="North dock"
+      expectedCode="FG-1"
+    />,
+  );
   fireEvent.change(screen.getByLabelText("Destination code"), {
     target: { value: "OLD-CODE" },
   });
@@ -471,7 +526,26 @@ it("clears the previous verification warning on camera Start while retaining the
   expect(screen.getByLabelText("Destination code")).toHaveValue(
     "NEW-SCANNED-CODE",
   );
+  const dialog = screen.getByRole("dialog", { name: "Scan Destination code" });
+  expect(dialog).toHaveAccessibleDescription(
+    "Expected destination: North dock · FG-1",
+  );
+  expect(within(dialog).getByText("Scanned code")).toBeVisible();
+  expect(within(dialog).getByText("NEW-SCANNED-CODE")).toBeVisible();
+  expect(
+    within(dialog).queryByLabelText("Scan Destination code", {
+      selector: "video",
+    }),
+  ).toBeNull();
   expect(stop).toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Close camera" }));
+  await waitFor(() => expect(dialog).not.toBeInTheDocument());
+  expect(screen.getByLabelText("Destination code")).toHaveValue(
+    "NEW-SCANNED-CODE",
+  );
+  expect(
+    screen.getByRole("button", { name: "Verify entered code" }),
+  ).toBeEnabled();
 });
 
 it("shows only the current camera denial after a failed verification, then retries without losing the entered code", async () => {
