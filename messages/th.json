@@ -909,6 +909,8 @@
       "atLeast": "อย่างน้อย {count, number}",
       "attention": "ต้องจัดการ",
       "reviewNames": "ตรวจชื่อจากใบ Job",
+      "reviewCountUnknown": "ตรวจรายชื่อแล้วบางส่วน เปิดคิวเพื่อตรวจรายชื่อที่เหลือ",
+      "unmappedCountUnknown": "ตรวจใบ Job ที่อาจยังไม่มีตำแหน่งจัดเก็บ",
       "reviewCounts": "{names, number} ชื่อ · {scans, number} ใบ",
       "reviewCountsPartial": "อย่างน้อย {names, number} ชื่อ · {scans, number} ใบ",
       "unmappedCount": "ผูกตำแหน่งจัดเก็บ · {count, number} ใบ",

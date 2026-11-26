@@ -3441,6 +3441,30 @@ describe("customer workspace navigation", () => {
     view.unmount();
   });
 
+  it("keeps review and missing-location actions available when a partial read finds no hits", () => {
+    withWorkspace(WORKSPACE_URL, {
+      access: {
+        canReview: true,
+        canManage: true,
+        canScan: true,
+        canViewWarehouseData: true,
+      },
+      rollup: {
+        ...shell().value.rollup,
+        unmappedJobs: bounded(0, false),
+        pendingReview: { names: 0, scans: 0, complete: false },
+      },
+    });
+    expect(
+      screen.getByRole("link", { name: /Only part of the queue was checked/ }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "Check job tickets for missing locations",
+      }),
+    ).toBeVisible();
+  });
+
   it("shows exact attention actions and selects the in-scope workspace warehouse when starting a scan", () => {
     const view = withWorkspace(`${WORKSPACE_URL}?warehouse=wh-1`);
     mocks.availableWarehouses = [{ id: "wh-1", name: "Bang Phli", code: "BP" }];

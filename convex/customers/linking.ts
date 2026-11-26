@@ -25,7 +25,6 @@ import { TENANT_INDEX_MAX_PAGE_SIZE } from "../lib/tenantDb";
 import { writeContextOf } from "../lib/writeEnvelope";
 import { NAVIGATION_PERMISSION } from "../model/authorization/navigationPermissions";
 import {
-  compactCustomerStem,
   normalizeCustomerName,
   validateCustomerAlias,
 } from "../model/customers/customers";
@@ -41,7 +40,7 @@ import {
   type ScanPosition,
 } from "./activityReads";
 import { bumpCustomerCatalogueGeneration } from "./catalogueGeneration";
-import { approveCustomerAlias, resolveExactCustomerMatch } from "./matching";
+import { approveCustomerAlias, createReviewCandidateReader } from "./matching";
 import {
   customerLatestJob,
   customerLinkSource,
@@ -63,7 +62,6 @@ const LINKED_PRODUCTS_LIMIT = 50;
 const CUSTOMER_ALIASES_PREVIEW_LIMIT = 50;
 const REVIEW_SCAN_BUDGET = 300;
 const REVIEW_PAGE_SCAN_LIMIT = 50;
-const ACTIVE_CUSTOMER_SAMPLE = 100;
 const MAX_RESOLVE_SCANS = 100;
 const MAX_SUMMARY_CUSTOMERS = 100;
 /** Activity rows one summary request may scan across all its customers. */
@@ -1214,130 +1212,12 @@ export const listUnresolvedNames = queryWithOrg({
       bucket.scans.push(scan);
     }
 
-    // Reuse loaded customer docs across groups in the same page.
-    const customerCache = new Map<
-      Id<"customers">,
-      Promise<Doc<"customers"> | null>
-    >();
-    const readCustomer = (id: Id<"customers">) => {
-      let pending = customerCache.get(id);
-      if (!pending) {
-        pending = ctx.tenantDb.get<Doc<"customers">>("customers", id);
-        customerCache.set(id, pending);
-      }
-      return pending;
-    };
-
-    const entries = [...grouped.entries()];
-    const exactResults = await Promise.all(
-      entries.map(async ([normalizedName, bucket]) => ({
-        normalizedName,
-        bucket,
-        exact: await resolveExactCustomerMatch(
-          ctx.tenantDb,
-          bucket.displayName,
-        ),
-      })),
-    );
-
-    const needsStemSample = exactResults.some(
-      ({ exact }) => exact.kind === "UNMATCHED",
-    );
-    const activeByStem = new Map<string, Doc<"customers">[]>();
-    let activeEntries: {
-      customer: Doc<"customers">;
-      stem: string;
-      legalThStem: string;
-      legalEnStem: string;
-    }[] = [];
-    if (needsStemSample) {
-      const activeCustomers = await ctx.tenantDb
-        .byIndex<Doc<"customers">>(
-          "customers",
-          "by_orgId_status_normalizedName",
-          [{ field: "status", value: "ACTIVE" }],
-        )
-        .take(ACTIVE_CUSTOMER_SAMPLE);
-      activeEntries = activeCustomers.map((customer) => {
-        customerCache.set(customer._id, Promise.resolve(customer));
-        return {
-          customer,
-          stem: compactCustomerStem(customer.name),
-          legalThStem: customer.legalNameTh
-            ? compactCustomerStem(customer.legalNameTh)
-            : "",
-          legalEnStem: customer.legalNameEn
-            ? compactCustomerStem(customer.legalNameEn)
-            : "",
-        };
-      });
-      for (const entry of activeEntries) {
-        for (const stem of new Set(
-          [entry.stem, entry.legalThStem, entry.legalEnStem].filter(Boolean),
-        )) {
-          const list = activeByStem.get(stem) ?? [];
-          list.push(entry.customer);
-          activeByStem.set(stem, list);
-        }
-      }
-    }
-
+    const candidatesForName = createReviewCandidateReader(ctx.tenantDb);
     const groups = await Promise.all(
-      exactResults.map(async ({ normalizedName, bucket, exact }) => {
-        let matchKind: "AMBIGUOUS" | "ARCHIVED" | "SIMILAR" | "NONE" = "NONE";
-        const candidateDocs: Doc<"customers">[] = [];
-        const addedIds = new Set<string>();
-        const pushCandidate = (doc: Doc<"customers"> | null) => {
-          if (!doc || addedIds.has(doc._id)) return;
-          addedIds.add(doc._id);
-          candidateDocs.push(doc);
-        };
-
-        if (exact.kind === "AMBIGUOUS") {
-          matchKind = "AMBIGUOUS";
-          const docs = await Promise.all(exact.customerIds.map(readCustomer));
-          for (const doc of docs) {
-            if (doc?.status === "ACTIVE") pushCandidate(doc);
-          }
-        } else if (exact.kind === "ARCHIVED") {
-          matchKind = "ARCHIVED";
-          pushCandidate(await readCustomer(exact.customerId));
-        } else if (exact.kind === "MATCHED") {
-          matchKind = "SIMILAR";
-          pushCandidate(await readCustomer(exact.customerId));
-        }
-
-        if (candidateDocs.length === 0) {
-          const stem = compactCustomerStem(bucket.displayName);
-          if (stem.length >= 2) {
-            const directStemHits = activeByStem.get(stem) ?? [];
-            for (const doc of directStemHits) pushCandidate(doc);
-            if (candidateDocs.length < 3) {
-              for (const entry of activeEntries) {
-                if (candidateDocs.length >= 3) break;
-                if (addedIds.has(entry.customer._id)) continue;
-                const stems = [
-                  entry.stem,
-                  entry.legalThStem,
-                  entry.legalEnStem,
-                ].filter((s) => s.length >= 2);
-                if (
-                  stems.some(
-                    (candidateStem) =>
-                      candidateStem.includes(stem) ||
-                      stem.includes(candidateStem),
-                  )
-                ) {
-                  pushCandidate(entry.customer);
-                }
-              }
-            }
-          }
-          if (candidateDocs.length > 0) {
-            matchKind = candidateDocs.length > 1 ? "AMBIGUOUS" : "SIMILAR";
-          }
-        }
-
+      [...grouped.entries()].map(async ([normalizedName, bucket]) => {
+        const { matchKind, candidates } = await candidatesForName(
+          bucket.displayName,
+        );
         return {
           normalizedName,
           displayName: bucket.displayName,
@@ -1360,7 +1240,7 @@ export const listUnresolvedNames = queryWithOrg({
             version: scan.version ?? 1,
           })),
           matchKind,
-          candidates: candidateDocs.slice(0, 5).map(toSummary),
+          candidates: candidates.map(toSummary),
         };
       }),
     );

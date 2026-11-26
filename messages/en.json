@@ -909,6 +909,8 @@
       "atLeast": "At least {count, number}",
       "attention": "Needs attention",
       "reviewNames": "Review names from job tickets",
+      "reviewCountUnknown": "Only part of the queue was checked. Open the queue to review the remaining names.",
+      "unmappedCountUnknown": "Check job tickets for missing locations",
       "reviewCounts": "{names, plural, one {# name} other {# names}} · {scans, plural, one {# ticket} other {# tickets}}",
       "reviewCountsPartial": "At least {names, plural, one {# name} other {# names}} · {scans, plural, one {# ticket} other {# tickets}}",
       "unmappedCount": "Map storage locations · {count, plural, one {# ticket} other {# tickets}}",

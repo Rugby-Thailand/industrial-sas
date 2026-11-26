@@ -128,8 +128,9 @@ function WarehouseOverview({
   const rollup = shell.rollup;
   if (!rollup) return null;
   const pending = shell.access.canReview ? rollup.pendingReview : undefined;
-  const showReview = !!pending && pending.names > 0;
-  const showUnmapped = rollup.unmappedJobs.count > 0;
+  const showReview = !!pending && (pending.names > 0 || !pending.complete);
+  const showUnmapped =
+    rollup.unmappedJobs.count > 0 || !rollup.unmappedJobs.complete;
   const bounded = ({
     count,
     complete,
@@ -202,12 +203,14 @@ function WarehouseOverview({
                       {t("reviewNames")}
                     </strong>
                     <small className="text-muted">
-                      {t(
-                        pending.complete
-                          ? "reviewCounts"
-                          : "reviewCountsPartial",
-                        { names: pending.names, scans: pending.scans },
-                      )}
+                      {pending.names === 0
+                        ? t("reviewCountUnknown")
+                        : t(
+                            pending.complete
+                              ? "reviewCounts"
+                              : "reviewCountsPartial",
+                            { names: pending.names, scans: pending.scans },
+                          )}
                     </small>
                   </span>
                   <ChevronRight
@@ -229,14 +232,16 @@ function WarehouseOverview({
                     className="size-4 shrink-0 text-warning"
                   />
                   <span className="flex-1">
-                    {t(
-                      rollup.unmappedJobs.complete
-                        ? "unmappedCount"
-                        : "unmappedCountPartial",
-                      {
-                        count: rollup.unmappedJobs.count,
-                      },
-                    )}
+                    {rollup.unmappedJobs.count === 0
+                      ? t("unmappedCountUnknown")
+                      : t(
+                          rollup.unmappedJobs.complete
+                            ? "unmappedCount"
+                            : "unmappedCountPartial",
+                          {
+                            count: rollup.unmappedJobs.count,
+                          },
+                        )}
                   </span>
                   <ChevronRight
                     aria-hidden="true"
@@ -404,7 +409,7 @@ function WorkspaceProducts({
     {
       ...args,
       ...(cursor ? { cursor } : {}),
-      ...(mode === "preview" ? { pageSize: 5 } : {}),
+      ...(mode === "preview" ? { pageSize: 5, includePallets: false } : {}),
     },
   );
   return (

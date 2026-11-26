@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { getCustomerWorkspace } from "../../convex/customers/workspace";
+import {
+  getCustomerWorkspace,
+  listCustomerWorkspaceProducts,
+} from "../../convex/customers/workspace";
 import { measured } from "../fixtures/query-read-stats";
 import { PRODUCT_SUMMARY_VERSION } from "../../convex/lib/finishedGoodsSummary";
 import {
@@ -686,6 +689,78 @@ describe("customer workspace reads", () => {
       }),
     ) as ProductsPage;
     expect(forbidden.items).toEqual([]);
+  });
+
+  it("reads product preview counts without fetching pallets or placements", async () => {
+    const world = await setup();
+    const { value, stats } = await measured<ProductsPage>(
+      world,
+      listCustomerWorkspaceProducts,
+      { customerId: world.customerId, pageSize: 5, includePallets: false },
+    );
+    expect(value.items.map((item) => item.storedCount).sort()).toEqual([2, 3]);
+    expect(stats.ranges.finishedGoodsPallets ?? 0).toBe(0);
+    expect(stats.gets.finishedGoodsPlacements ?? 0).toBe(0);
+    expect(stats.gets.storageZones ?? 0).toBe(0);
+  });
+
+  it("only counts displayed review candidates when similar names exceed queue limits", async () => {
+    const world = await setup();
+    await world.t.run(async (ctx) => {
+      for (const name of ["A Buyer First", "B Buyer Second", "C Buyer Third"]) {
+        await ctx.db.insert("customers", {
+          orgId: world.orgA,
+          name,
+          code: name,
+          normalizedName: name.toLowerCase(),
+          status: "ACTIVE",
+          version: 1,
+          ...world.stamps(1),
+        });
+      }
+      await ctx.db.insert("finishedGoodsJobScans", {
+        orgId: world.orgA,
+        warehouseId: world.alpha,
+        factoryOrder: "FO-REVIEW",
+        productBarcodeText: "BOX",
+        customer: "Buyer",
+        locationText: "Dock",
+        mapped: false,
+        customerReviewPending: true,
+        source: "MANUAL",
+        version: 1,
+        ...world.stamps(1),
+      });
+    });
+    const queue = allowed(
+      await world.actorA.query(api.customers.linking.listUnresolvedNames, {}),
+    )!;
+    const group = queue.groups.find((row) => row.displayName === "Buyer");
+    expect(group?.candidates.map((c) => c.name)).toEqual([
+      "A Buyer First",
+      "B Buyer Second",
+      "C Buyer Third",
+    ]);
+    const target = allowed(
+      await world.actorA.query(workspace.getCustomerWorkspace, {
+        customerId: world.customerId,
+      }),
+    ) as Workspace;
+    expect(target.rollup?.pendingReview).toEqual({
+      names: 0,
+      scans: 0,
+      complete: true,
+    });
+    const listed = allowed(
+      await world.actorA.query(workspace.getCustomerWorkspace, {
+        customerId: group!.candidates[0]!.customerId,
+      }),
+    ) as Workspace;
+    expect(listed.rollup?.pendingReview).toEqual({
+      names: 1,
+      scans: 1,
+      complete: true,
+    });
   });
 
   it("counts names proposed for this customer only for members who may review them", async () => {

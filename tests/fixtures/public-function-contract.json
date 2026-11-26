@@ -5548,6 +5548,12 @@
           },
           "optional": true
         },
+        "includePallets": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
         "cursor": {
           "fieldType": {
             "type": "string"

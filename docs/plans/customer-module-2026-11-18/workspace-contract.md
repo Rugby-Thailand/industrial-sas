@@ -81,7 +81,7 @@ null | {
 }
 ```
 
-`pendingReview` counts names in "Names to review" that the queue would propose for this customer. A name qualifies when it matches the customer's canonical name or an approved alias exactly. It also qualifies through the queue's compact-stem similarity rule, which applies only when the customer is active and the name has no exact match anywhere. The count uses the review queue’s 300-row budget within the selected warehouse scope. `complete: false` means the window was truncated.
+`pendingReview` counts names in "Names to review" that the queue would propose for this customer. A name qualifies when it matches the customer's canonical name or an approved alias exactly. It also qualifies through the queue's compact-stem similarity rule, which applies only when the customer is active and the name has no exact match anywhere. The count uses the same candidate reader as the queue, including its active-customer sample and suggestion limits. The overview checks up to 300 source rows and 50 distinct names in scope. `complete: false` means the window was truncated.
 
 Archived customers keep their history. Show the archived notice and still load the rollup. `canScan` is false for them.
 
@@ -89,11 +89,11 @@ Archived customers keep their history. Show the archived notice and still load t
 
 This query returns `null | { canViewWarehouseData, items: WorkspaceJob[], isDone, continueCursor }`. Rows come newest first within each warehouse, and warehouses come in inventory order, which is the same keyset pattern as `listCustomerJobsPage`. `pageSize` defaults to 20 and must be between 1 and 50. A cursor is bound to its customer, and a foreign cursor fails with `INVALID_CURSOR`. Never reuse a cursor after the scope or the filter changes: restart from the first page. `mapped`/`unmapped` read the new index `finishedGoodsJobScans.by_orgId_warehouseId_customerId_voided_mapped_createdAt`, so the filter is exact and paginated without a filtered scan.
 
-### `listCustomerWorkspaceProducts({ customerId, warehouseId?, cursor?, pageSize? })`
+### `listCustomerWorkspaceProducts({ customerId, warehouseId?, cursor?, pageSize?, includePallets? })`
 
 This query returns `null | { canViewWarehouseData, items: WorkspaceProduct[], isDone, continueCursor }`. `pageSize` defaults to 10 and must be between 1 and 20. One read serves three views:
 
-- **Overview** "สินค้าที่เชื่อม": `pageSize: 5`.
+- **Overview** "สินค้าที่เชื่อม": `pageSize: 5, includePallets: false`. This preview reads summary counts without expanding pallets or placements.
 - **Products tab**: show `storedCount` ("N พาเลท") and `zones`.
 - **Stock view**: list each product's `pallets` (position, zone and code) and link each one to its pallet page.
 
@@ -212,7 +212,7 @@ Job scans store no product ID, so a job row cannot link to a product. The ticket
 - overview: delivery and contact, registration summary, rollup tiles, latest jobs, linked-products preview
 - details: registration, tax for managers, aliases when `canViewWarehouseData`, notes
 - warehouse scope selector, including `scopeAvailable: false`
-- attention panel: review entry when `pendingReview.names > 0`, unmapped jobs when `unmappedJobs.count > 0`; omit the panel when empty
+- attention panel: review entry when `pendingReview.names > 0`, unmapped jobs when `unmappedJobs.count > 0`; link to the queue or filtered jobs when a partial read has no observed hits, and omit the panel when all attention counts are complete and zero
 - archived notice
 - loading, error and empty states
 - permission gating per the matrix

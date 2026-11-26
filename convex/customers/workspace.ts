@@ -12,17 +12,14 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { NAVIGATION_PERMISSION } from "../model/authorization/navigationPermissions";
-import {
-  compactCustomerStem,
-  normalizeCustomerName,
-} from "../model/customers/customers";
+import { normalizeCustomerName } from "../model/customers/customers";
 import { pageWarehouseActivity } from "./activityReads";
 import {
   customerJobRange,
   customerProductRange,
   readPendingScansSummary,
 } from "./linking";
-import { resolveExactCustomerMatch } from "./matching";
+import { createReviewCandidateReader } from "./matching";
 import { customerLinkSource } from "./validators";
 import {
   allowedCustomerWarehouses,
@@ -46,6 +43,7 @@ const LATEST_JOBS = 3;
 const MAX_CUSTOMER_WAREHOUSES = 20;
 const STOCK_PRODUCTS_CAP = TENANT_INDEX_MAX_PAGE_SIZE - 1;
 const PENDING_REVIEW_SCAN_BUDGET = 300;
+const MAX_REVIEW_NAME_LOOKUPS = 50;
 const JOBS_PAGE_DEFAULT = 20;
 const JOBS_PAGE_MAX = 50;
 const PRODUCTS_PAGE_DEFAULT = 10;
@@ -163,40 +161,6 @@ async function countRanges(
     count += rows.length;
   }
   return { count, complete: true };
-}
-
-/**
- * Whether the review queue would propose `customer` for a captured name: an
- * exact canonical/alias match, or (for active customers, when the name has no
- * exact match anywhere) the queue's compact-stem similarity rule.
- */
-async function proposedForCustomer(
-  ctx: TenantFunctionContext,
-  customer: Doc<"customers">,
-  captured: string,
-  exactCache: Map<string, Promise<boolean>>,
-) {
-  const normalized = normalizeCustomerName(captured);
-  if (!normalized) return false;
-  if (normalized === customer.normalizedName) return true;
-  if (customer.aliasSearchText?.split("\n").includes(normalized)) return true;
-  if (customer.status !== "ACTIVE") return false;
-  const stem = compactCustomerStem(captured);
-  if (stem.length < 2) return false;
-  const stems = [customer.name, customer.legalNameTh, customer.legalNameEn]
-    .filter((value): value is string => Boolean(value))
-    .map(compactCustomerStem)
-    .filter((value) => value.length >= 2);
-  if (!stems.some((value) => value.includes(stem) || stem.includes(value)))
-    return false;
-  let unmatched = exactCache.get(normalized);
-  if (unmatched === undefined) {
-    unmatched = resolveExactCustomerMatch(ctx.tenantDb, captured).then(
-      (match) => match.kind === "UNMATCHED",
-    );
-    exactCache.set(normalized, unmatched);
-  }
-  return unmatched;
 }
 
 async function activityInWarehouse(
@@ -464,22 +428,43 @@ export const getCustomerWorkspace = queryWithOrg({
           ? { ...allowed, warehouses: [selectedWarehouse], complete: true }
           : allowed,
       );
-      const exactCache = new Map<string, Promise<boolean>>();
-      const names = new Set<string>();
-      let scanCount = 0;
+      // Group first: repeated tickets use a single candidate lookup. Bound the
+      // distinct-name lookups as well as the source rows on this live overview.
+      const groups = new Map<
+        string,
+        { display: string; latest: number; count: number }
+      >();
+      let complete = !hasMore;
       for (const scan of scans) {
-        if (warehouseId !== undefined && scan.warehouseId !== warehouseId)
-          continue;
-        const captured = scan.customer ?? "";
-        if (!(await proposedForCustomer(ctx, customer, captured, exactCache)))
-          continue;
-        names.add(normalizeCustomerName(captured));
-        scanCount += 1;
+        const display = scan.customer?.trim() ?? "";
+        const name = normalizeCustomerName(display);
+        if (!name) continue;
+        const group = groups.get(name);
+        if (group) {
+          group.count += 1;
+          if (scan.createdAt > group.latest) {
+            group.latest = scan.createdAt;
+            group.display = display;
+          }
+        } else if (groups.size < MAX_REVIEW_NAME_LOOKUPS) {
+          groups.set(name, { display, latest: scan.createdAt, count: 1 });
+        } else {
+          complete = false;
+        }
       }
+      const candidatesForName = createReviewCandidateReader(ctx.tenantDb);
+      const hits = await Promise.all(
+        [...groups.values()].map(async (group) => {
+          const { candidates } = await candidatesForName(group.display);
+          return candidates.some((candidate) => candidate._id === customer._id)
+            ? group.count
+            : 0;
+        }),
+      );
       pendingReview = {
-        names: names.size,
-        scans: scanCount,
-        complete: !hasMore,
+        names: hits.filter((count) => count > 0).length,
+        scans: hits.reduce((sum, count) => sum + count, 0),
+        complete,
       };
     }
 
@@ -592,6 +577,7 @@ export const listCustomerWorkspaceProducts = queryWithOrg({
   args: {
     customerId: v.id("customers"),
     warehouseId: v.optional(v.id("warehouses")),
+    includePallets: v.optional(v.boolean()),
     cursor: v.optional(v.string()),
     pageSize: v.optional(v.number()),
   },
@@ -604,7 +590,10 @@ export const listCustomerWorkspaceProducts = queryWithOrg({
       continueCursor: v.string(),
     }),
   ),
-  handler: async (ctx, { customerId, warehouseId, cursor, pageSize }) => {
+  handler: async (
+    ctx,
+    { customerId, warehouseId, cursor, pageSize, includePallets = true },
+  ) => {
     const limit = pageSize ?? PRODUCTS_PAGE_DEFAULT;
     if (!Number.isInteger(limit) || limit < 1 || limit > PRODUCTS_PAGE_MAX)
       throw new Error("INVALID_PAGE_SIZE");
@@ -650,16 +639,18 @@ export const listCustomerWorkspaceProducts = queryWithOrg({
           ready.then((state) =>
             state?.ready ? readProductSummary(ctx, product, state) : null,
           ),
-          ctx.tenantDb
-            .byIndex<Doc<"finishedGoodsPallets">>(
-              "finishedGoodsPallets",
-              "by_orgId_productId_status",
-              [
-                { field: "productId", value: product._id },
-                { field: "status", value: "STORED" },
-              ],
-            )
-            .take(PALLETS_PER_PRODUCT + 1),
+          includePallets
+            ? ctx.tenantDb
+                .byIndex<Doc<"finishedGoodsPallets">>(
+                  "finishedGoodsPallets",
+                  "by_orgId_productId_status",
+                  [
+                    { field: "productId", value: product._id },
+                    { field: "status", value: "STORED" },
+                  ],
+                )
+                .take(PALLETS_PER_PRODUCT + 1)
+            : [],
         ]);
         const live = palletRows.filter(
           (pallet) =>
