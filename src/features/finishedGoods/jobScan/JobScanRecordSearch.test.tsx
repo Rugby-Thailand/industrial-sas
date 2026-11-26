@@ -238,23 +238,44 @@ it.each(["Read location QR", "Read legacy location QR"])(
   },
 );
 
-it("Cancel consumes the record search camera entry before the next Back", async () => {
-  const user = show();
-  const trigger = screen.getByRole("button", { name: "Scan to search" });
-  await user.click(trigger);
-  await user.click(screen.getByRole("button", { name: "Cancel" }));
-  await waitFor(() =>
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-  );
-  await waitFor(() => expect(trigger).toHaveFocus());
-  expect(mocks.change).not.toHaveBeenCalled();
-  act(() => window.history.back());
-  await waitFor(() =>
-    expect(
-      window.location.pathname + window.location.search + window.location.hash,
-    ).toBe(origin),
-  );
-});
+it.each(["Cancel", "Escape"])(
+  "%s retires the scanner before Forward and the next Back",
+  async (dismissal) => {
+    const user = show();
+    const trigger = screen.getByRole("button", { name: "Scan to search" });
+    await user.click(trigger);
+    if (dismissal === "Escape") await user.keyboard("{Escape}");
+    else await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await act(async () => {
+      const visited = new Promise<void>((resolve) =>
+        window.addEventListener("popstate", () => resolve(), { once: true }),
+      );
+      window.history.forward();
+      await visited;
+    });
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe(records),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mocks.change).not.toHaveBeenCalled();
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe(origin),
+    );
+  },
+);
 
 it("does not fall back to a ticket code when a warehouse QR is unavailable", async () => {
   mocks.resolve.mockResolvedValueOnce({

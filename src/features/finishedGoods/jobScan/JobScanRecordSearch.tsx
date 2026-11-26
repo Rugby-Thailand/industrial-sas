@@ -38,6 +38,7 @@ export function JobScanRecordSearch({
 }) {
   const t = useTranslations("JobScan");
   const [scanOpen, setScanOpen] = useState(false);
+  const [scanEpoch, setScanEpoch] = useState(0);
   const [aiOpen, setAiOpen] = useState(false);
   const scan = useRef<DialogCompletionHandle>(null);
   const ai = useRef<DialogCompletionHandle>(null);
@@ -48,6 +49,14 @@ export function JobScanRecordSearch({
     facets?.floor !== undefined && t("floorNumber", { number: facets.floor }),
     facets?.storageFormat && t(`format.${facets.storageFormat}`),
   ].filter(Boolean);
+
+  function cancelScan() {
+    const retire = () => {
+      setScanOpen(false);
+      setScanEpoch((epoch) => epoch + 1);
+    };
+    if (!scan.current?.completeOwned?.(retire)) retire();
+  }
 
   return (
     <div className="space-y-2">
@@ -119,8 +128,20 @@ export function JobScanRecordSearch({
           </IconButton>
         </div>
       )}
-      <Dialog open={scanOpen} onOpenChange={setScanOpen} completionRef={scan}>
-        <DialogContent size="camera" closeLabel={t("cancel")}>
+      <Dialog
+        open={scanOpen}
+        onOpenChange={setScanOpen}
+        completionRef={scan}
+        backRevocationEpoch={scanEpoch}
+      >
+        <DialogContent
+          size="camera"
+          showCloseButton={false}
+          onEscapeKeyDown={(event) => {
+            event.preventDefault();
+            cancelScan();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{t("recordTools.scanSearch")}</DialogTitle>
             <DialogDescription>{t("recordTools.scanHint")}</DialogDescription>
@@ -144,6 +165,16 @@ export function JobScanRecordSearch({
               }}
             />
           )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="fixed top-[max(.75rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-10 size-11 rounded-full border border-border bg-surface text-text"
+            onClick={cancelScan}
+          >
+            <X aria-hidden="true" className="size-5" />
+            <span className="sr-only">{t("cancel")}</span>
+          </Button>
         </DialogContent>
       </Dialog>
       <Dialog open={aiOpen} onOpenChange={setAiOpen} completionRef={ai}>

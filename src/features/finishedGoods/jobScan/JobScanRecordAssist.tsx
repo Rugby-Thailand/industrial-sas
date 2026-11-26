@@ -2,7 +2,7 @@
 
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useConvex, useMutation, useQuery } from "convex/react";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { Button } from "@/components/ui/button";
@@ -142,6 +142,7 @@ export function JobScanRecordAssist({
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<"REQUEST" | "LOCATION" | "NO_CHANGES">();
   const [review, setReview] = useState<Review>();
+  const [reviewEpoch, setReviewEpoch] = useState(0);
   const [pendingCommand, setPendingCommand] =
     useState<Parameters<typeof save>[0]>();
   const [version] = useState(record.version);
@@ -164,8 +165,7 @@ export function JobScanRecordAssist({
     discard: () => {
       request.current?.abort();
       setPrompt("");
-      retainedReview.current = undefined;
-      setReview(undefined);
+      discardReview();
       setPendingCommand(undefined);
     },
   });
@@ -188,14 +188,27 @@ export function JobScanRecordAssist({
     editorCompletion.current?.complete(onClose);
   }
 
+  function discardReview() {
+    if (!retainedReview.current) return;
+    retainedReview.current = undefined;
+    setReview(undefined);
+    setReviewEpoch((epoch) => epoch + 1);
+  }
+
+  function dismissReview() {
+    if (op.busy) return;
+    // Keep the immutable proposal available when a failed save can be retried.
+    const dismiss = pendingCommand ? () => setReview(undefined) : discardReview;
+    if (!reviewCompletion.current?.completeOwned?.(dismiss)) dismiss();
+  }
+
   async function propose() {
     if (!enabled || request.current || stale || !prompt.trim()) return;
     const attempt = new AbortController();
     request.current = attempt;
     setAsking(true);
     setError(undefined);
-    retainedReview.current = undefined;
-    setReview(undefined);
+    discardReview();
     op.setError("");
     try {
       const intent = await interpret(prompt.trim());
@@ -266,8 +279,7 @@ export function JobScanRecordAssist({
         guard.settle();
         op.complete(() => {
           reviewCompletion.current?.complete(() => {
-            retainedReview.current = undefined;
-            setReview(undefined);
+            discardReview();
             closing.current = true;
             editorCompletion.current?.complete(onClose);
           });
@@ -319,7 +331,7 @@ export function JobScanRecordAssist({
                   value={prompt}
                   onChange={(event) => {
                     setPrompt(event.target.value);
-                    retainedReview.current = undefined;
+                    discardReview();
                   }}
                   maxLength={500}
                   disabled={asking || Boolean(pendingCommand)}
@@ -398,12 +410,20 @@ export function JobScanRecordAssist({
         }
         completionRef={reviewCompletion}
         backPending={op.busy}
+        backRevocationEpoch={reviewEpoch}
       >
         {review && (
           <DialogContent
             size="sm"
-            closeLabel={t("cancel")}
-            showCloseButton={!op.busy}
+            showCloseButton={false}
+            onEscapeKeyDown={(event) => {
+              event.preventDefault();
+              dismissReview();
+            }}
+            onPointerDownOutside={(event) => {
+              event.preventDefault();
+              dismissReview();
+            }}
           >
             <DialogHeader>
               <DialogTitle>{t("recordTools.reviewChanges")}</DialogTitle>
@@ -461,9 +481,7 @@ export function JobScanRecordAssist({
               <Button
                 variant="outline"
                 disabled={op.busy || Boolean(pendingCommand)}
-                onClick={() =>
-                  reviewCompletion.current?.complete(() => setReview(undefined))
-                }
+                onClick={dismissReview}
               >
                 {t("recordTools.changePrompt")}
               </Button>
@@ -484,6 +502,18 @@ export function JobScanRecordAssist({
                 )}
               </Button>
             </DialogFooter>
+            {!op.busy && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute top-3 right-3"
+                onClick={dismissReview}
+              >
+                <XIcon aria-hidden="true" className="size-4" />
+                <span className="sr-only">{t("cancel")}</span>
+              </Button>
+            )}
           </DialogContent>
         )}
       </Dialog>

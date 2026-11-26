@@ -200,6 +200,83 @@ it("native Back closes AI review first, retains the request and does not save", 
   expect(mocks.interpret).toHaveBeenCalledOnce();
 });
 
+it.each(["Edit request", "Cancel", "Escape", "prompt change"])(
+  "%s retires the AI review before Forward and the next Back",
+  async (dismissal) => {
+    const { user } = await start();
+    const promptSearch = window.location.search;
+    const review = await propose(user);
+    let expectedPrompt = command;
+    if (dismissal === "prompt change") {
+      act(() => window.history.back());
+      const prompt = await screen.findByRole("textbox", {
+        name: "What should change?",
+      });
+      expectedPrompt = `${command} now`;
+      await user.type(prompt, " now");
+    } else if (dismissal === "Escape") {
+      await user.keyboard("{Escape}");
+    } else {
+      await user.click(review.getByRole("button", { name: dismissal }));
+    }
+    await waitFor(() => expect(window.location.search).toBe(promptSearch));
+    await act(async () => {
+      const visited = new Promise<void>((resolve) =>
+        window.addEventListener("popstate", () => resolve(), { once: true }),
+      );
+      window.history.forward();
+      await visited;
+    });
+    await waitFor(() => expect(window.location.search).toBe(promptSearch));
+    expect(
+      screen.getByRole("textbox", { name: "What should change?" }),
+    ).toHaveValue(expectedPrompt);
+    expect(
+      screen.queryByRole("button", { name: "Confirm and save" }),
+    ).toBeNull();
+    expect(mocks.mutation).not.toHaveBeenCalled();
+
+    act(() => window.history.back());
+    const discard = within(
+      await screen.findByRole("dialog", { name: "Discard changes?" }),
+    );
+    await user.click(discard.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe(records),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+  },
+);
+
+it("reviews a fresh proposal after Edit request retires the earlier changes", async () => {
+  mocks.interpret.mockResolvedValueOnce({ fields: { quantity: 40 } });
+  const { user } = await start("Set quantity to 40");
+  const oldReview = await propose(user);
+  expect(oldReview.getByText("40")).toBeVisible();
+  await user.click(oldReview.getByRole("button", { name: "Edit request" }));
+  const input = await screen.findByRole("textbox", {
+    name: "What should change?",
+  });
+  await user.clear(input);
+  await user.type(input, "Set quantity to 41");
+  mocks.interpret.mockResolvedValueOnce({ fields: { quantity: 41 } });
+  const newReview = await propose(user);
+  expect(newReview.getByText("41")).toBeVisible();
+  expect(newReview.queryByText("40")).toBeNull();
+  await user.click(newReview.getByRole("button", { name: "Confirm and save" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(mocks.mutation).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      expectedVersion: 3,
+      ticketPatch: { quantity: 41 },
+    }),
+  );
+});
+
 it("protects a pending AI save and retries the immutable command after a lost response", async () => {
   let reject!: () => void;
   mocks.mutation.mockImplementationOnce(
@@ -219,8 +296,12 @@ it("protects a pending AI save and retries the immutable command after a lost re
     ).toBeVisible(),
   );
   await act(async () => reject());
-  const retry = await review.findByRole("button", { name: "Retry correction" });
+  await review.findByRole("button", { name: "Retry correction" });
+  await user.click(review.getByRole("button", { name: "Cancel" }));
+  const resume = await screen.findByRole("button", { name: "Resume review" });
   view.rerender(<UI version={4} />);
+  await user.click(resume);
+  const retry = await screen.findByRole("button", { name: "Retry correction" });
   expect(retry).toBeEnabled();
   await user.click(retry);
   await waitFor(() => expect(mocks.mutation).toHaveBeenCalledTimes(2));
