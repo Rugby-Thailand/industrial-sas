@@ -58,6 +58,17 @@ export const JOB_SCAN_SEARCH_FIELDS = [
   "locationCode",
   "locationName",
 ] as const;
+export const JOB_SCAN_EXACT_CODE_FIELDS = [
+  "factoryOrder",
+  "productBarcodeText",
+  "locationText",
+  "locationCode",
+] as const;
+const EXACT_CODE_FIELD_INDICES: ReadonlySet<number> = new Set(
+  JOB_SCAN_EXACT_CODE_FIELDS.map((field) =>
+    JOB_SCAN_SEARCH_FIELDS.indexOf(field),
+  ),
+);
 const SLOTS = ["t0", "t1", "t2", "t3", "t4", "t5", "t6"] as const;
 export const BUILDING_FIELD = 7;
 /** A term linked by more scans than this is shared (posted once, as a term). */
@@ -88,6 +99,10 @@ const SCAN_GRAMS = "finishedGoodsJobScanGrams";
 export function normalizeJobScanSearch(value: string) {
   return value.normalize("NFKC").trim().toLocaleLowerCase("en-US");
 }
+/** Registered location codes can differ only in their compatibility spelling. */
+export function normalizeJobScanLocationScan(value: string) {
+  return value.normalize("NFC").trim().toLocaleLowerCase("en-US");
+}
 function contains(value: string | undefined, needle: string) {
   return value !== undefined && normalizeJobScanSearch(value).includes(needle);
 }
@@ -97,6 +112,24 @@ export function jobScanTextMatches(
   needle: string,
 ) {
   return JOB_SCAN_SEARCH_FIELDS.some((field) => contains(scan[field], needle));
+}
+/** Whole code equality. The current location takes precedence over captured text. */
+export function jobScanExactCodeMatches(
+  scan: Pick<Scan, (typeof JOB_SCAN_EXACT_CODE_FIELDS)[number] | "locationId">,
+  needle: string,
+  locationNeedle: string,
+  registeredLocationId?: Id<"locations">,
+) {
+  const location = scan.locationCode || scan.locationText;
+  return (
+    normalizeJobScanSearch(scan.factoryOrder) === needle ||
+    normalizeJobScanSearch(scan.productBarcodeText) === needle ||
+    (location !== undefined &&
+      (!registeredLocationId ||
+        !scan.locationId ||
+        scan.locationId === registeredLocationId) &&
+      normalizeJobScanLocationScan(location) === locationNeedle)
+  );
 }
 export function jobScanNameMatches(name: string | undefined, needle: string) {
   return contains(name, needle);
@@ -741,11 +774,15 @@ export interface JobScanSearchOptions<Row> {
   readiness: CurrentSearchReadiness;
   filter: "ALL" | "MAPPED" | "UNMAPPED";
   needle: string;
+  /** True when only whole normalized factoryOrder/barcode/location text or code match. */
+  exactCode?: boolean;
+  /** Additional normalized criteria (exactCode, facets) bound into the cursor scope. */
+  scopeExtra?: unknown;
   pageSize: number;
   cursor?: string | null | undefined;
   scanCursor?: string | undefined;
   progressive: boolean;
-  /** The exact predicate of the scan path (warehouse, filter, text, building). */
+  /** The exact predicate of the scan path (warehouse, filter, text, building, facets). */
   accept: (scan: Scan) => Promise<boolean>;
   hydrate: (scans: Scan[]) => Promise<Row[]>;
 }
@@ -834,13 +871,16 @@ export async function searchJobScans<Row>(
 ): Promise<BoundedRecordPage<Row>> {
   const db = ctx.tenantDb;
   const { warehouseId, filter, needle, pageSize } = options;
-  const scope = catalogueScope(ctx, [
+  const exactCode = options.exactCode === true;
+  const scopeParts: unknown[] = [
     "finishedGoodsJobScans:search",
     warehouseId,
     filter,
     needle,
     pageSize,
-  ]);
+  ];
+  if (options.scopeExtra !== undefined) scopeParts.push(options.scopeExtra);
+  const scope = catalogueScope(ctx, scopeParts);
   const allGrams = new Set(gramsOf(needle, 3));
   let state: CursorState = { v: "jss1", k: "page", scope, pos: null, ids: [] };
   if (options.scanCursor) {
@@ -920,7 +960,12 @@ export async function searchJobScans<Row>(
       TERM_LIMIT + 1,
     );
     for (const row of [...termRows, ...unpostedTerms])
-      if (row.text.includes(needle)) matchingTerms.set(row.termId, row);
+      if (
+        exactCode
+          ? EXACT_CODE_FIELD_INDICES.has(row.field) && row.text === needle
+          : row.text.includes(needle)
+      )
+        matchingTerms.set(row.termId, row);
     exhaustive =
       termRows.length > TERM_LIMIT ||
       unpostedTerms.length > TERM_LIMIT ||
@@ -968,7 +1013,9 @@ export async function searchJobScans<Row>(
   const mappedOk = (row: SearchRow) =>
     filter === "ALL" || row.mapped === (filter === "MAPPED");
   const textOk = (row: ScanGram) =>
-    row.texts.some((text) => text.includes(needle));
+    exactCode
+      ? row.texts.some((text) => text === needle)
+      : row.texts.some((text) => text.includes(needle));
   const streams: CandidateStream[] = [];
   const add = <T>(source: Source<T>, chunk: number) =>
     streams.push(new Stream<T>(db, source, start, chunk));

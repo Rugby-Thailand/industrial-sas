@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { CursorPagination } from "@/components/system/CursorPagination";
+import { CURSOR_PAGE_SIZES } from "@/components/system/PageSizeSelect";
 import { QueryErrorBoundary } from "@/components/system/QueryErrorBoundary";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import { useScanRecovery } from "@/hooks/useScanRecovery";
@@ -57,10 +58,12 @@ interface LocationPickerProps {
   browseWithoutSearch?: boolean;
   /**
    * `jobScan` is the Scan job ticket location step, where finding the area
-   * is the whole screen: a retry centred on the AI photo. Both pickers use
-   * the full-screen camera dialog.
+   * is the whole screen: a retry centred on the AI photo. `compact` is the
+   * saved-record picker dialog, which hides the pagination footer for a
+   * single settled default-size page. All pickers use the full-screen camera
+   * dialog.
    */
-  presentation?: "default" | "jobScan";
+  presentation?: "default" | "jobScan" | "compact";
 }
 
 type Choice = {
@@ -598,6 +601,7 @@ function LocationPickerSession({
             scannedMissing={scannedMissing}
             confirmedMissing={confirmedMissing}
             acquiring={checking || camera}
+            compact={presentation === "compact"}
             onChoose={choose}
             onAdd={startAdding}
           />
@@ -662,6 +666,7 @@ function LocationChoices({
   scannedMissing,
   confirmedMissing,
   acquiring,
+  compact,
   onChoose,
   onAdd,
 }: {
@@ -674,6 +679,7 @@ function LocationChoices({
   scannedMissing: boolean;
   confirmedMissing: string | undefined;
   acquiring: boolean;
+  compact: boolean;
   onChoose: (location: PickedLocation) => void;
   onAdd: () => void;
 }) {
@@ -819,6 +825,15 @@ function LocationChoices({
   const settledCount =
     complete && current ? rows.length + (exactChoice ? 1 : 0) : undefined;
   const noMatch = exhausted && !rows.length && !exactChoice;
+  const showPagination =
+    Boolean(shown) &&
+    (!compact ||
+      paging.page > 1 ||
+      paging.canPrevious ||
+      paging.historyTruncated ||
+      paging.pageSize !== CURSOR_PAGE_SIZES[0] ||
+      Boolean(previous) ||
+      Boolean(current && current.status === "ready" && !current.isDone));
   const choiceButton =
     "flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent disabled:cursor-default disabled:hover:bg-transparent";
 
@@ -945,15 +960,18 @@ function LocationChoices({
         )}
       </ul>
       {typedCanCreate && <MissingLocation code={trimmed} onAdd={onAdd} />}
-      {shown && (
+      {showPagination && (
         <CursorPagination
           locale={locale}
+          onFirst={paging.reset}
+          historyTruncated={paging.historyTruncated}
           page={paging.page}
           pageSize={paging.pageSize}
           onPageSizeChange={paging.setPageSize}
           onPrevious={paging.previous}
           onNext={() => {
-            if (ready && current) paging.next(current.continueCursor);
+            if (ready && current && !current.isDone)
+              paging.next(current.continueCursor);
           }}
           canPrevious={paging.canPrevious}
           canNext={Boolean(ready && current && !current.isDone)}

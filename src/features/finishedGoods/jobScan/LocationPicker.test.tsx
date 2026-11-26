@@ -9,6 +9,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getFunctionName } from "convex/server";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess } from "@tests/fixtures/finished-goods-ui";
+import { clearCursorPositions } from "@/hooks/useCursorPagination";
 import { LocationPicker } from "./LocationPicker";
 
 vi.mock("@/i18n/navigation", () => ({
@@ -72,6 +73,7 @@ const notFound = querySuccess({
 });
 
 beforeEach(() => {
+  clearCursorPositions();
   mocks.query.mockReset();
   mocks.search.mockReset().mockReturnValue(page([zone("ZONE-B")]));
   mocks.exact.mockReset();
@@ -92,7 +94,11 @@ afterEach(() => {
 });
 let refresh = () => {};
 function render(
-  options: { allowUnmapped?: boolean; locale?: "en" | "th" } = {},
+  options: {
+    allowUnmapped?: boolean;
+    locale?: "en" | "th";
+    presentation?: "default" | "jobScan" | "compact";
+  } = {},
 ) {
   const onPick = vi.fn();
   const element = () => (
@@ -100,6 +106,7 @@ function render(
       warehouseId="warehouse-a"
       onPick={onPick}
       allowUnmapped={options.allowUnmapped ?? true}
+      {...(options.presentation ? { presentation: options.presentation } : {})}
     />
   );
   const view = renderWithIntl(element(), {
@@ -136,7 +143,7 @@ function location(code = "ZONE-A") {
 
 it("browses the first page without typing, in every picker", () => {
   render();
-  expect(search()).toHaveAttribute("placeholder", "Location code or name");
+  expect(search()).toHaveAttribute("placeholder", "Search");
   expect(lastSearch()).toEqual({
     warehouseId: "warehouse-a",
     text: "",
@@ -981,4 +988,142 @@ it("recovers a failed building-options query locally without losing the draft", 
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("hides single-page pagination only in compact presentation while keeping normal pickers unchanged", async () => {
+  vi.useFakeTimers();
+  try {
+    mocks.search.mockReturnValue(page([zone("F2-L12-3"), zone("F2-L12-4")]));
+    const compact = render({ presentation: "compact" });
+    expect(
+      within(results()).getByRole("button", { name: /F2-L12-3/ }),
+    ).toBeEnabled();
+    expect(
+      within(results()).getByRole("button", { name: /F2-L12-4/ }),
+    ).toBeEnabled();
+    expect(
+      screen.queryByRole("navigation", { name: "Pagination" }),
+    ).not.toBeInTheDocument();
+
+    // Typing does not flash the pagination footer during debounce or page-1 scans.
+    fireEvent.change(search(), { target: { value: "F2" } });
+    expect(
+      screen.queryByRole("navigation", { name: "Pagination" }),
+    ).not.toBeInTheDocument();
+    mocks.search.mockReturnValue(
+      page([zone("F2-L12-3")], {
+        status: "scanning",
+        isDone: false,
+        scanCursor: "s1",
+      }),
+    );
+    await act(async () => vi.advanceTimersByTime(250));
+    expect(
+      screen.queryByRole("navigation", { name: "Pagination" }),
+    ).not.toBeInTheDocument();
+    compact.unmount();
+
+    // Normal and jobScan pickers keep the always-visible pager on a single page.
+    mocks.search.mockReturnValue(page([zone("F2-L12-3"), zone("F2-L12-4")]));
+    render({ presentation: "jobScan" });
+    expect(
+      screen.getByRole("navigation", { name: "Pagination" }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("keeps compact pagination for multi-page results, custom page sizes, and truncated history recovery", () => {
+  let page1Done = false;
+  let page2Pending = false;
+  let page1Pending = false;
+  mocks.search.mockImplementation((args: Args) => {
+    if (args.pageSize === 50)
+      return page([zone("ZONE-1"), zone("ZONE-2")], { isDone: true });
+    if (args.cursor === "c-2")
+      return page2Pending
+        ? undefined
+        : page([zone("ZONE-2")], { isDone: true });
+    if (page1Pending) return undefined;
+    return page([zone("ZONE-1")], {
+      isDone: page1Done,
+      continueCursor: page1Done ? "" : "c-2",
+    });
+  });
+
+  const view = render({ presentation: "compact" });
+  expect(screen.getByRole("navigation", { name: "Pagination" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+
+  // Advancing to page 2 keeps pagination visible while loading and once settled.
+  page2Pending = true;
+  fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+  expect(screen.getByRole("navigation", { name: "Pagination" })).toBeVisible();
+  expect(screen.getByText(/Page 2/)).toBeVisible();
+  page2Pending = false;
+  refresh();
+  expect(screen.getByRole("button", { name: "Previous page" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+
+  // Returning to page 1 keeps pagination visible while loading, then keeps it when multi-page.
+  page1Pending = true;
+  fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+  expect(screen.getByRole("navigation", { name: "Pagination" })).toBeVisible();
+  expect(screen.getByText(/Page 1/)).toBeVisible();
+  page1Pending = false;
+  refresh();
+  expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled();
+
+  // Changing page size to 50 keeps pagination visible even when all items fit on page 1.
+  fireEvent.click(screen.getByRole("combobox", { name: "Records per page" }));
+  fireEvent.click(screen.getByRole("option", { name: "50" }));
+  expect(lastSearch()).toMatchObject({ pageSize: 50 });
+  expect(screen.getByRole("navigation", { name: "Pagination" })).toBeVisible();
+
+  // Switching back to 20 collapses the footer when results fit on a single page.
+  page1Done = true;
+  fireEvent.click(screen.getByRole("combobox", { name: "Records per page" }));
+  fireEvent.click(screen.getByRole("option", { name: "20" }));
+  expect(lastSearch()).toMatchObject({ pageSize: 20 });
+  expect(
+    screen.queryByRole("navigation", { name: "Pagination" }),
+  ).not.toBeInTheDocument();
+  view.unmount();
+
+  // Truncated history past MAX_HISTORY still shows First page recovery on a settled last page.
+  clearCursorPositions();
+  window.history.replaceState(
+    {
+      cataloguePaginationScopes: [
+        {
+          scope: "job-location-picker:warehouse-a",
+          value: {
+            criteria: JSON.stringify({ warehouseId: "warehouse-a", text: "" }),
+            size: 20,
+            cursors: ["cursor-501"],
+            index: 0,
+            offset: 500,
+          },
+        },
+      ],
+    },
+    "",
+  );
+  mocks.search.mockImplementation((args: Args) =>
+    args.cursor === "cursor-501"
+      ? page([zone("ZONE-501")], { isDone: true })
+      : page([zone("ZONE-1")], { isDone: true }),
+  );
+  render({ presentation: "compact" });
+  expect(screen.getByRole("navigation", { name: "Pagination" })).toBeVisible();
+  expect(screen.getByText("Page 501")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "First page" }));
+  expect(lastSearch()).not.toHaveProperty("cursor");
+  expect(
+    screen.queryByRole("navigation", { name: "Pagination" }),
+  ).not.toBeInTheDocument();
 });

@@ -130,7 +130,7 @@ async function readBoundedBody(
   return new TextDecoder().decode(bytes);
 }
 
-interface ImageProviderAdapter {
+export interface ImageProviderAdapter {
   readonly provider: Provider;
   readonly content: (body: unknown) => string | null;
   readonly usage: (body: unknown) => ProviderUsage;
@@ -143,6 +143,34 @@ function chatContent(body: unknown): string | null {
   const content =
     isRecord(first) && isRecord(first.message) ? first.message.content : null;
   return typeof content === "string" ? content : "";
+}
+
+/**
+ * Strict OpenRouter chat content for structured-text actions: refuses missing
+ * choices, non-string content, truncated/filtered completions (`finish_reason`
+ * of `length` or `content_filter`), and oversized message content.
+ */
+export function strictOpenRouterChatAdapter(
+  maxContentChars: number,
+): ImageProviderAdapter {
+  return {
+    provider: "OPENROUTER",
+    usage: responseUsage,
+    content(body: unknown): string | null {
+      if (!isRecord(body) || Array.isArray(body)) return null;
+      const first = isArray(body.choices) ? body.choices[0] : null;
+      if (!isRecord(first) || !isRecord(first.message)) return null;
+      if (
+        first.finish_reason === "length" ||
+        first.finish_reason === "content_filter"
+      )
+        return null;
+      const content = first.message.content;
+      if (typeof content !== "string" || content.length > maxContentChars)
+        return null;
+      return content;
+    },
+  };
 }
 
 /**

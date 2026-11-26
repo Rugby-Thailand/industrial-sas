@@ -67,29 +67,47 @@ const mocks = vi.hoisted(() => ({
       (args: { ids: string[] }) => Promise<ReturnType<typeof writeSuccess>>
     >(),
   assign: vi.fn(),
+  createLocation: vi.fn(),
   resolveLocation: vi.fn(),
+  extractLocation: vi.fn(),
   /** Overrides the saved-record query for search and scan tests. */
   listJobScans: null as null | ((args: Record<string, unknown>) => unknown),
+  /** Overrides the location picker query for single/multi-page picker tests. */
+  searchLocations: null as null | ((args: Record<string, unknown>) => unknown),
   listCalls: [] as Record<string, unknown>[],
 }));
 const originalRecords = [...mocks.records];
 
 vi.mock("convex/react", () => ({
   useMutation: getTestMutation,
-  useConvex: () => ({ query: mocks.resolveLocation }),
+  useConvex: () => ({
+    query: mocks.resolveLocation,
+    action: mocks.extractLocation,
+  }),
   useQuery: (
     ref: Parameters<typeof getFunctionName>[0],
     args: { filter: string; cursor: string | null },
   ) => {
-    if (getFunctionName(ref).endsWith(":searchPage"))
+    const name = getFunctionName(ref);
+    if (name.endsWith(":searchPage"))
+      return mocks.searchLocations
+        ? mocks.searchLocations(args as unknown as Record<string, unknown>)
+        : querySuccess({
+            items: [{ zoneId: "zone-a", code: "ZONE-A", name: "Warehouse A" }],
+            page: 1,
+            pages: 1,
+            total: 1,
+            status: "ready",
+            isDone: true,
+          });
+    if (name.endsWith(":options"))
       return querySuccess({
-        items: [{ zoneId: "zone-a", code: "ZONE-A", name: "Warehouse A" }],
-        page: 1,
-        pages: 1,
-        total: 1,
-        status: "ready",
-        isDone: true,
+        buildings: [
+          { id: "building-a", code: "A", name: "Building A", floors: [] },
+        ],
       });
+    if (name.endsWith(":resolve"))
+      return querySuccess({ ok: false, error: { code: "LOCATION_NOT_FOUND" } });
     if (mocks.denied) return { ok: false, requestId: "denied-query" };
     mocks.listCalls.push(args);
     if (mocks.listJobScans) return mocks.listJobScans(args);
@@ -117,14 +135,23 @@ vi.mock("@/hooks/useCanManage", () => ({
 vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
     onCode,
+    onReadWithAi,
     presentation = "default",
   }: {
     onCode: (code: string) => void;
+    onReadWithAi?: () => void;
     presentation?: string;
   }) => (
-    <button data-presentation={presentation} onClick={() => onCode("ZONE-A")}>
-      Scan test location
-    </button>
+    <div>
+      <button data-presentation={presentation} onClick={() => onCode("ZONE-A")}>
+        Scan test location
+      </button>
+      {onReadWithAi && (
+        <button type="button" onClick={() => onReadWithAi()}>
+          Read barcode photo with AI
+        </button>
+      )}
+    </div>
   ),
 }));
 vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => ({
@@ -146,12 +173,13 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ back: vi.fn() }),
+  useRouter: () => ({ back: vi.fn(), replace: vi.fn() }),
 }));
 
 beforeEach(() => {
   registerTestMutation(fgRefs.assignJobScanLocation, mocks.assign);
   registerTestMutation(fgRefs.deleteJobScans, mocks.deleteScans);
+  registerTestMutation(fgRefs.createJobScanLocation, mocks.createLocation);
 
   vi.clearAllMocks();
   clearCursorPositions();
@@ -162,10 +190,21 @@ beforeEach(() => {
   mocks.paginated = false;
   mocks.denied = false;
   mocks.listJobScans = null;
+  mocks.searchLocations = null;
   mocks.listCalls = [];
   window.localStorage.clear();
   window.history.replaceState(null, "", "/en/finished-goods/scan/records");
   mocks.assign.mockResolvedValue(writeSuccess("scan-a"));
+  mocks.createLocation.mockResolvedValue(writeSuccess("named-a"));
+  mocks.resolveLocation.mockResolvedValue(
+    querySuccess({ ok: false, error: { code: "LOCATION_NOT_FOUND" } }),
+  );
+  mocks.extractLocation.mockResolvedValue(
+    querySuccess({
+      ok: true,
+      candidates: [{ code: "ZONE-A", labelText: null }],
+    }),
+  );
   mocks.records = [...originalRecords];
   mocks.deleteScans.mockImplementation(async ({ ids }) => {
     mocks.records = mocks.records.filter((record) => !ids.includes(record.id));
@@ -245,26 +284,24 @@ describe("scanned record deletion", () => {
       workspace: false,
     });
     await user.click(screen.getByRole("checkbox", { name: "Select FO003" }));
-    await user.click(
-      screen.getByRole("button", { name: "Actions for record FO001" }),
-    );
+    const actionsTrigger = screen.getByRole("button", {
+      name: "Actions for record FO001",
+    });
+    await user.click(actionsTrigger);
     await user.click(screen.getByRole("menuitem", { name: "Change location" }));
+    const dialog = screen.getByRole("dialog", { name: "Set location" });
+    expect(dialog).toHaveTextContent("FO001");
+    expect(dialog).toHaveTextContent("Current · Dock");
     expect(
-      screen.getByRole("heading", { name: "Choose a location" }),
-    ).toBeInTheDocument();
-    await waitFor(() =>
-      expect(
-        screen.getByRole("region", { name: "Choose a location" }),
-      ).toHaveFocus(),
-    );
+      within(dialog).getByRole("textbox", { name: "Search location" }),
+    ).toHaveFocus();
     expect(
-      screen.getByRole("checkbox", { name: "Select FO003" }),
+      screen.getByRole("checkbox", { name: "Select FO003", hidden: true }),
     ).toBeDisabled();
-    await user.click(screen.getByRole("checkbox", { name: "Select FO003" }));
     expect(
-      screen.getByRole("checkbox", { name: "Select FO003" }),
+      screen.getByRole("checkbox", { name: "Select FO003", hidden: true }),
     ).not.toBeChecked();
-    await user.click(screen.getByRole("button", { name: /ZONE-A/ }));
+    await user.click(within(dialog).getByRole("button", { name: /ZONE-A/ }));
     expect(mocks.assign).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
     await waitFor(() =>
@@ -380,7 +417,7 @@ describe("scanned record deletion", () => {
     expect(
       screen.getByRole("button", { name: "All", hidden: true }),
     ).toBeDisabled();
-    // Records pager and the picker's always-visible pager are both locked.
+    // Records pager stays locked while the single-page compact picker omits its footer.
     for (const next of document.querySelectorAll<HTMLButtonElement>(
       'button[aria-label="Next page"]',
     ))
@@ -390,10 +427,16 @@ describe("scanned record deletion", () => {
     ).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
     expect(mocks.assign).toHaveBeenCalledTimes(1);
+    await user.keyboard("{Escape}");
+    expect(
+      screen.getByRole("dialog", {
+        name: "Review location change for 1 ticket",
+      }),
+    ).toBeInTheDocument();
     finish(writeSuccess("scan-a"));
     await waitFor(() =>
       expect(
-        screen.queryByRole("heading", { name: "Choose a location" }),
+        screen.queryByRole("dialog", { name: "Set location" }),
       ).not.toBeInTheDocument(),
     );
     await waitFor(() =>
@@ -448,7 +491,7 @@ describe("scanned record deletion", () => {
     finish(location);
     await waitFor(() =>
       expect(
-        screen.queryByRole("region", { name: "Choose a location" }),
+        screen.queryByRole("dialog", { name: "Set location" }),
       ).not.toBeInTheDocument(),
     );
     expect(mocks.assign).not.toHaveBeenCalled();
@@ -588,6 +631,9 @@ describe("scanned record deletion", () => {
     expect(
       screen.getByRole("button", { name: "ลบรายการ FO001" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "ระบุตำแหน่ง FO001" }),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("ไม่ระบุ")).toHaveLength(2);
     expect(screen.queryByText("ระบุ")).not.toBeInTheDocument();
     view.unmount();
@@ -598,6 +644,11 @@ describe("scanned record deletion", () => {
     });
     expect(
       screen.queryByRole("button", { name: /ลบรายการ/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: /^(?:ระบุตำแหน่ง|เปลี่ยนตำแหน่ง) /,
+      }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
@@ -840,6 +891,9 @@ describe("retained rows and scan recovery", () => {
     expect(
       screen.getByRole("button", { name: "Actions for record FO001" }),
     ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    ).toBeDisabled();
     await user.click(checkbox);
     expect(checkbox).not.toBeChecked();
     expect(
@@ -1001,38 +1055,168 @@ it("renders a saved provider URL in the record thumbnail and full photo dialog",
 });
 
 it("native Back closes Location assignment and retains the selected records", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/th/finished-goods/scan?origin=kept#scanner",
+  );
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/scan/records?filter=keep#rows",
+  );
   const user = userEvent.setup();
-  renderWithIntl(<JobScanRecordsScreen />, { locale: "en", workspace: false });
-  await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
-  await user.click(
-    screen.getByRole("button", { name: "Set location for 1 record" }),
-  );
-  act(() => window.history.back());
-  await waitFor(() =>
+  const view = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+  });
+  try {
+    await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
+    await user.click(
+      screen.getByRole("button", { name: "Set location for 1 record" }),
+    );
     expect(
-      screen.queryByRole("region", { name: "Choose a location" }),
-    ).toBeNull(),
-  );
-  expect(screen.getByRole("checkbox", { name: "Select FO001" })).toBeChecked();
+      screen.getByRole("dialog", { name: "Set location" }),
+    ).toBeInTheDocument();
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
+    );
+    expect(
+      screen.getByRole("checkbox", { name: "Select FO001" }),
+    ).toBeChecked();
+    expect(window.location.search + window.location.hash).toBe(
+      "?filter=keep#rows",
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/th/finished-goods/scan?origin=kept#scanner"),
+    );
+  } finally {
+    view.unmount();
+    stop();
+  }
 });
-it("explicit location Cancel consumes its step before the next Back", async () => {
+
+it.each(["Cancel", "Close", "Escape"])(
+  "explicit location %s retires the picker before Forward and the next Back",
+  async (dismissal) => {
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/th/finished-goods/scan?origin=kept#scanner",
+    );
+    const stop = trackAppHistory();
+    window.history.pushState(
+      {},
+      "",
+      "/en/finished-goods/scan/records?filter=keep#rows",
+    );
+    const user = userEvent.setup();
+    const view = renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+    });
+    try {
+      await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
+      const bulkButton = screen.getByRole("button", {
+        name: "Set location for 1 record",
+      });
+      await user.click(bulkButton);
+      const dialog = screen.getByRole("dialog", { name: "Set location" });
+      expect(await axe(dialog)).toHaveNoViolations();
+      if (dismissal === "Escape") await user.keyboard("{Escape}");
+      else
+        await user.click(
+          within(dialog).getByRole("button", { name: dismissal }),
+        );
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", { name: "Set location" }),
+        ).toBeNull(),
+      );
+      await waitFor(() =>
+        expect(window.location.search + window.location.hash).toBe(
+          "?filter=keep#rows",
+        ),
+      );
+      await waitFor(() => expect(bulkButton).toHaveFocus());
+      expect(mocks.assign).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("checkbox", { name: "Select FO001" }),
+      ).toBeChecked();
+      await act(async () => {
+        const visited = new Promise<void>((resolve) =>
+          window.addEventListener("popstate", () => resolve(), { once: true }),
+        );
+        window.history.forward();
+        await visited;
+      });
+      await waitFor(() =>
+        expect(window.location.search + window.location.hash).toBe(
+          "?filter=keep#rows",
+        ),
+      );
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull();
+      act(() => window.history.back());
+      await waitFor(() =>
+        expect(
+          window.location.pathname +
+            window.location.search +
+            window.location.hash,
+        ).toBe("/th/finished-goods/scan?origin=kept#scanner"),
+      );
+    } finally {
+      view.unmount();
+      stop();
+    }
+  },
+);
+
+it("shows the verified destination details before confirming a location change", async () => {
+  mocks.resolveLocation.mockResolvedValueOnce(
+    querySuccess({
+      ok: true,
+      location: {
+        locationId: "named-a",
+        code: "DOCK NORTH",
+        name: "Receiving bay",
+        buildingId: "building-a",
+        buildingName: "Building A",
+        floorId: "floor-a",
+        floorNumber: 0,
+        layoutPending: true,
+      },
+    }),
+  );
   const user = userEvent.setup();
   renderWithIntl(<JobScanRecordsScreen />, { locale: "en", workspace: false });
-  await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
   await user.click(
-    screen.getByRole("button", { name: "Set location for 1 record" }),
+    screen.getByRole("button", { name: "Set location for FO001" }),
   );
-  await user.click(screen.getByRole("button", { name: "Cancel" }));
-  await waitFor(() =>
-    expect(
-      new URLSearchParams(window.location.search).has("jobRecordsLocation"),
-    ).toBe(false),
+  const picker = within(screen.getByRole("dialog", { name: "Set location" }));
+  await user.click(picker.getByRole("button", { name: "Scan code" }));
+  const camera = within(
+    await screen.findByRole("dialog", { name: "Scan code" }),
   );
-  expect(
-    screen.queryByRole("region", { name: "Choose a location" }),
-  ).toBeNull();
+  await user.click(camera.getByRole("button", { name: "Scan test location" }));
+  const review = await screen.findByRole("dialog", {
+    name: "Review location change for 1 ticket",
+  });
+  expect(review).toHaveTextContent("Dock → DOCK NORTH");
+  expect(review).toHaveAccessibleDescription(
+    expect.stringContaining(
+      "Building A · Floor 0 · Receiving bay · Location recorded · Layout pending",
+    ),
+  );
   expect(mocks.assign).not.toHaveBeenCalled();
 });
+
 it("requires review and blocks a stale multi-ticket location snapshot without writing", async () => {
   const user = userEvent.setup();
   const view = renderWithIntl(<JobScanRecordsScreen />, {
@@ -1046,7 +1230,11 @@ it("requires review and blocks a stale multi-ticket location snapshot without wr
   await user.click(
     screen.getByRole("button", { name: "Set location for 2 records" }),
   );
-  await user.click(screen.getByRole("button", { name: /ZONE-A/ }));
+  const picker = screen.getByRole("dialog", {
+    name: "Set location for selected",
+  });
+  expect(picker).toHaveTextContent("2 records selected");
+  await user.click(within(picker).getByRole("button", { name: /ZONE-A/ }));
   expect(mocks.assign).not.toHaveBeenCalled();
   expect(
     screen.getByRole("dialog", {
@@ -1093,9 +1281,7 @@ it("successful location remap consumes review and picker before the next native 
       ).toBeNull(),
     );
     await waitFor(() =>
-      expect(
-        screen.queryByRole("region", { name: "Choose a location" }),
-      ).toBeNull(),
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
     );
     await waitFor(() => expect(window.location.search).toBe("?filter=keep"));
     expect(window.location.hash).toBe("#rows");
@@ -1214,74 +1400,564 @@ it("retries the immutable reviewed location command after response loss and adva
   ]);
   // The successful retry also completes two asynchronous native traversals.
   await waitFor(() =>
-    expect(
-      screen.queryByRole("region", { name: "Choose a location" }),
-    ).toBeNull(),
+    expect(screen.queryByRole("dialog", { name: /Set location/ })).toBeNull(),
   );
   await waitFor(() =>
     expect(
-      new URLSearchParams(window.location.search).has("jobRecordsLocation"),
+      [...new URLSearchParams(window.location.search).keys()].some((key) =>
+        key.startsWith("overlay"),
+      ),
     ).toBe(false),
   );
 });
 
-it("a delayed picker focus must not steal a user's newly focused search field", async () => {
+it("opens the location Dialog from a row pencil button, shows Thai/English context, and restores focus on Cancel", async () => {
+  const user = userEvent.setup();
+  const view = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+  });
+  await user.click(screen.getByRole("button", { name: "All" }));
+  const pencil = screen.getByRole("button", {
+    name: "Change location for FO002",
+  });
+  await user.click(pencil);
+  const dialog = screen.getByRole("dialog", { name: "Change location" });
+  expect(dialog).toHaveTextContent("FO002");
+  expect(dialog).toHaveTextContent("Current · F1-L1");
+  expect(
+    within(dialog).getByRole("textbox", { name: "Search location" }),
+  ).toHaveFocus();
+  await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(dialog).not.toBeInTheDocument());
+  await waitFor(() => expect(pencil).toHaveFocus());
+
+  // Closing via the actions menu restores focus to the menu trigger.
+  const actionsTrigger = screen.getByRole("button", {
+    name: "Actions for record FO001",
+  });
+  await user.click(actionsTrigger);
+  await user.click(screen.getByRole("menuitem", { name: "Change location" }));
+  const setDialog = screen.getByRole("dialog", { name: "Set location" });
+  await user.click(within(setDialog).getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(setDialog).not.toBeInTheDocument());
+  await waitFor(() => expect(actionsTrigger).toHaveFocus());
+  view.unmount();
+
+  renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "th",
+    workspace: false,
+  });
+  await user.click(screen.getByRole("button", { name: "ระบุตำแหน่ง FO001" }));
+  const thDialog = screen.getByRole("dialog", { name: "ระบุตำแหน่ง" });
+  expect(thDialog).toHaveTextContent("FO001");
+  expect(thDialog).toHaveTextContent("ปัจจุบัน · Dock");
+});
+
+it("native Forward reopens Location assignment without duplicate entries after Back", async () => {
   window.history.replaceState(
-    null,
+    { appNavigationIndex: 0 },
     "",
-    "/en/finished-goods/scan/records?source=keep",
+    "/en/finished-goods/scan?origin=kept#scanner",
   );
-  const frames = new Map<number, FrameRequestCallback>();
-  let sequence = 0;
-  const request = vi
-    .spyOn(window, "requestAnimationFrame")
-    .mockImplementation((callback) => {
-      const id = ++sequence;
-      frames.set(id, callback);
-      return id;
-    });
-  const cancel = vi
-    .spyOn(window, "cancelAnimationFrame")
-    .mockImplementation((id) => {
-      frames.delete(id);
-    });
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/scan/records?filter=keep#rows",
+  );
+  const user = userEvent.setup();
+  const view = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+  });
   try {
-    const user = userEvent.setup();
-    renderWithIntl(<JobScanRecordsScreen />, {
-      locale: "en",
-      workspace: false,
-    });
     await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
     await user.click(
       screen.getByRole("button", { name: "Set location for 1 record" }),
     );
-    const search = screen.getByRole("textbox", {
-      name: /Search Job No/,
-      hidden: true,
-    });
-    act(() => search.focus());
-    act(() => {
-      const pending = [...frames.values()];
-      frames.clear();
-      for (const callback of pending) callback(performance.now());
-    });
-    expect(search).toHaveFocus();
-    await user.type(search, "FO00", { skipClick: true });
-    expect(search).toHaveValue("FO00");
     await waitFor(() =>
       expect(
-        new URLSearchParams(window.location.search).has("jobRecordsLocation"),
-      ).toBe(false),
+        screen.getByRole("dialog", { name: "Set location" }),
+      ).toBeVisible(),
     );
-    expect(new URLSearchParams(window.location.search).get("source")).toBe(
-      "keep",
+    const openSearch = window.location.search;
+    const openLength = window.history.length;
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
+    );
+    act(() => window.history.forward());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("dialog", { name: "Set location" }),
+      ).toBeVisible(),
+    );
+    expect(window.location.search).toBe(openSearch);
+    expect(window.history.length).toBe(openLength);
+  } finally {
+    view.unmount();
+    stop();
+  }
+});
+
+it("restores location review on Forward and keeps Back ordered through the picker", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?origin=kept#scanner",
+  );
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/scan/records?filter=keep#rows",
+  );
+  const user = userEvent.setup();
+  const view = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+  });
+  try {
+    await user.click(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    );
+    const picker = screen.getByRole("dialog", { name: "Set location" });
+    await user.click(within(picker).getByRole("button", { name: /ZONE-A/ }));
+    const review = screen.getByRole("dialog", {
+      name: "Review location change for 1 ticket",
+    });
+    expect(review).toHaveTextContent("Dock → ZONE-A");
+    const reviewSearch = window.location.search;
+    const historyLength = window.history.length;
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", {
+          name: "Review location change for 1 ticket",
+        }),
+      ).toBeNull(),
+    );
+    expect(screen.getByRole("dialog", { name: "Set location" })).toBeVisible();
+    act(() => window.history.forward());
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Review location change for 1 ticket",
+      }),
+    ).toHaveTextContent("Dock → ZONE-A");
+    expect(window.location.search).toBe(reviewSearch);
+    expect(window.history.length).toBe(historyLength);
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("dialog", { name: "Set location" }),
+      ).toBeVisible(),
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/finished-goods/scan?origin=kept#scanner"),
+    );
+  } finally {
+    view.unmount();
+    stop();
+  }
+});
+
+it.each(["Cancel", "Close", "Escape"])(
+  "explicit %s retires location review before Forward and the next Back",
+  async (dismiss) => {
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/en/finished-goods/scan?origin=kept#scanner",
+    );
+    const stop = trackAppHistory();
+    window.history.pushState(
+      {},
+      "",
+      "/en/finished-goods/scan/records?filter=keep#rows",
+    );
+    const user = userEvent.setup();
+    const view = renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+    });
+    try {
+      await user.click(
+        screen.getByRole("button", { name: "Set location for FO001" }),
+      );
+      const picker = screen.getByRole("dialog", { name: "Set location" });
+      const pickerSearch = window.location.search;
+      await user.click(within(picker).getByRole("button", { name: /ZONE-A/ }));
+      const review = within(
+        screen.getByRole("dialog", {
+          name: "Review location change for 1 ticket",
+        }),
+      );
+      if (dismiss === "Escape") await user.keyboard("{Escape}");
+      else await user.click(review.getByRole("button", { name: dismiss }));
+      await waitFor(() => expect(window.location.search).toBe(pickerSearch));
+      await act(async () => {
+        const visited = new Promise<void>((resolve) =>
+          window.addEventListener("popstate", () => resolve(), { once: true }),
+        );
+        window.history.forward();
+        await visited;
+      });
+      await waitFor(() => expect(window.location.search).toBe(pickerSearch));
+      expect(
+        screen.getByRole("dialog", { name: "Set location" }),
+      ).toBeVisible();
+      expect(mocks.assign).not.toHaveBeenCalled();
+      act(() => window.history.back());
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", { name: "Set location" }),
+        ).toBeNull(),
+      );
+      act(() => window.history.back());
+      await waitFor(() =>
+        expect(
+          window.location.pathname +
+            window.location.search +
+            window.location.hash,
+        ).toBe("/en/finished-goods/scan?origin=kept#scanner"),
+      );
+    } finally {
+      view.unmount();
+      stop();
+    }
+  },
+);
+
+it("nested QR and Photo AI Back flows dismiss in order inside the location picker Dialog", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?origin=kept#scanner",
+  );
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/scan/records?filter=keep#rows",
+  );
+  const user = userEvent.setup();
+  const view = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+  });
+  try {
+    await user.click(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    );
+    const picker = screen.getByRole("dialog", { name: "Set location" });
+    await user.click(within(picker).getByRole("button", { name: "Scan code" }));
+    const camera = await screen.findByRole("dialog", { name: "Scan code" });
+    expect(camera).toHaveAttribute("data-camera-dialog", "true");
+    await user.click(
+      within(camera).getByRole("button", {
+        name: "Read barcode photo with AI",
+      }),
+    );
+    const ai = await screen.findByRole("dialog", {
+      name: "Read a location label",
+    });
+    expect(ai).toHaveAttribute("data-camera-dialog", "true");
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Read a location label" }),
+      ).toBeNull(),
     );
     expect(
-      screen.queryByRole("region", { name: "Choose a location" }),
-    ).not.toBeInTheDocument();
+      within(screen.getByRole("dialog", { name: "Scan code" })).getByRole(
+        "button",
+        { name: "Scan test location" },
+      ),
+    ).toBeVisible();
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Scan code" })).toBeNull(),
+    );
+    expect(picker).toBeVisible();
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/finished-goods/scan?origin=kept#scanner"),
+    );
   } finally {
-    request.mockRestore();
-    cancel.mockRestore();
+    view.unmount();
+    stop();
+  }
+});
+
+it("closing the nested QR camera and cancelling the picker consumes both overlays before the next Back", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?origin=kept#scanner",
+  );
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/scan/records?filter=keep#rows",
+  );
+  const user = userEvent.setup();
+  const view = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+  });
+  try {
+    await user.click(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    );
+    const picker = screen.getByRole("dialog", { name: "Set location" });
+    await user.click(within(picker).getByRole("button", { name: "Scan code" }));
+    const camera = await screen.findByRole("dialog", { name: "Scan code" });
+    await user.click(
+      within(camera).getByRole("button", { name: "Close camera" }),
+    );
+    await waitFor(() => expect(camera).not.toBeInTheDocument());
+    await user.click(within(picker).getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
+    );
+    await waitFor(() =>
+      expect(window.location.search + window.location.hash).toBe(
+        "?filter=keep#rows",
+      ),
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/finished-goods/scan?origin=kept#scanner"),
+    );
+  } finally {
+    view.unmount();
+    stop();
+  }
+});
+
+it("dirty location registration inside the picker Dialog guards Cancel and Back before discarding", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?origin=kept#scanner",
+  );
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/scan/records?filter=keep#rows",
+  );
+  const user = userEvent.setup();
+  const view = renderWithIntl(
+    <NavigationGuardProvider>
+      <JobScanRecordsScreen />
+    </NavigationGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  try {
+    await user.click(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    );
+    const picker = screen.getByRole("dialog", { name: "Set location" });
+    await user.click(within(picker).getByRole("button", { name: "Scan code" }));
+    const camera = await screen.findByRole("dialog", { name: "Scan code" });
+    await user.click(
+      within(camera).getByRole("button", { name: "Scan test location" }),
+    );
+    await user.click(
+      await within(picker).findByRole("button", { name: "Add location" }),
+    );
+    const nameInput = await within(picker).findByRole("textbox", {
+      name: "Display name (optional)",
+    });
+    await user.type(nameInput, "North dock");
+
+    // Native Back guards the dirty registration form and Keep editing retains it.
+    act(() => window.history.back());
+    await screen.findByRole("dialog", { name: "Discard changes?" });
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(
+      screen.getByRole("textbox", { name: "Display name (optional)" }),
+    ).toHaveValue("North dock");
+
+    // Clicking the outer Dialog's Close button also guards the dirty registration draft.
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Set location" })).getByRole(
+        "button",
+        { name: "Close" },
+      ),
+    );
+    await screen.findByRole("dialog", { name: "Discard changes?" });
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
+    );
+    await waitFor(() =>
+      expect(window.location.search + window.location.hash).toBe(
+        "?filter=keep#rows",
+      ),
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/finished-goods/scan?origin=kept#scanner"),
+    );
+  } finally {
+    view.unmount();
+    stop();
+  }
+});
+
+it.each(["while open", "after Back"])(
+  "retires the location picker when a live update removes its target %s",
+  async (removal) => {
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/en/finished-goods/scan?origin=kept#scanner",
+    );
+    const stop = trackAppHistory();
+    window.history.pushState(
+      {},
+      "",
+      "/en/finished-goods/scan/records?filter=keep#rows",
+    );
+    const user = userEvent.setup();
+    const view = renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+    try {
+      await user.click(
+        screen.getByRole("button", { name: "Set location for FO001" }),
+      );
+      expect(
+        screen.getByRole("dialog", { name: "Set location" }),
+      ).toBeInTheDocument();
+      if (removal === "after Back") {
+        act(() => window.history.back());
+        await waitFor(() =>
+          expect(
+            screen.queryByRole("dialog", { name: "Set location" }),
+          ).toBeNull(),
+        );
+      }
+      mocks.records = originalRecords.filter(
+        (record) => record.id !== "scan-a",
+      );
+      view.rerender(<JobScanRecordsScreen />);
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", { name: "Set location" }),
+        ).toBeNull(),
+      );
+      await waitFor(() =>
+        expect(window.location.search + window.location.hash).toBe(
+          "?filter=keep#rows",
+        ),
+      );
+      await act(async () => {
+        const visited = new Promise<void>((resolve) =>
+          window.addEventListener("popstate", () => resolve(), { once: true }),
+        );
+        window.history.forward();
+        await visited;
+      });
+      await waitFor(() =>
+        expect(window.location.search + window.location.hash).toBe(
+          "?filter=keep#rows",
+        ),
+      );
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull();
+      act(() => window.history.back());
+      await waitFor(() =>
+        expect(
+          window.location.pathname +
+            window.location.search +
+            window.location.hash,
+        ).toBe("/en/finished-goods/scan?origin=kept#scanner"),
+      );
+    } finally {
+      view.unmount();
+      stop();
+    }
+  },
+);
+
+it("remounting the records screen retires an open location picker Dialog cleanly", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?origin=kept#scanner",
+  );
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/scan/records?filter=keep#rows",
+  );
+  const user = userEvent.setup();
+  const first = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+  });
+  let second: ReturnType<typeof renderWithIntl> | undefined;
+  try {
+    await user.click(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Set location" }),
+    ).toBeInTheDocument();
+    first.unmount();
+    second = renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+    });
+    await waitFor(() =>
+      expect(window.location.search + window.location.hash).toBe(
+        "?filter=keep#rows",
+      ),
+    );
+    expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull();
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/finished-goods/scan?origin=kept#scanner"),
+    );
+  } finally {
+    second?.unmount();
+    stop();
   }
 });
 
@@ -1316,4 +1992,236 @@ it("honors requestedWarehouseId on job scan records and yields when the user swi
     ).toBeNull(),
   );
   expect(mocks.listCalls.at(-1)).toMatchObject({ warehouseId: "warehouse-a" });
+});
+
+it("hides single-page picker pagination in saved records and preserves multi-page paging, pending locks, Back, and warehouse scope", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?origin=kept#scanner",
+  );
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/scan/records?filter=keep#rows",
+  );
+  const locationCalls: Record<string, unknown>[] = [];
+  let multiPage = false;
+  const locationPage = (
+    items: {
+      locationId: string;
+      zoneId: string;
+      code: string;
+      name: string;
+    }[],
+    extra: Partial<{ isDone: boolean; continueCursor: string }> = {},
+  ) =>
+    querySuccess({
+      status: "ready",
+      isDone: true,
+      continueCursor: "",
+      ...extra,
+      items,
+      page: items.map((location) => ({ _id: location.locationId, location })),
+    });
+  mocks.searchLocations = (args) => {
+    locationCalls.push(args);
+    if (args.warehouseId === "warehouse-b")
+      return locationPage([
+        {
+          locationId: "loc-wb-1",
+          zoneId: "zone-wb-1",
+          code: "WB-L1",
+          name: "Warehouse B Slot 1",
+        },
+      ]);
+    if (!multiPage)
+      return locationPage([
+        {
+          locationId: "loc-1",
+          zoneId: "zone-1",
+          code: "F2-L12-3",
+          name: "Slot L12-3",
+        },
+        {
+          locationId: "loc-2",
+          zoneId: "zone-2",
+          code: "F2-L12-4",
+          name: "Slot L12-4",
+        },
+      ]);
+    if (args.pageSize === 50)
+      return locationPage([
+        {
+          locationId: "loc-1",
+          zoneId: "zone-1",
+          code: "ZONE-1",
+          name: "Zone 1",
+        },
+        {
+          locationId: "loc-2",
+          zoneId: "zone-2",
+          code: "ZONE-2",
+          name: "Zone 2",
+        },
+      ]);
+    if (args.cursor === "loc-page-2")
+      return locationPage([
+        {
+          locationId: "loc-2",
+          zoneId: "zone-2",
+          code: "ZONE-2",
+          name: "Zone 2",
+        },
+      ]);
+    return locationPage(
+      [
+        {
+          locationId: "loc-1",
+          zoneId: "zone-1",
+          code: "ZONE-1",
+          name: "Zone 1",
+        },
+      ],
+      { isDone: false, continueCursor: "loc-page-2" },
+    );
+  };
+
+  let finishAssign!: (outcome: ReturnType<typeof writeSuccess>) => void;
+  mocks.assign.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishAssign = resolve;
+      }),
+  );
+
+  const user = userEvent.setup();
+  const view = renderWithIntl(
+    <NavigationGuardProvider>
+      <JobScanRecordsScreen />
+    </NavigationGuardProvider>,
+    { locale: "en", workspace: false, preserveProviders: true },
+  );
+  try {
+    // 1. Single settled page hides pagination inside the saved-records picker dialog.
+    await user.click(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    );
+    const singleDialog = screen.getByRole("dialog", { name: "Set location" });
+    expect(
+      within(singleDialog).getByRole("button", { name: /F2-L12-3/ }),
+    ).toBeEnabled();
+    expect(
+      within(singleDialog).getByRole("button", { name: /F2-L12-4/ }),
+    ).toBeEnabled();
+    expect(
+      within(singleDialog).queryByRole("navigation", { name: "Pagination" }),
+    ).not.toBeInTheDocument();
+
+    // Native Back still dismisses the picker and preserves the selected row.
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
+    );
+    expect(
+      screen.getByRole("checkbox", { name: "Select FO001" }),
+    ).toBeChecked();
+
+    // 2. Multi-page locations keep pagination, page-size control, and pending-write locks.
+    multiPage = true;
+    await user.click(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    );
+    const pagedDialog = screen.getByRole("dialog", { name: "Set location" });
+    expect(
+      within(pagedDialog).getByRole("navigation", { name: "Pagination" }),
+    ).toBeVisible();
+    await user.click(
+      within(pagedDialog).getByRole("button", { name: "Next page" }),
+    );
+    expect(
+      within(pagedDialog).getByRole("button", { name: /ZONE-2/ }),
+    ).toBeEnabled();
+    expect(
+      within(pagedDialog).getByRole("button", { name: "Previous page" }),
+    ).toBeEnabled();
+    await user.click(
+      within(pagedDialog).getByRole("button", { name: "Previous page" }),
+    );
+    expect(
+      within(pagedDialog).getByRole("button", { name: /ZONE-1/ }),
+    ).toBeEnabled();
+
+    // Switching page size to 50 keeps pagination visible even when the larger page is complete.
+    await user.click(
+      within(pagedDialog).getByRole("combobox", { name: "Records per page" }),
+    );
+    await user.click(screen.getByRole("option", { name: "50" }));
+    expect(locationCalls.at(-1)).toMatchObject({
+      warehouseId: "warehouse-a",
+      pageSize: 50,
+    });
+    expect(
+      within(pagedDialog).getByRole("navigation", { name: "Pagination" }),
+    ).toBeVisible();
+
+    // Switch back to 20 so Next page is enabled, then confirm a pick and verify pending locks it.
+    await user.click(
+      within(pagedDialog).getByRole("combobox", { name: "Records per page" }),
+    );
+    await user.click(screen.getByRole("option", { name: "20" }));
+    expect(
+      within(pagedDialog).getByRole("button", { name: "Next page" }),
+    ).toBeEnabled();
+    await user.click(
+      within(pagedDialog).getByRole("button", { name: /ZONE-1/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
+    expect(
+      within(pagedDialog).getByRole("combobox", {
+        name: "Records per page",
+        hidden: true,
+      }),
+    ).toBeDisabled();
+    expect(
+      pagedDialog.querySelector<HTMLButtonElement>(
+        'button[aria-label="Next page"]',
+      ),
+    ).toBeDisabled();
+    finishAssign(writeSuccess("scan-a"));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
+    );
+
+    // 3. Switching warehouse uses an isolated picker pagination scope with default page size.
+    mocks.warehouseId = "warehouse-b";
+    locationCalls.length = 0;
+    view.rerender(
+      <NavigationGuardProvider>
+        <JobScanRecordsScreen />
+      </NavigationGuardProvider>,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    );
+    const otherWarehouseDialog = screen.getByRole("dialog", {
+      name: "Set location",
+    });
+    expect(locationCalls.at(-1)).toMatchObject({
+      warehouseId: "warehouse-b",
+      pageSize: 20,
+    });
+    expect(
+      within(otherWarehouseDialog).getByRole("button", { name: /WB-L1/ }),
+    ).toBeEnabled();
+    expect(
+      within(otherWarehouseDialog).queryByRole("navigation", {
+        name: "Pagination",
+      }),
+    ).not.toBeInTheDocument();
+  } finally {
+    view.unmount();
+    stop();
+  }
 });

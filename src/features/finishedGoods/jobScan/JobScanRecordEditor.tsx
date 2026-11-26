@@ -39,7 +39,7 @@ type Snapshot = Pick<
   Record,
   TicketField | "storageFormat" | "version" | "customerId"
 >;
-function recordDraft(record: Snapshot): TicketDraft {
+export function jobScanCorrectionDraft(record: Snapshot): TicketDraft {
   const values: TicketDraft["values"] = {};
   for (const field of [...REQUIRED_FIELDS, ...DETAIL_FIELDS]) {
     const value = record[field];
@@ -55,10 +55,14 @@ export function JobScanRecordEditor({
   record,
   warehouseId,
   onClose,
+  onSaveSuccess,
+  onSaved = onClose,
 }: {
   record: Record;
   warehouseId: string;
   onClose: () => void;
+  onSaveSuccess?: () => void;
+  onSaved?: () => void;
 }) {
   const t = useTranslations("JobScan");
   const draftScope = useId();
@@ -69,13 +73,13 @@ export function JobScanRecordEditor({
   const [pendingCommand, setPendingCommand] =
     useState<Parameters<typeof save>[0]>();
   const [baseline, setBaseline] = useState<Snapshot>(record);
-  const [ticket, setTicket] = useState(() => recordDraft(record));
+  const [ticket, setTicket] = useState(() => jobScanCorrectionDraft(record));
   const [customerId, setCustomerId] = useState(() => record.customerId ?? "");
   // A STALE_REVISION refusal proves a newer version before this editor sees it.
   const [conflict, setConflict] = useState(false);
   const dirty =
     JSON.stringify(ticket.values) !==
-      JSON.stringify(recordDraft(baseline).values) ||
+      JSON.stringify(jobScanCorrectionDraft(baseline).values) ||
     ticket.storageFormat !== baseline.storageFormat ||
     customerId !== (baseline.customerId ?? "");
   const guard = useNavigationDraft({
@@ -83,7 +87,7 @@ export function JobScanRecordEditor({
     dirty,
     pending: op.busy,
     discard: () => {
-      setTicket(recordDraft(record));
+      setTicket(jobScanCorrectionDraft(record));
       setCustomerId(record.customerId ?? "");
       setPendingCommand(undefined);
     },
@@ -99,11 +103,14 @@ export function JobScanRecordEditor({
     live && live.version > record.version ? live : record;
   const stale = conflict || current.version !== baseline.version;
   const close = () => {
-    if (!op.busy && !closing.current)
-      guard.requestTransition(() => {
-        closing.current = true;
-        completion.current?.complete(onClose);
-      });
+    if (op.busy || closing.current) return;
+    closing.current = true;
+    const reset = () => {
+      closing.current = false;
+    };
+    // The shared owner guards this editor's draft and preserves its underlay.
+    // Native Back can arrive after this own entry has already been consumed.
+    if (!completion.current?.completeOwned?.(onClose, reset)) onClose();
   };
   async function commit() {
     if (
@@ -145,9 +152,10 @@ export function JobScanRecordEditor({
         }
         op.clearRequests();
         guard.settle();
+        onSaveSuccess?.();
         op.complete(() => {
           closing.current = true;
-          completion.current?.complete(onClose);
+          completion.current?.complete(onSaved);
         });
       },
     );
@@ -187,7 +195,7 @@ export function JobScanRecordEditor({
                 disabled={op.busy}
                 onClick={() => {
                   setBaseline(current);
-                  setTicket(recordDraft(current));
+                  setTicket(jobScanCorrectionDraft(current));
                   setCustomerId(current.customerId ?? "");
                   setConflict(false);
                   op.setError("");

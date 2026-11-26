@@ -1923,6 +1923,7 @@ const schema = defineSchema({
     .index("by_orgId_floorId_status_code", byOrg("floorId", "status", "code"))
     .index("by_orgId_locationId", byOrg("locationId"))
     .index("by_orgId_qrValue", byOrg("qrValue"))
+    .index("by_orgId_warehouseId_qrValue", byOrg("warehouseId", "qrValue"))
     .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code"))
     /** A building's areas in code order, so a building filter is index-backed. */
     .index("by_orgId_buildingId_code", byOrg("buildingId", "code")),
@@ -1972,6 +1973,7 @@ const schema = defineSchema({
     .index("by_orgId_zoneId_status_code", byOrg("zoneId", "status", "code"))
     .index("by_orgId_locationId", byOrg("locationId"))
     .index("by_orgId_qrValue", byOrg("qrValue"))
+    .index("by_orgId_warehouseId_qrValue", byOrg("warehouseId", "qrValue"))
     .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code"))
     .index(
       "by_orgId_zoneId_fixtureCode_bayIndex_levelIndex_slotIndex",

@@ -30,6 +30,7 @@ import {
 import { refusal, writeContextOf, written } from "../lib/writeEnvelope";
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import {
+  locationQrRows,
   resolveTarget,
   targetContext,
   type LayoutParentReads,
@@ -43,7 +44,7 @@ const operation = "finishedGoods.jobScan.location.create";
 const argsWarehouse = { warehouseId: v.id("warehouses") };
 
 /** Human labels may contain spaces; reserved identities and control characters may not be registered. */
-function normalizeJobLocationCode(raw: string): string | null {
+export function normalizeJobLocationCode(raw: string): string | null {
   const code = raw.trim().normalize("NFC").toUpperCase();
   return !code ||
     code.length > 200 ||
@@ -147,7 +148,7 @@ export function jobLocationReader(
         [{ field: "locationId", value: row._id }],
       )
       .first();
-    if (position)
+    if (position?.status === "ACTIVE" && position.warehouseId === warehouseId)
       return {
         source: position,
         position,
@@ -226,6 +227,7 @@ async function lookupJobLocation(
   ctx: TenantFunctionContext,
   warehouseId: Id<"warehouses">,
   raw: string,
+  qrOnly = false,
 ) {
   const input = raw.trim();
   const fail = (code: string) => ({ ok: false as const, error: { code } });
@@ -241,9 +243,15 @@ async function lookupJobLocation(
       ? { ok: true as const, location: found }
       : fail("LOCATION_UNAVAILABLE");
   }
+  if (qrOnly) {
+    const resolved = await resolveTarget(ctx, warehouseId, input, true);
+    return "error" in resolved
+      ? fail(resolved.error)
+      : { ok: true as const, location: locationFromLayout(resolved) };
+  }
   const code = normalizeJobLocationCode(input);
   if (!code) return fail("INVALID_IDENTITY");
-  const [ledger, zone, position, pallet, zonesByQr, positionsByQr] =
+  const [ledger, zone, position, pallet, [zonesByQr, positionsByQr]] =
     await Promise.all([
       ctx.tenantDb
         .byIndex<Doc<"locations">>("locations", "by_orgId_warehouseId_code", [
@@ -281,19 +289,9 @@ async function lookupJobLocation(
           ],
         )
         .first(),
-      rows<Doc<"storageZones">>(ctx, "storageZones", "by_orgId_qrValue", [
-        { field: "qrValue", value: input },
-      ]),
-      rows<Doc<"storagePositions">>(
-        ctx,
-        "storagePositions",
-        "by_orgId_qrValue",
-        [{ field: "qrValue", value: input }],
-      ),
+      locationQrRows(ctx, warehouseId, input),
     ]);
-  const hasLegacyQr = [...zonesByQr, ...positionsByQr].some(
-    (row) => row.warehouseId === warehouseId,
-  );
+  const hasLegacyQr = zonesByQr.length > 0 || positionsByQr.length > 0;
   if (pallet) return fail("WRONG_ENTITY_TYPE");
   if (ledger?.locationType === "NAMED_STORAGE") {
     if (zone || position || hasLegacyQr) return fail("AMBIGUOUS_IDENTITY");
@@ -400,13 +398,19 @@ export const resolve = queryWithOrg({
     ...argsWarehouse,
     code: v.string(),
     buildingId: v.optional(v.id("storageBuildings")),
+    qrOnly: v.optional(v.boolean()),
   },
   returns: v.any(),
   permissionCode: READ,
   target: { table: "locations" },
   warehouseId: (args) => args.warehouseId,
   handler: async (ctx, args) => {
-    const result = await lookupJobLocation(ctx, args.warehouseId, args.code);
+    const result = await lookupJobLocation(
+      ctx,
+      args.warehouseId,
+      args.code,
+      args.qrOnly,
+    );
     // A filtered picker must not silently offer a location outside its filter.
     if (
       args.buildingId &&

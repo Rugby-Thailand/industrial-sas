@@ -3157,39 +3157,9 @@
     },
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:locationSelection",
-      "policy": "presentation",
-      "expectation": "The retained record identities supply the assignment form and sticky selection actions. Actual visibility follows the independently connected locationStep.active owner; closing it retains the selected records.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "and",
-          "truthy": [
-            "div",
-            "src/components/ui/StickyActionBar#StickyActionBar",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": [
-            "div[role=region]",
-            "fieldset",
-            "h2",
-            "p[role=status]",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/button#Button",
-            "src/features/finishedGoods/jobScan/LocationPicker#LocationPicker"
-          ],
-          "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:locationStep",
-      "policy": "workflow",
-      "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by Records.locationStep, preserving route intent and retained drafts; pending writes remain protected. Deferred focus respects a later user-selected input. Invalidation consumes the owned entry while retaining query/hash changes made during native traversal.",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "Single and bulk location assignment runs in a shared Back-aware Dialog retaining the record context, nested QR/Photo AI/registration ownership, and selected rows on Back or Cancel. Native Forward restores a valid picker after Back. Explicit dismissal retires it, and Forward consumes an entry whose target disappeared. Pending writes stay protected and completion settles both review and picker.",
       "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
       "cases": [
         {
@@ -3198,7 +3168,52 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
-          "name": "a delayed picker focus must not steal a user's newly focused search field"
+          "name": "explicit location %s retires the picker before Forward and the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "native Forward reopens Location assignment without duplicate entries after Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "nested QR and Photo AI Back flows dismiss in order inside the location picker Dialog"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "dirty location registration inside the picker Dialog guards Cancel and Back before discarding"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "successful location remap consumes review and picker before the next native Back"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:$overlay:Dialog:locationSelection",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "Single and bulk location assignment is a real shared Back-aware Dialog hosting LocationPicker with single/bulk context, nested acquisition/registration Back ordering, dirty/pending protection, focus restoration, and completion entry consumption.",
+      "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "native Back closes Location assignment and retains the selected records"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "explicit location %s retires the picker before Forward and the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "closing the nested QR camera and cancelling the picker consumes both overlays before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "remounting the records screen retires an open location picker Dialog cleanly"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "retires the location picker when a live update removes its target %s"
         }
       ]
     },
@@ -8525,7 +8540,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:shown",
       "policy": "presentation",
-      "expectation": "Retained server rows drive same-page list readiness, pagination and read-only continuation, and supply the current record baseline to the separately owned correction Dialog. Selecting or closing correction is independently owned by editing; a reactive row update does not create another foreground. Loading uses the aria-hidden shared Spinner in the existing inline status; it adds no foreground or history entry.",
+      "expectation": "Retained server rows drive same-page list readiness, pagination and read-only continuation, supply the current record baseline to the separately owned correction Dialog, and show the single/bulk record context label inside the separately owned location Dialog. Selecting or closing correction or location assignment is independently owned; a reactive row update does not create another foreground. Loading uses the aria-hidden shared Spinner in the existing inline status; it adds no foreground or history entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -8546,19 +8561,6 @@
             "div",
             "src/components/ui/StickyActionBar#StickyActionBar",
             "src/components/ui/button#Button"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": [
-            "div[role=region]",
-            "fieldset",
-            "h2",
-            "p[role=status]",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/button#Button",
-            "src/features/finishedGoods/jobScan/LocationPicker#LocationPicker"
           ],
           "falsy": []
         },
@@ -8607,6 +8609,11 @@
             "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
             "ul"
           ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
+          "falsy": ["span"]
         },
         {
           "shape": "conditional",
@@ -9019,22 +9026,58 @@
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:editing",
       "policy": "overlay",
-      "expectation": "The selected saved record renders the exact dirty/pending-aware JobScanRecordEditor Dialog through its record prop; the underlying records list remains retained.",
+      "expectation": "The selected saved record renders the dirty/pending-aware JobScanRecordEditor Dialog. When opened from AI edit, Cancel and native Back restore its untouched prompt. A successful save consumes the manual entry before completing the earlier AI entry.",
       "integration": "delegated-overlay",
       "tests": [
-        "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx"
+        "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
       ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
           "name": "guards dirty ticket Cancel and keeps the correction when dismissal is canceled"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "manual correction %s restores the retained AI prompt without discarding it"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "discarding a dirty manual correction retains the earlier AI draft"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "saving a manual correction from AI consumes both dialogs before the next Back"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:assisting",
+      "policy": "overlay",
+      "integration": "delegated-overlay",
+      "expectation": "A manager's saved-record selection opens the AI correction Dialog. The prompt remains available beneath review or manual correction. Cancel restores it, while a successful correction settles the draft and consumes both entries.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "keeps the existing record actions beside AI edit and limits writes to managers"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "manual correction %s restores the retained AI prompt without discarding it"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "saving a manual correction from AI consumes both dialogs before the next Back"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:remapReview",
       "policy": "overlay",
-      "expectation": "Location reassignment review is a real shared Dialog showing exact selected ticket identities and reviewed versions. New writes require current versions; an uncertain response retains the immutable attempted command for explicit replay. Pending writes protect dismissal.",
+      "expectation": "Location reassignment review uses a shared Dialog with exact ticket identities, verified destination details, and reviewed versions. Native Back retains its proposal for Forward through the same picker. Explicit dismissal and invalid restoration retire its entry. New writes require current versions, an uncertain response retains the immutable replay command, and pending writes protect dismissal.",
       "integration": "dialog",
       "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
       "cases": [
@@ -9045,13 +9088,21 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
           "name": "retries the immutable reviewed location command after response loss and advanced record versions"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "restores location review on Forward and keeps Back ordered through the picker"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "shows the verified destination details before confirming a location change"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:$overlay:Dialog:remapReview",
       "policy": "overlay",
-      "expectation": "Location reassignment review is a real shared Dialog showing exact selected ticket identities and reviewed versions. New writes require current versions; an uncertain response retains the immutable attempted command for explicit replay. Pending writes protect dismissal.",
+      "expectation": "Location reassignment review uses a shared Dialog with exact ticket identities and reviewed versions. Native Back retains its proposal for Forward through the same picker. Explicit dismissal and invalid restoration retire its entry. New writes require current versions, an uncertain response retains the immutable replay command, and pending writes protect dismissal.",
       "integration": "dialog",
       "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
       "cases": [
@@ -9062,6 +9113,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
           "name": "retries the immutable reviewed location command after response loss and advanced record versions"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "explicit %s retires location review before Forward and the next Back"
         }
       ]
     },
@@ -9075,6 +9130,263 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
           "name": "confirms individual deletion and lets the user cancel without deleting"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:scanOpen",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The shared full-screen record scanner Dialog owns camera, image, and typed code acquisition. Success consumes and retires its entry before applying an exact search, even if the criteria stay the same. Dismissal invalidates late warehouse lookups. Explicit Cancel or Escape also retires the entry so Forward cannot restart acquisition.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "uses the scanned job code as an exact search and consumes the camera before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "uses a typed code for exact search and consumes the scanner before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "%s retires the scanner before Forward and the next Back"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:$overlay:Dialog:scanOpen",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The shared record scanner Dialog owns acquisition and retires its consumed entry before applying a successful scan result to the retained records list, preserving a resolved warehouse QR as a location identity. Repeating the same QR leaves the filters intact and Forward skips the completed scanner.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "reports unsupported QR labels, checks a warehouse location and ignores an answer after Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "ignores a pending typed code lookup when Back closes the scanner"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "restores warehouse QR identity in the records query and clears it on manual search"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "consumes a repeated warehouse QR scan without reopening it on Forward"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:aiOpen",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The shared read-only AI search Dialog owns its foreground. Reviewed criteria, including the explicitly requested field, apply to the underlay only after confirmation consumes and retires that entry.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "reviews validated AI facets before applying them and keeps manual search usable on failure"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "reviews an explicit location search, restores its query scope, and clears the scope when typing"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "%s retires AI search before Forward and the next Back"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:$overlay:Dialog:aiOpen",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The shared AI search Dialog owns its Back entry and retains the base criteria on dismissal or a failed inference. Native Back leaves Forward available for a fresh search, while explicit dismissal retires the entry.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "reviews validated AI facets before applying them and keeps manual search usable on failure"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "%s retires AI search before Forward and the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "Back during AI search ignores the late response and Forward offers a fresh search"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#RecordCodeCapture:checking",
+      "policy": "presentation",
+      "expectation": "The inline status announces canonical QR resolution inside the owning scan Dialog and does not create a new navigation entry.",
+      "uses": ["branch"],
+      "render": [{ "shape": "and", "truthy": ["p[role=status]"], "falsy": [] }]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#RecordCodeCapture:invalid",
+      "policy": "presentation",
+      "expectation": "An unsupported or unavailable code shows an inline warning in the owning scan Dialog; capture can continue and Back still closes the scanner.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#RecordSearchPrompt:intent",
+      "policy": "presentation",
+      "expectation": "A compact summary of the inferred filter values appears inside the same AI search Dialog. Editing resets the summary and Back dismisses the unchanged records query.",
+      "uses": ["branch"],
+      "render": [{ "shape": "and", "truthy": ["p[role=status]"], "falsy": [] }],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+          "name": "clears a search review when its request changes and Back dismisses an unapplied search"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#RecordSearchPrompt:error",
+      "policy": "presentation",
+      "expectation": "An unsuccessful search inference shows inline recovery in the prompt Dialog while preserving its input and retained underlay criteria.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordAssist.tsx#JobScanRecordAssist:$overlay:Dialog:controlled",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The shared AI edit Dialog guards its draft and retains it behind the change review or manual editor. A successful save settles the draft and consumes both entries before returning to records.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
+          "name": "reviews both values, saves the same version atomically and consumes both dialogs before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "discarding a dirty manual correction retains the earlier AI draft"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordAssist.tsx#JobScanRecordAssist:review",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The exact versioned proposal opens a shared review Dialog. Native Back restores the retained prompt; Forward reopens the same unmodified proposal without requesting AI again. Changing the prompt retires the previous review so its history entry cannot conceal the next Back.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
+          "name": "native Back closes AI review first, retains the request and does not save"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
+          "name": "%s retires the AI review before Forward and the next Back"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordAssist.tsx#JobScanRecordAssist:$overlay:Dialog:review",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The shared AI review Dialog shows the ticket number and, for a move, the stock disclaimer. It owns the top foreground and blocks departure during a save. Edit request and explicit dismissal consume and retire an unsubmitted review; a failed save retains the immutable proposal for retry. A successful atomic write consumes the review entry followed by the prompt.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
+          "name": "reviews both values, saves the same version atomically and consumes both dialogs before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
+          "name": "protects a pending AI save and retries the immutable command after a lost response"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
+          "name": "%s retires the AI review before Forward and the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
+          "name": "resolves a multiword destination in the warehouse before offering a move for confirmation"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordAssist.tsx#JobScanRecordAssist:error",
+      "policy": "presentation",
+      "expectation": "The read-only proposal error is an inline alert inside the prompt Dialog; unsupported, unverifiable and unchanged proposals leave the prompt available for correction.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordAssist.tsx#JobScanRecordAssist:pendingCommand",
+      "policy": "presentation",
+      "expectation": "An uncertain write retains its exact command for replay and suppresses the conflicting new-write notice in the existing review; it does not own another entry.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordAssist.tsx#JobScanRecordAssist:version",
+      "policy": "presentation",
+      "expectation": "The opened record version is compared with the live correction snapshot. Staleness renders inline alerts in the owning prompt and review and blocks new writes against old values.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["div[role=alert]", "p", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
         }
       ]
     },
@@ -10967,6 +11279,11 @@
     {
       "component": "src/features/finishedGoods/jobScan/JobScanRecordEditor#JobScanRecordEditor",
       "owner": "src/features/finishedGoods/jobScan/JobScanRecordEditor.tsx#JobScanRecordEditor:$overlay:Dialog:controlled",
+      "prop": "record"
+    },
+    {
+      "component": "src/features/finishedGoods/jobScan/JobScanRecordAssist#JobScanRecordAssist",
+      "owner": "src/features/finishedGoods/jobScan/JobScanRecordAssist.tsx#JobScanRecordAssist:$overlay:Dialog:controlled",
       "prop": "record"
     }
   ],

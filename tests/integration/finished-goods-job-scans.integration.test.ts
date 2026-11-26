@@ -258,6 +258,122 @@ describe("saved job ticket corrections", () => {
     expect(history["items"]).toHaveLength(1);
   });
 
+  it("saves reviewed ticket fields and the resolved location atomically with one revision", async () => {
+    const { world, jobScanId, args } = await correctionSetup();
+    const { fields: _fields, ...command } = args;
+    const foreign = await world.t.run(async (ctx) => {
+      await ctx.db.patch(jobScanId, {
+        mapped: false,
+        locationId: undefined,
+        zoneId: undefined,
+      });
+      return ctx.db.insert("locations", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        code: "FOREIGN",
+        locationType: "FLOOR_BLOCK",
+        status: "ACTIVE",
+      });
+    });
+    const snapshot = await world.t.run((ctx) => ctx.db.get(jobScanId));
+    error(
+      await call(world, jobScans.updateJobScan, {
+        ...command,
+        requestId: "foreign-destination",
+        ticketPatch: { quantity: 24 },
+        location: { locationId: foreign },
+      }),
+      "LOCATION_UNAVAILABLE",
+    );
+    expect(await world.t.run((ctx) => ctx.db.get(jobScanId))).toEqual(snapshot);
+
+    const reviewed = {
+      ...command,
+      ticketPatch: { quantity: 24 },
+      location: { locationId: world.locationId },
+    };
+    expect(id(await call(world, jobScans.updateJobScan, reviewed))).toBe(
+      jobScanId,
+    );
+    expect(await world.t.run((ctx) => ctx.db.get(jobScanId))).toMatchObject({
+      quantity: 24,
+      mapped: true,
+      locationId: world.locationId,
+      buildingId: world.buildingId,
+      floorId: world.floorId,
+      source: "AI",
+      version: 2,
+    });
+    expect(
+      value(await call(world, jobScans.updateJobScan, reviewed)),
+    ).toMatchObject({
+      written: true,
+      replayed: true,
+    });
+    const history = value(
+      await call(world, jobScans.listJobScanCorrections, {
+        warehouseId: world.warehouseId,
+        jobScanId,
+      }),
+    );
+    expect(history["items"]).toEqual([
+      expect.objectContaining({
+        changes: expect.arrayContaining([
+          {
+            field: "location",
+            from: "Original dock label",
+            to: "BLDG-A-F01-Z01",
+          },
+          { field: "quantity", from: "1000", to: "24" },
+        ]),
+      }),
+    ]);
+  });
+
+  it("moves a saved scan without rewriting unreviewed legacy ticket values", async () => {
+    const { world, jobScanId, args } = await correctionSetup();
+    await world.t.run((ctx) =>
+      ctx.db.patch(jobScanId, {
+        partName: "  Legacy part name  ",
+        quantity: 1000,
+        mapped: false,
+        locationId: undefined,
+        zoneId: undefined,
+      }),
+    );
+    const { fields: _fields, ...command } = args;
+    id(
+      await call(world, jobScans.updateJobScan, {
+        ...command,
+        location: { locationId: world.locationId },
+      }),
+    );
+    expect(await world.t.run((ctx) => ctx.db.get(jobScanId))).toMatchObject({
+      partName: "  Legacy part name  ",
+      quantity: 1000,
+      source: "AI",
+      locationId: world.locationId,
+      version: 2,
+    });
+    const history = value(
+      await call(world, jobScans.listJobScanCorrections, {
+        warehouseId: world.warehouseId,
+        jobScanId,
+      }),
+    );
+    expect(history["items"]).toEqual([
+      expect.objectContaining({
+        changes: [
+          {
+            field: "location",
+            from: "Original dock label",
+            to: "BLDG-A-F01-Z01",
+          },
+        ],
+      }),
+    ]);
+  });
+
   it("invalidates an open correction when another operator remaps the ticket", async () => {
     const { world, jobScanId, args } = await correctionSetup();
     id(

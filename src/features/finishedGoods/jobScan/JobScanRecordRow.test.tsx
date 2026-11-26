@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -13,7 +14,17 @@ import { JobScanRecordRow } from "./JobScanRecordRow";
 
 type Record = ComponentProps<typeof JobScanRecordRow>["record"];
 
-function show(location: Partial<Record>) {
+function show(
+  location: Partial<Record>,
+  options: {
+    canManage?: boolean;
+    disabled?: boolean;
+    locale?: "en" | "th";
+    onChangeLocation?: (opener?: HTMLElement | null) => void;
+    onEdit?: () => void;
+    onDelete?: () => void;
+  } = {},
+) {
   const record = {
     id: "scan-a",
     factoryOrder: "FO001",
@@ -29,16 +40,16 @@ function show(location: Partial<Record>) {
     <ul>
       <JobScanRecordRow
         record={record}
-        canManage={false}
+        canManage={options.canManage ?? false}
         selected={false}
-        disabled={false}
+        disabled={options.disabled ?? false}
         onToggle={() => {}}
-        onChangeLocation={() => {}}
-        onDelete={() => {}}
-        onEdit={() => {}}
+        onChangeLocation={options.onChangeLocation ?? (() => {})}
+        onDelete={options.onDelete ?? (() => {})}
+        onEdit={options.onEdit ?? (() => {})}
       />
     </ul>,
-    { locale: "en", workspace: false },
+    { locale: options.locale ?? "en", workspace: false },
   );
 }
 
@@ -78,4 +89,75 @@ it("links to the resolved customer when linked, and shows captured text when unl
 
   show({ customer: "Unmatched Buyer Co." });
   expect(screen.getByText("Unmatched Buyer Co.")).toBeInTheDocument();
+});
+
+it("renders a direct location pencil button for managers in English and Thai and keeps actions menu controls", async () => {
+  const user = userEvent.setup();
+  const onChangeLocation = vi.fn();
+  const onEdit = vi.fn();
+  const onDelete = vi.fn();
+  show(
+    { mapped: false, locationText: "Dock" },
+    { canManage: true, onChangeLocation, onEdit, onDelete },
+  );
+  const setButton = screen.getByRole("button", {
+    name: "Set location for FO001",
+  });
+  await user.click(setButton);
+  expect(onChangeLocation).toHaveBeenCalledWith(setButton);
+
+  const actionsTrigger = screen.getByRole("button", {
+    name: "Actions for record FO001",
+  });
+  await user.click(actionsTrigger);
+  await user.click(screen.getByRole("menuitem", { name: "Change location" }));
+  expect(onChangeLocation).toHaveBeenLastCalledWith(actionsTrigger);
+
+  await user.click(actionsTrigger);
+  await user.click(
+    screen.getByRole("menuitem", { name: "Correct ticket details" }),
+  );
+  expect(onEdit).toHaveBeenCalledOnce();
+
+  await user.click(screen.getByRole("button", { name: "Delete record FO001" }));
+  expect(onDelete).toHaveBeenCalledOnce();
+
+  show(
+    { factoryOrder: "FO002", mapped: true, locationCode: "F1-L1" },
+    { canManage: true, locale: "th" },
+  );
+  expect(
+    screen.getByRole("button", { name: "เปลี่ยนตำแหน่ง FO002" }),
+  ).toBeInTheDocument();
+
+  show(
+    { factoryOrder: "FO003", mapped: false, locationText: "Dock" },
+    { canManage: true, locale: "th" },
+  );
+  expect(
+    screen.getByRole("button", { name: "ระบุตำแหน่ง FO003" }),
+  ).toBeInTheDocument();
+});
+
+it("hides the direct location pencil button for viewers and disables it when busy", () => {
+  show({ mapped: false, locationText: "Dock" }, { canManage: false });
+  expect(
+    screen.queryByRole("button", { name: /Set location|Change location/ }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText("Dock")).toBeInTheDocument();
+  expect(screen.getByText("Not set")).toBeInTheDocument();
+
+  show(
+    { factoryOrder: "FO004", mapped: true, locationCode: "F1-L1" },
+    { canManage: true, disabled: true },
+  );
+  expect(
+    screen.getByRole("button", { name: "Change location for FO004" }),
+  ).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Actions for record FO004" }),
+  ).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Delete record FO004" }),
+  ).toBeDisabled();
 });

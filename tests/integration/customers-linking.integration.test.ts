@@ -683,6 +683,74 @@ describe("customer v2 linking model and backend", () => {
     ).toBeUndefined();
   });
 
+  it("requires the manual editor before an AI customer text correction changes a canonical link", async () => {
+    const { t, actorA, warehouses, createCustomer, saveScan } = await setup();
+    const warehouseId = warehouses.alphaA;
+    const alpha = await createCustomer(actorA, "Alpha Co", "cust-a");
+    const beta = await createCustomer(actorA, "Beta Co", "cust-b");
+    const jobScanId = await saveScan(
+      actorA,
+      warehouseId,
+      "scan-1",
+      "FO-10",
+      "Alpha Co",
+    );
+    const before = (await t.run((ctx) => ctx.db.get(jobScanId)))!;
+    expect(before).toMatchObject({
+      customerId: alpha,
+      customerLinkSource: "AUTO",
+    });
+    const command = {
+      warehouseId,
+      jobScanId,
+      expectedVersion: before.version ?? 1,
+    };
+    const refused = allowed(
+      await actorA.mutation(jobScans.updateJobScan, {
+        ...command,
+        requestId: "assist-with-hidden-link",
+        ticketPatch: { customer: "Beta Co", quantity: 50 },
+      }),
+    );
+    expect(refused).toMatchObject({
+      written: false,
+      error: { code: "CUSTOMER_LINK_REVIEW_REQUIRED", field: "customer" },
+    });
+    expect(await t.run((ctx) => ctx.db.get(jobScanId))).toEqual(before);
+    const saved = allowed(
+      await actorA.mutation(jobScans.updateJobScan, {
+        ...command,
+        requestId: "assist-keep-link",
+        ticketPatch: { customer: "ALPHA CO" },
+      }),
+    );
+    expect(saved.written).toBe(true);
+    const corrected = (await t.run((ctx) => ctx.db.get(jobScanId)))!;
+    expect(corrected).toMatchObject({
+      customer: "ALPHA CO",
+      customerId: alpha,
+      customerLinkSource: "AUTO",
+    });
+    const manual = allowed(
+      await actorA.mutation(jobScans.updateJobScan, {
+        ...command,
+        expectedVersion: corrected.version!,
+        requestId: "manual-link",
+        fields: {
+          factoryOrder: "FO-10",
+          productBarcodeText: "BC-FO-10",
+          customer: "Beta Co",
+        },
+      }),
+    );
+    expect(manual.written).toBe(true);
+    expect(await t.run((ctx) => ctx.db.get(jobScanId))).toMatchObject({
+      customer: "Beta Co",
+      customerId: beta,
+      customerLinkSource: "AUTO",
+    });
+  });
+
   it("groups unresolved names, links with optional alias remembrance, skips, enforces versions and warehouse scope", async () => {
     const { t, actorA, warehouses, createCustomer, saveScan } = await setup();
     const alpha = warehouses.alphaA;
