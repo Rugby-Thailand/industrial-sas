@@ -136,10 +136,7 @@ function WarehouseOverview({
   }: {
     count: number;
     complete: boolean;
-  }) =>
-    complete
-      ? format.number(count)
-      : t("atLeast", { count: format.number(count) });
+  }) => (complete ? format.number(count) : t("atLeast", { count }));
   return (
     <div className="min-w-0 space-y-4">
       <div
@@ -232,9 +229,14 @@ function WarehouseOverview({
                     className="size-4 shrink-0 text-warning"
                   />
                   <span className="flex-1">
-                    {t("unmappedCount", {
-                      count: bounded(rollup.unmappedJobs),
-                    })}
+                    {t(
+                      rollup.unmappedJobs.complete
+                        ? "unmappedCount"
+                        : "unmappedCountPartial",
+                      {
+                        count: rollup.unmappedJobs.count,
+                      },
+                    )}
                   </span>
                   <ChevronRight
                     aria-hidden="true"
