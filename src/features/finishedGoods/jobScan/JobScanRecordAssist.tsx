@@ -132,6 +132,7 @@ export function JobScanRecordAssist({
   const save = useMutation(fgRefs.updateJobScan);
   const op = useOperation(`${warehouseId}:job-scan-assist:${record.id}`);
   const draftScope = useId();
+  const editHintId = `${draftScope}-edit-hint`;
   const editorCompletion = useRef<DialogCompletionHandle>(null);
   const reviewCompletion = useRef<DialogCompletionHandle>(null);
   const request = useRef<AbortController | null>(null);
@@ -307,22 +308,28 @@ export function JobScanRecordAssist({
               void propose();
             }}
           >
-            <label className="grid gap-2 text-sm font-medium">
-              {t("recordTools.editPrompt")}
-              <textarea
-                autoComplete="off"
-                className="min-h-20 w-full rounded-lg border border-border-strong bg-background px-3 py-2 text-base outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
-                placeholder={t("recordTools.editExample")}
-                value={prompt}
-                onChange={(event) => {
-                  setPrompt(event.target.value);
-                  retainedReview.current = undefined;
-                }}
-                maxLength={500}
-                disabled={asking || Boolean(pendingCommand)}
-                required
-              />
-            </label>
+            <div className="space-y-2">
+              <label className="grid gap-2 text-sm font-medium">
+                {t("recordTools.editPrompt")}
+                <textarea
+                  aria-describedby={editHintId}
+                  autoComplete="off"
+                  className="min-h-20 w-full rounded-lg border border-border-strong bg-background px-3 py-2 text-base outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
+                  placeholder={t("recordTools.editExample")}
+                  value={prompt}
+                  onChange={(event) => {
+                    setPrompt(event.target.value);
+                    retainedReview.current = undefined;
+                  }}
+                  maxLength={500}
+                  disabled={asking || Boolean(pendingCommand)}
+                  required
+                />
+              </label>
+              <p id={editHintId} className="text-sm text-muted">
+                {t("recordTools.editQuoteHint")}
+              </p>
+            </div>
             {error && (
               <Notice
                 tone="warning"
@@ -400,8 +407,11 @@ export function JobScanRecordAssist({
           >
             <DialogHeader>
               <DialogTitle>{t("recordTools.reviewChanges")}</DialogTitle>
-              <DialogDescription>
-                {review.location ? t("locationNotStock") : record.factoryOrder}
+              <DialogDescription className="break-words">
+                <span className="block font-mono">{record.factoryOrder}</span>
+                {review.location && (
+                  <span className="mt-1 block">{t("locationNotStock")}</span>
+                )}
               </DialogDescription>
             </DialogHeader>
             <ul className="max-h-64 divide-y divide-border overflow-auto rounded-lg border border-border">

@@ -1109,7 +1109,7 @@ describe("parseJobScanEditProposal", () => {
     expect(
       parseJobScanEditProposal(
         { ...emptyEdit, customer: "ACME, Inc.", partName: "Bolt and Nut" },
-        "Set customer to ACME, Inc., and set part name to Bolt and Nut",
+        'Set customer to ACME, Inc., and set part name to "Bolt and Nut"',
       ),
     ).toEqual({
       kind: "OK",
@@ -1126,7 +1126,7 @@ describe("parseJobScanEditProposal", () => {
           partName: "Nuts and Format Washers",
           storageFormat: "BOX",
         },
-        "set customer to Acme, Location Services and set part name to Nuts and Format Washers, format to box",
+        'set customer to Acme, Location Services and set part name to "Nuts and Format Washers", format to box',
       ),
     ).toEqual({
       kind: "OK",
@@ -1141,7 +1141,7 @@ describe("parseJobScanEditProposal", () => {
     expect(
       parseJobScanEditProposal(
         { ...emptyEdit, partName: "Red and Set Screws" },
-        "set part name to Red and Set Screws",
+        'set part name to "Red and Set Screws"',
       ),
     ).toEqual({
       kind: "OK",
@@ -1519,6 +1519,10 @@ describe("parseJobScanEditProposal", () => {
     "start a fresh barcode/QR scan",
     "have the scanner read the next ticket",
     "read the next barcode",
+    "take another photo",
+    "activate scanning",
+    "recalculate the quantity",
+    "verify incoming paperwork",
     "ช่วยใช้กล้องอ่านบาร์โค้ดใบงานถัดไป",
     "perform another warehouse barcode scan",
     "restart the scanner",
@@ -1536,6 +1540,32 @@ describe("parseJobScanEditProposal", () => {
       ).toEqual({ kind: "OK", value: { fields: { partName } } });
     },
   );
+
+  it("requires quotes around literal conjunctions and keeps compact code punctuation", () => {
+    for (const [prefix, partName] of [
+      ["Set part name to ", "Bolt and Nut"],
+      ["Set part name to ", "Bolt ａｎｄ Nut"],
+      ["Set part name to ", "Block & Pin"],
+      ["แก้ชื่อสินค้าเป็น ", "ชุดน็อตและแหวน"],
+    ] as const) {
+      const proposal = { ...emptyEdit, partName };
+      expect(parseJobScanEditProposal(proposal, prefix + partName)).toEqual({
+        kind: "UNSUPPORTED",
+      });
+      expect(
+        parseJobScanEditProposal(proposal, `${prefix}"${partName}"`),
+      ).toEqual({ kind: "OK", value: { fields: { partName } } });
+    }
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, partName: "R&D Gear A-640" },
+        "Set part name to R&D Gear A-640",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { fields: { partName: "R&D Gear A-640" } },
+    });
+  });
 
   it("declines vague or multiple destinations instead of treating them as a code", () => {
     for (const locationCode of [

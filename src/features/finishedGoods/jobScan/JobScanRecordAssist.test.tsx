@@ -128,12 +128,23 @@ it("resolves a multiword destination in the warehouse before offering a move for
     },
   });
   const { user } = await start("Move to DOCK NORTH");
+  expect(
+    screen.getByRole("textbox", { name: "What should change?" }),
+  ).toHaveAccessibleDescription(
+    "Put names or codes that contain “and” in quotation marks.",
+  );
   const review = await propose(user);
   expect(mocks.resolve).toHaveBeenCalledExactlyOnceWith(
     fgRefs.resolveJobScanLocation,
     { warehouseId: "warehouse-a", code: "DOCK NORTH" },
   );
   expect(review.getByText("DOCK NORTH")).toBeVisible();
+  expect(review.getByText("FO12345")).toBeVisible();
+  expect(
+    review.getByText(
+      "Saving a ticket or setting its location does not confirm pallet storage.",
+    ),
+  ).toBeVisible();
   expect(mocks.mutation).not.toHaveBeenCalled();
 });
 

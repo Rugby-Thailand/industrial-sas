@@ -9295,7 +9295,7 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecordAssist.tsx#JobScanRecordAssist:$overlay:Dialog:review",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "The actual shared AI review Dialog owns the top foreground, blocks departure during a save, and consumes its entry followed by its prompt after a successful atomic write.",
+      "expectation": "The shared AI review Dialog shows the ticket number and, for a move, the stock disclaimer. It owns the top foreground, blocks departure during a save, and consumes its entry followed by its prompt after a successful atomic write.",
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx"
       ],
@@ -9307,6 +9307,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
           "name": "protects a pending AI save and retries the immutable command after a lost response"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordAssist.test.tsx",
+          "name": "resolves a multiword destination in the warehouse before offering a move for confirmation"
         }
       ]
     },

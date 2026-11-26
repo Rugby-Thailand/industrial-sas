@@ -1891,6 +1891,7 @@
       "aiEdit": "Edit with AI",
       "aiEditRecord": "Edit {job} with AI",
       "editPrompt": "What should change?",
+      "editQuoteHint": "Put names or codes that contain “and” in quotation marks.",
       "editExample": "For example, move to F2-L12-3 and set quantity to 40",
       "customerLinkConflict": "Use the ticket editor to review this customer link change.",
       "customerLinkNote": "Use the ticket editor for customer link changes.",
