@@ -297,10 +297,11 @@ function requestedFloors(prompt: string): Set<number> {
 
 const SEARCH_STATUS = new RegExp(
   [
+    String.raw`(?:\bstatus\s*(?:[:=]|\bis\b|\bequals\b)\s*|สถานะ\s*(?:[:=]|เป็น)\s*)?(?:`,
     String.raw`\b(?:not|never|(?:isn|aren|wasn|weren|haven|hasn)['’]t)\s+(?:(?:yet|already|currently|been)\s+)*(?<negated>unmapped|unassigned|mapped|assigned|stored)\b`,
     String.raw`|(?<unmapped>\b(?:unmapped|unassigned|without (?:a )?location|needs? (?:a )?location|awaiting (?:a )?location|location\s+(?:(?:is\s+)?not\s+(?:yet\s+)?set|unset))\b`,
     "|ยังไม่ระบุ(?:ตำแหน่ง(?:แล้ว)?)?|รอระบุตำแหน่ง|ไม่(?:ได้)?ระบุตำแหน่ง(?:แล้ว)?|ไม่(?:ได้)?จัดเก็บ(?:แล้ว)?|ไม่มีตำแหน่ง|ไม่ใช่(?:ใบ)?งานที่(?:ระบุตำแหน่ง|จัดเก็บ)แล้ว)",
-    String.raw`|\b(?:mapped|assigned|stored|with (?:a )?location|location set)\b|ระบุตำแหน่งแล้ว|จัดเก็บแล้ว|มีตำแหน่ง`,
+    String.raw`|\b(?:mapped|assigned|stored|with (?:a )?location|location set)\b|ระบุตำแหน่งแล้ว|จัดเก็บแล้ว|มีตำแหน่ง)`,
   ].join(""),
   "gu",
 );
@@ -322,11 +323,13 @@ const RECORD_FOLLOW_UP = String.raw`(?:${EXPLICIT_FOLLOW_UP}|\s+(?:and|plus)\s+|
 // sentence breaks. Validate the action that follows, not its politeness.
 const FOLLOW_UP_MODIFIERS = String.raw`(?:(?:and|also|additionally|furthermore|then|next|finally|moreover|subsequently|afterwards|now|please|kindly|(?:can|could|would|will)\s+you|go\s+ahead\s+and|be\s+sure\s+to)\s+|(?:และ|ก็|จึง|ยัง|ให้|กรุณา|โปรด|ช่วย|รบกวน)\s*)*`;
 const QUALIFIED_FOLLOW_UP = String.raw`(?:(?:do\s+not|don['’]t|instead|rather\s+than)\s+|(?:อย่า|ห้าม|ไม่ต้อง|แทนที่จะ)\s*)`;
-const FOLLOW_UP_FIELD = String.raw`[\p{L}][\p{L}\p{M}\p{N}'’_ -]{0,63}`;
-const BARE_FIELD_ASSIGNMENT = String.raw`(?:${FOLLOW_UP_FIELD}\s*[:=：＝]|(?=\p{Script=Thai})${FOLLOW_UP_FIELD}\s*(?:ให้เป็น|เป็น))`;
-const SEARCH_FACET_ASSIGNMENT = String.raw`(?:\b(?:building|floors?|(?:storage\s+)?format)\s*[:=]|(?:อาคาร|ชั้น|รูปแบบ(?:การจัดเก็บ)?|ประเภทการจัดเก็บ)\s*(?:[:=]|ให้เป็น|เป็น))`;
+const FOLLOW_UP_FIELD = String.raw`[\p{L}](?:(?!\s+(?:and|or|plus|then|as\s+well\s+as)\b|และ|แล้ว|รวมทั้ง|จากนั้น)[\p{L}\p{M}\p{N}'’_ -]){0,63}`;
+const WORD_FIELD_ASSIGNMENT = String.raw`\s+(?:to|as|is|are|was|were|becomes?|equals?|should\s+be|must\s+be|needs?\s+to\s+be)\b`;
+const BARE_FIELD_ASSIGNMENT = String.raw`(?:${FOLLOW_UP_FIELD}(?:\s*[:=：＝]|${WORD_FIELD_ASSIGNMENT})|(?=\p{Script=Thai})${FOLLOW_UP_FIELD}\s*(?:ให้เป็น|เป็น))`;
+const PROTECTED_RECORD_FIELD = String.raw`(?:\b(?:(?:record|job|ticket|scan|location)\s+)?(?:status|state|priority|owner|approval|warehouse)\b|สถานะ|คลังสินค้า|ผู้รับผิดชอบ|ระดับความสำคัญ)`;
+const SEARCH_FACET_ASSIGNMENT = String.raw`(?:\b(?:building|floors?|(?:storage\s+)?format)\s*[:=]|\b(?:storage\s+)?format\s+is\b|(?:อาคาร|ชั้น|รูปแบบ(?:การจัดเก็บ)?|ประเภทการจัดเก็บ)\s*(?:[:=]|ให้เป็น|เป็น))`;
 const UNSUPPORTED_SEARCH_ASSIGNMENT = new RegExp(
-  String.raw`(?:[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?!${SEARCH_FACET_ASSIGNMENT})${BARE_FIELD_ASSIGNMENT}`,
+  String.raw`(?:[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?!${SEARCH_FACET_ASSIGNMENT})(?:${BARE_FIELD_ASSIGNMENT}|${PROTECTED_RECORD_FIELD})`,
   "u",
 );
 const UNSUPPORTED_RECORD_ACTION = [
@@ -802,11 +805,12 @@ export function parseJobScanSearchIntent(
       return groups?.unmapped ? "UNMAPPED" : "MAPPED";
     }),
   );
+  const instructionsWithoutStatus = instructions.replace(SEARCH_STATUS, " ");
   if (
     statuses.size > 1 ||
     UNSUPPORTED_SEARCH_ACTION.test(instructions) ||
     UNSUPPORTED_SEARCH_ACTION.test(unquotedText) ||
-    UNSUPPORTED_SEARCH_ASSIGNMENT.test(instructions) ||
+    UNSUPPORTED_SEARCH_ASSIGNMENT.test(instructionsWithoutStatus) ||
     UNSUPPORTED_SEARCH_ASSIGNMENT.test(unquotedText) ||
     UNSUPPORTED_SEARCH_CRITERIA.some(
       (pattern) =>
@@ -823,9 +827,7 @@ export function parseJobScanSearchIntent(
     ) ||
     AMBIGUOUS_SEARCH_TEXT.test(unquotedText) ||
     TRAILING_SEARCH_STATUS.test(unquotedText) ||
-    UNSUPPORTED_SEARCH_OPERATOR.test(
-      instructions.replace(SEARCH_STATUS, " "),
-    ) ||
+    UNSUPPORTED_SEARCH_OPERATOR.test(instructionsWithoutStatus) ||
     UNSUPPORTED_SEARCH_OPERATOR.test(unquotedText)
   )
     return { kind: "UNSUPPORTED" };
@@ -1022,6 +1024,7 @@ const EDIT_CLAUSE_START = [
   String.raw`${ENGLISH_EDIT_VERB}(?:status|state|priority|warehouse|owner)\b|${THAI_EDIT_VERB}(?:สถานะ|คลังสินค้า|ผู้รับผิดชอบ)`,
   EXPLICIT_EDIT_ASSIGNMENT,
   BARE_FIELD_ASSIGNMENT,
+  PROTECTED_RECORD_FIELD,
   MOVE_VERB.source.slice(1),
   UNSUPPORTED_RECORD_ACTION,
   QUALIFIED_FOLLOW_UP,

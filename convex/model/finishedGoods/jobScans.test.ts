@@ -748,6 +748,23 @@ describe("parseJobScanSearchIntent", () => {
     });
   });
 
+  it.each([
+    "Find product name Widget and status is unmapped",
+    "Find product name Widget and status: unmapped",
+    "Find product name Widget and location is not set",
+    "หาชื่อสินค้า Widget และสถานะเป็นยังไม่ระบุตำแหน่ง",
+  ])("supports a named location-status criterion in %s", (prompt) => {
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, search: "Widget", filter: "UNMAPPED" },
+        prompt,
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { filter: "UNMAPPED", search: "Widget", searchField: "partName" },
+    });
+  });
+
   it("keeps buildings separate from statuses and respects quoted building names", () => {
     for (const [prompt, supplied, building, filter] of [
       ["Find records in building A without location", "A", "A", "UNMAPPED"],
@@ -1166,6 +1183,9 @@ describe("parseJobScanEditProposal", () => {
       " and set the status to deleted",
       " and set status deleted",
       " and status: deleted",
+      " and status to deleted",
+      " and status deleted",
+      " and review flag should be hold",
       " and review flag = hold",
       "— warehouse: different",
       " and change its owner to Alex",

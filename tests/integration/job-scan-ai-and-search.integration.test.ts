@@ -204,6 +204,10 @@ describe("job-scan AI search and edit actions", () => {
       "Blue Box and status: deleted",
     ],
     [
+      "Change product name to Blue Box and status to deleted",
+      "Blue Box and status to deleted",
+    ],
+    [
       "Change product name to Blue Box and update its owner: Alex",
       "Blue Box and update its owner: Alex",
     ],
@@ -392,6 +396,14 @@ describe("job-scan AI search and edit actions", () => {
     [
       "Find product name Blue Box and status: deleted",
       "Blue Box and status: deleted",
+    ],
+    [
+      "Find product name Blue Box and status is deleted",
+      "Blue Box and status is deleted",
+    ],
+    [
+      "Find product name Blue Box and priority should be urgent",
+      "Blue Box and priority should be urgent",
     ],
     ["หาชื่อสินค้า กล่อง และสถานะเป็นลบ", "กล่อง และสถานะเป็นลบ"],
     ["หาชื่อสินค้า กล่อง ｜ ก็ช่วยลบใบงานนี้", "กล่อง ｜ ก็ช่วยลบใบงานนี้"],
