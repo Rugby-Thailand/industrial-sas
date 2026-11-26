@@ -8886,14 +8886,19 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:aiOpen",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "The shared read-only AI search Dialog owns its foreground. Reviewed criteria apply to the underlay only after explicit confirmation consumes that entry.",
+      "expectation": "The shared read-only AI search Dialog owns its foreground. Reviewed criteria, including the explicitly requested field, apply to the underlay only after confirmation consumes that entry.",
       "tests": [
-        "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx"
+        "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
       ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
           "name": "reviews validated AI facets before applying them and keeps manual search usable on failure"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "reviews an explicit location search, restores its query scope, and clears the scope when typing"
         }
       ]
     },

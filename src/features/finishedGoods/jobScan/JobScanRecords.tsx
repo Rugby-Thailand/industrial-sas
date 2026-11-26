@@ -133,7 +133,8 @@ function Records({
   const deleteScans = useMutation(fgRefs.deleteJobScans);
   const { state: criteria, update: updateCriteria } =
     useJobScanRecordState(viewKey);
-  const { filter, search, exactCode, locationId, facets } = criteria;
+  const { filter, search, searchField, exactCode, locationId, facets } =
+    criteria;
   const [selection, setSelection] = useState<{
     scope: string;
     ids: string[];
@@ -179,11 +180,19 @@ function Records({
   const settled = typedSearch === settledSearch;
   const paging = useCursorPagination({
     scope: `job-scans:${viewKey}`,
-    criteria: { filter, search: typedSearch, exactCode, locationId, facets },
+    criteria: {
+      filter,
+      search: typedSearch,
+      searchField,
+      exactCode,
+      locationId,
+      facets,
+    },
   });
   const requestKey = JSON.stringify([
     filter,
     settledSearch,
+    searchField,
     exactCode,
     locationId,
     facets,
@@ -199,6 +208,7 @@ function Records({
           warehouseId,
           filter,
           ...(settledSearch ? { search: settledSearch } : {}),
+          ...(searchField && settledSearch ? { searchField } : {}),
           ...(exactCode && settledSearch ? { exactCode } : {}),
           ...(locationId ? { locationId } : {}),
           ...(facets ? { facets } : {}),
@@ -520,13 +530,14 @@ function Records({
               }
               body={t("recordList.noMatchesHint")}
               action={
-                !exactCode && !locationId && !facets ? (
+                !searchField && !exactCode && !locationId && !facets ? (
                   <Button
                     variant="outline"
                     disabled={operation.busy || editing !== null}
                     onClick={() => {
                       updateCriteria({
                         search: "",
+                        searchField: undefined,
                         exactCode: undefined,
                         locationId: undefined,
                         facets: undefined,

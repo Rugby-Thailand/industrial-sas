@@ -78,6 +78,7 @@ it("uses the scanned job code as an exact search and consumes the camera before 
     expect(mocks.change).toHaveBeenCalledWith({
       filter: "ALL",
       search: "FO12345",
+      searchField: undefined,
       exactCode: true,
       locationId: undefined,
       facets: undefined,
@@ -143,6 +144,7 @@ it.each(["Read location QR", "Read legacy location QR"])(
       expect(mocks.change).toHaveBeenCalledExactlyOnceWith({
         filter: "ALL",
         search: "ZONE-A",
+        searchField: undefined,
         exactCode: undefined,
         locationId: "zonea",
         facets: undefined,
@@ -214,6 +216,7 @@ it("reviews validated AI facets before applying them and keeps manual search usa
     expect(mocks.change).toHaveBeenCalledWith({
       filter: "MAPPED",
       search: "",
+      searchField: undefined,
       facets: { floor: 2, storageFormat: "PALLET" },
       exactCode: undefined,
       locationId: undefined,

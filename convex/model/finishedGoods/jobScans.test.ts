@@ -238,7 +238,10 @@ describe("parseJobScanSearchIntent", () => {
     const locationPrompt = "หาใบงานที่อยู่ F2-L12-1";
     expect(
       parseJobScanSearchIntent({ ...base, search: "F2-L12-1" }, locationPrompt),
-    ).toEqual({ kind: "OK", value: { filter: "ALL", search: "F2-L12-1" } });
+    ).toEqual({
+      kind: "OK",
+      value: { filter: "ALL", search: "F2-L12-1", searchField: "location" },
+    });
     expect(
       parseJobScanSearchIntent({ ...base, search: "F2-L12" }, locationPrompt),
     ).toEqual({ kind: "UNREADABLE" });
@@ -390,7 +393,7 @@ describe("parseJobScanSearchIntent", () => {
     const proposed = { ...base, search: "Gear Box" };
     expect(parseJobScanSearchIntent(proposed, prompt)).toEqual({
       kind: "OK",
-      value: { filter: "ALL", search: "Gear Box" },
+      value: { filter: "ALL", search: "Gear Box", searchField: "partName" },
     });
     expect(
       parseJobScanSearchIntent({ ...proposed, storageFormat: "BOX" }, prompt),
@@ -412,9 +415,32 @@ describe("parseJobScanSearchIntent", () => {
       kind: "OK",
       value: {
         search: "Gear Box",
+        searchField: "partName",
         facets: { building: "Building A", floor: 2, storageFormat: "PALLET" },
       },
     });
+  });
+
+  it("derives an explicit field from the requested label without letting the provider choose it", () => {
+    for (const [prompt, searchField] of [
+      ["find tickets at location F2-L12-1", "location"],
+      ["find Job No. F2-L12-1", "factoryOrder"],
+      ["find barcode F2-L12-1", "productBarcodeText"],
+      ["หาชื่อลูกค้า F2-L12-1", "customer"],
+    ] as const) {
+      const search = "F2-L12-1";
+      const proposed = { ...base, search };
+      expect(parseJobScanSearchIntent(proposed, prompt)).toEqual({
+        kind: "OK",
+        value: { filter: "ALL", search, searchField },
+      });
+      expect(
+        parseJobScanSearchIntent(
+          { ...proposed, searchField: "customer" },
+          prompt,
+        ),
+      ).toEqual({ kind: "UNREADABLE" });
+    }
   });
 
   it("rejects untrusted, ungrounded, extra-key, ID or truncated responses", () => {

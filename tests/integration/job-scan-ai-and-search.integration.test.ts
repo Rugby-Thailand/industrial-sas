@@ -14,6 +14,7 @@ import {
   MAX_JOB_SCAN_AI_PROMPT_LENGTH,
   jobScanEditRequestBody,
   jobScanSearchRequestBody,
+  type JobScanSearchField,
 } from "../../convex/model/finishedGoods/jobScans";
 import { OPENROUTER_CHAT_URL } from "../../convex/lib/searchProvider";
 import { RECONCILE_MARGIN_MS } from "../../convex/lib/searchReadiness";
@@ -167,6 +168,27 @@ describe("job-scan AI search and edit actions", () => {
           search: "",
           facets: { floor: 2, storageFormat: "PALLET" },
         },
+      },
+    });
+  });
+
+  it("returns a location-scoped intent for the Thai prototype location prompt", async () => {
+    const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
+    transport.mockResolvedValueOnce(
+      openRouterOk(JSON.stringify(searchPayload({ search: "F2-L12-1" }))),
+    );
+    expect(
+      await world.t
+        .withIdentity(PUBLIC_API_ACTOR)
+        .action(api.finishedGoods.jobScans.interpretJobScanSearch, {
+          warehouseId: world.warehouses.alphaA,
+          prompt: "หาใบงานที่อยู่ F2-L12-1",
+        }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        ok: true,
+        value: { filter: "ALL", search: "F2-L12-1", searchField: "location" },
       },
     });
   });
@@ -900,6 +922,7 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
     args: {
       filter: "ALL" | "MAPPED" | "UNMAPPED";
       search?: string;
+      searchField?: JobScanSearchField;
       exactCode?: boolean;
       locationId?: string;
       facets?: {
@@ -1125,6 +1148,38 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
           exactCode: true,
         }),
       ).toEqual([ids.unmappedBoxShort]);
+    }
+  });
+
+  it("applies explicit field scope in both index and fallback modes without matching another field or a stale location", async () => {
+    const fixture = await seedListFixture();
+    const { world, ids } = fixture;
+    const search = "F2-L12-1";
+    await world.t.run(async (ctx) => {
+      await ctx.db.patch(ids.exactFoPalletF2, { locationCode: search });
+      await ctx.db.patch(ids.prefixFoPalletF2, { partName: search });
+      await ctx.db.patch(ids.southPalletF2, { productBarcodeText: search });
+      await ctx.db.patch(ids.legacyZoneOnlyPalletF2, { locationText: search });
+    });
+    await buildIndex(fixture);
+    for (const ready of [true, false]) {
+      await setReady(world, ready);
+      const args = { filter: "ALL" as const, search, pageSize: 1 };
+      expect(await listAll(fixture, args)).toEqual([
+        ids.southPalletF2,
+        ids.legacyZoneOnlyPalletF2,
+        ids.prefixFoPalletF2,
+        ids.exactFoPalletF2,
+      ]);
+      expect(
+        await listAll(fixture, { ...args, searchField: "location" }),
+      ).toEqual([ids.exactFoPalletF2]);
+      expect(
+        await listAll(fixture, { ...args, searchField: "partName" }),
+      ).toEqual([ids.prefixFoPalletF2]);
+      expect(
+        await listAll(fixture, { ...args, searchField: "productBarcodeText" }),
+      ).toEqual([ids.southPalletF2]);
     }
   });
 

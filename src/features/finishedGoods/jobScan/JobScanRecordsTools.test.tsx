@@ -186,6 +186,50 @@ it("applies scanned codes and AI filters to the actual records query and restore
   expect(await screen.findByText(/floor 2.*pallet/i)).toBeVisible();
 });
 
+it("reviews an explicit location search, restores its query scope, and clears the scope when typing", async () => {
+  const user = userEvent.setup();
+  mocks.action.mockResolvedValue(
+    querySuccess({
+      ok: true,
+      value: { filter: "ALL", search: "F2-L12-1", searchField: "location" },
+    }),
+  );
+  const renderScreen = () =>
+    renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+  const view = renderScreen();
+  await user.click(screen.getByRole("button", { name: "AI search" }));
+  const dialog = within(screen.getByRole("dialog", { name: "AI search" }));
+  await user.type(
+    dialog.getByRole("textbox", { name: "Find tickets" }),
+    "หาใบงานที่อยู่ F2-L12-1",
+  );
+  await user.click(dialog.getByRole("button", { name: "Search tickets" }));
+  expect(await dialog.findByRole("status")).toHaveTextContent(
+    "All · Location · F2-L12-1",
+  );
+  expect(mocks.list.mock.lastCall?.[0]).not.toHaveProperty("search");
+  await user.click(dialog.getByRole("button", { name: "Apply search" }));
+  const scoped = expect.objectContaining({
+    search: "F2-L12-1",
+    searchField: "location",
+  });
+  await waitFor(() => expect(mocks.list).toHaveBeenLastCalledWith(scoped));
+  view.unmount();
+  renderScreen();
+  expect(mocks.list).toHaveBeenLastCalledWith(scoped);
+  await user.type(screen.getByRole("textbox", { name: /search/i }), "X");
+  await waitFor(() =>
+    expect(mocks.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: "F2-L12-1X" }),
+    ),
+  );
+  expect(mocks.list.mock.lastCall?.[0]).not.toHaveProperty("searchField");
+});
+
 it("keeps the existing record actions beside AI edit and limits writes to managers", async () => {
   const user = userEvent.setup();
   const view = renderWithIntl(<JobScanRecordsScreen />, {

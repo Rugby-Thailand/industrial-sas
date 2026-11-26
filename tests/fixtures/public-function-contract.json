@@ -11084,6 +11084,34 @@
                               },
                               "optional": false
                             },
+                            "searchField": {
+                              "fieldType": {
+                                "type": "union",
+                                "value": [
+                                  {
+                                    "type": "literal",
+                                    "value": "location"
+                                  },
+                                  {
+                                    "type": "literal",
+                                    "value": "factoryOrder"
+                                  },
+                                  {
+                                    "type": "literal",
+                                    "value": "productBarcodeText"
+                                  },
+                                  {
+                                    "type": "literal",
+                                    "value": "partName"
+                                  },
+                                  {
+                                    "type": "literal",
+                                    "value": "customer"
+                                  }
+                                ]
+                              },
+                              "optional": true
+                            },
                             "facets": {
                               "fieldType": {
                                 "type": "object",
@@ -11371,6 +11399,34 @@
         "exactCode": {
           "fieldType": {
             "type": "boolean"
+          },
+          "optional": true
+        },
+        "searchField": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "location"
+              },
+              {
+                "type": "literal",
+                "value": "factoryOrder"
+              },
+              {
+                "type": "literal",
+                "value": "productBarcodeText"
+              },
+              {
+                "type": "literal",
+                "value": "partName"
+              },
+              {
+                "type": "literal",
+                "value": "customer"
+              }
+            ]
           },
           "optional": true
         },

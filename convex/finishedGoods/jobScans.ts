@@ -194,6 +194,14 @@ const jobScanFilter = v.union(
   v.literal("MAPPED"),
 );
 
+const jobScanSearchField = v.union(
+  v.literal("location"),
+  v.literal("factoryOrder"),
+  v.literal("productBarcodeText"),
+  v.literal("partName"),
+  v.literal("customer"),
+);
+
 const jobScanSearchFacets = v.object({
   building: optionalText,
   floor: optionalNumber,
@@ -203,6 +211,7 @@ const jobScanSearchFacets = v.object({
 const jobScanSearchIntentValue = v.object({
   filter: jobScanFilter,
   search: v.string(),
+  searchField: v.optional(jobScanSearchField),
   facets: v.optional(jobScanSearchFacets),
 });
 
@@ -1183,6 +1192,7 @@ export const listJobScans = queryWithOrg({
     search: v.optional(v.string()),
     /** When true, match whole normalized factoryOrder/barcode/location text or code only. */
     exactCode: v.optional(v.boolean()),
+    searchField: v.optional(jobScanSearchField),
     /** A resolved storage QR searches current assignments by identity. */
     locationId: optionalText,
     /** Optional structured filters applied alongside status and text search. */
@@ -1250,7 +1260,8 @@ export const listJobScans = queryWithOrg({
             .first(),
         ])
       : [null, null];
-    const exact = Boolean(needle) && args.exactCode === true;
+    const searchField = needle ? args.searchField : undefined;
+    const exact = Boolean(needle) && !searchField && args.exactCode === true;
     const buildingNeedle =
       args.facets?.building !== undefined
         ? normalizeJobScanSearch(args.facets.building)
@@ -1267,12 +1278,12 @@ export const listJobScans = queryWithOrg({
       floorFacet !== undefined ||
       floorInvalid ||
       storageFormatFacet !== undefined;
-    // Keep legacy scope identical when neither exactCode nor facets are active,
-    // and bind both into cursor scope whenever present so cursors never mix.
+    // Bind the full predicate to the cursor while retaining existing cursor scopes.
     const criteriaScope =
-      exact || hasFacets || args.locationId !== undefined
+      exact || searchField || hasFacets || args.locationId !== undefined
         ? {
             ...(exact ? { exactCode: true } : {}),
+            ...(searchField ? { searchField } : {}),
             ...(args.locationId !== undefined
               ? { locationId: location?.locationId ?? "invalid" }
               : {}),
@@ -1367,6 +1378,13 @@ export const listJobScans = queryWithOrg({
           return false;
       }
       if (!needle || exact) return true;
+      if (searchField)
+        return jobScanNameMatches(
+          searchField === "location"
+            ? scan.locationCode || scan.locationText
+            : scan[searchField],
+          needle,
+        );
       if (jobScanTextMatches(scan, needle)) return true;
       const { building } = await getParents();
       return Boolean(building && jobScanNameMatches(building.name, needle));
@@ -1410,7 +1428,8 @@ export const listJobScans = queryWithOrg({
       cursor: args.cursor,
       scanCursor: args.scanCursor,
       filtering: Boolean(needle) || hasFacets || args.locationId !== undefined,
-      acceptNativeCursor: args.locationId === undefined,
+      acceptNativeCursor:
+        args.locationId === undefined && searchField === undefined,
       progressive: args.progressive === true,
       read: (range, limit) =>
         reader.page({

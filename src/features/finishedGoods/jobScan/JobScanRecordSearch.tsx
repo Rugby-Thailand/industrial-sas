@@ -40,8 +40,9 @@ export function JobScanRecordSearch({
   const [aiOpen, setAiOpen] = useState(false);
   const scan = useRef<DialogCompletionHandle>(null);
   const ai = useRef<DialogCompletionHandle>(null);
-  const { search, facets, exactCode, locationId } = criteria;
+  const { search, searchField, facets, exactCode, locationId } = criteria;
   const activeFacets = [
+    searchField && t(searchField),
     facets?.building,
     facets?.floor !== undefined && t("floorNumber", { number: facets.floor }),
     facets?.storageFormat && t(`format.${facets.storageFormat}`),
@@ -79,9 +80,10 @@ export function JobScanRecordSearch({
           onChange={(event) => {
             const search = event.target.value;
             onChange(
-              exactCode || locationId || facets
+              searchField || exactCode || locationId || facets
                 ? {
                     search,
+                    searchField: undefined,
                     exactCode: undefined,
                     locationId: undefined,
                     facets: undefined,
@@ -105,6 +107,7 @@ export function JobScanRecordSearch({
             onClick={() =>
               onChange({
                 search: "",
+                searchField: undefined,
                 exactCode: undefined,
                 locationId: undefined,
                 facets: undefined,
@@ -131,6 +134,7 @@ export function JobScanRecordSearch({
                   onChange({
                     filter: "ALL",
                     search: code,
+                    searchField: undefined,
                     exactCode: locationId ? undefined : true,
                     locationId,
                     facets: undefined,
@@ -158,6 +162,7 @@ export function JobScanRecordSearch({
                   setAiOpen(false);
                   onChange({
                     ...intent,
+                    searchField: intent.searchField,
                     facets: intent.facets,
                     exactCode: undefined,
                     locationId: undefined,
@@ -344,7 +349,9 @@ function RecordSearchPrompt({
                   ? "unmapped"
                   : "all",
             ),
-            intent.search,
+            intent.searchField
+              ? `${t(intent.searchField)} · ${intent.search}`
+              : intent.search,
             intent.facets?.building,
             intent.facets?.floor !== undefined &&
               t("floorNumber", { number: intent.facets.floor }),
