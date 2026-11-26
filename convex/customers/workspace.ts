@@ -1,0 +1,816 @@
+import { v } from "convex/values";
+
+import type { Doc, Id } from "../_generated/dataModel";
+import {
+  readProductSummary,
+  summaryReadiness,
+} from "../lib/finishedGoodsSummary";
+import { grantedPermissionsAmong } from "../lib/navigationGrants";
+import { TENANT_INDEX_MAX_PAGE_SIZE } from "../lib/tenantDb";
+import {
+  queryWithOrg,
+  type TenantFunctionContext,
+} from "../lib/tenantFunctions";
+import { NAVIGATION_PERMISSION } from "../model/authorization/navigationPermissions";
+import { normalizeCustomerName } from "../model/customers/customers";
+import { pageWarehouseActivity } from "./activityReads";
+import {
+  customerJobRange,
+  customerProductRange,
+  readPendingScansSummary,
+} from "./linking";
+import { createReviewCandidateReader } from "./matching";
+import { customerLinkSource } from "./validators";
+import {
+  allowedCustomerWarehouses,
+  canAccessWarehouse,
+} from "./warehouseScope";
+
+/**
+ * Customer workspace reads (docs/plans/customer-module-2026-11-18/
+ * workspace-contract.md). Every read is organization-scoped by `queryWithOrg`
+ * and limited to warehouses the member may access with storage-layout read.
+ */
+const readCustomers = {
+  permissionCode: NAVIGATION_PERMISSION.customers,
+  target: { table: "customers" },
+} as const;
+
+/** Rollup counts stop here and report `complete: false` ("99+"). */
+const COUNT_CAP = TENANT_INDEX_MAX_PAGE_SIZE - 1;
+const LATEST_JOBS = 3;
+/** Activity rows (one per warehouse) read for one customer. */
+const MAX_CUSTOMER_WAREHOUSES = 20;
+const STOCK_PRODUCTS_CAP = TENANT_INDEX_MAX_PAGE_SIZE - 1;
+const PENDING_REVIEW_SCAN_BUDGET = 300;
+const MAX_REVIEW_NAME_LOOKUPS = 50;
+const JOBS_PAGE_DEFAULT = 20;
+const JOBS_PAGE_MAX = 50;
+const PRODUCTS_PAGE_DEFAULT = 10;
+const PRODUCTS_PAGE_MAX = 20;
+const PALLETS_PER_PRODUCT = 10;
+
+const boundedCount = v.object({ count: v.number(), complete: v.boolean() });
+
+const workspaceJob = v.object({
+  jobScanId: v.id("finishedGoodsJobScans"),
+  factoryOrder: v.string(),
+  partName: v.optional(v.string()),
+  productCode: v.string(),
+  quantity: v.optional(v.number()),
+  warehouseId: v.id("warehouses"),
+  warehouseName: v.string(),
+  createdAt: v.number(),
+  source: v.union(v.literal("AI"), v.literal("BARCODE"), v.literal("MANUAL")),
+  mapped: v.boolean(),
+  locationText: v.string(),
+  locationCode: v.optional(v.string()),
+  locationName: v.optional(v.string()),
+  customerLinkSource: v.optional(customerLinkSource),
+  capturedName: v.optional(v.string()),
+});
+
+const workspacePallet = v.object({
+  palletId: v.id("finishedGoodsPallets"),
+  code: v.string(),
+  quantity: v.number(),
+  positionCode: v.optional(v.string()),
+  zoneId: v.optional(v.id("storageZones")),
+  zoneLabel: v.optional(v.string()),
+});
+
+const workspaceProduct = v.object({
+  productId: v.id("finishedGoodsProducts"),
+  sku: v.string(),
+  name: v.string(),
+  unit: v.string(),
+  status: v.union(
+    v.literal("DRAFT"),
+    v.literal("ACTIVE"),
+    v.literal("ARCHIVED"),
+  ),
+  warehouseId: v.id("warehouses"),
+  warehouseName: v.string(),
+  customerReference: v.optional(v.string()),
+  /** From the warehouse product summary; absent while it is being built. */
+  storedCount: v.optional(v.number()),
+  totalQuantity: v.optional(v.number()),
+  /** First stored pallets, newest placement data included. */
+  pallets: v.array(workspacePallet),
+  hasMorePallets: v.boolean(),
+  /** Distinct zone labels among `pallets`. */
+  zones: v.array(v.string()),
+});
+
+function jobRow(scan: Doc<"finishedGoodsJobScans">, warehouseName: string) {
+  return {
+    jobScanId: scan._id,
+    factoryOrder: scan.factoryOrder,
+    ...(scan.partName === undefined ? {} : { partName: scan.partName }),
+    productCode: scan.productBarcodeText,
+    ...(scan.quantity === undefined ? {} : { quantity: scan.quantity }),
+    warehouseId: scan.warehouseId,
+    warehouseName,
+    createdAt: scan.createdAt,
+    source: scan.source,
+    mapped: scan.mapped,
+    locationText: scan.locationText,
+    ...(scan.locationCode === undefined
+      ? {}
+      : { locationCode: scan.locationCode }),
+    ...(scan.locationName === undefined
+      ? {}
+      : { locationName: scan.locationName }),
+    ...(scan.customerLinkSource === undefined
+      ? {}
+      : { customerLinkSource: scan.customerLinkSource }),
+    ...(scan.customer === undefined ? {} : { capturedName: scan.customer }),
+  };
+}
+
+function mappedJobRange(
+  ctx: TenantFunctionContext,
+  customerId: Id<"customers">,
+  warehouseId: Id<"warehouses">,
+  mapped: boolean,
+) {
+  return ctx.tenantDb.byIndex<Doc<"finishedGoodsJobScans">>(
+    "finishedGoodsJobScans",
+    "by_orgId_warehouseId_customerId_voided_mapped_createdAt",
+    [
+      { field: "warehouseId", value: warehouseId },
+      { field: "customerId", value: customerId },
+      { field: "voided", value: undefined, missing: true },
+      { field: "mapped", value: mapped },
+    ],
+  );
+}
+
+/** Count rows across ranges until `cap`; `complete` is false past the cap. */
+async function countRanges(
+  ranges: readonly (() => {
+    take: (limit: number) => Promise<readonly unknown[]>;
+  })[],
+  cap: number,
+) {
+  let count = 0;
+  for (const range of ranges) {
+    const remaining = cap - count;
+    const rows = await range().take(remaining + 1);
+    if (rows.length > remaining) return { count: cap, complete: false };
+    count += rows.length;
+  }
+  return { count, complete: true };
+}
+
+async function activityInWarehouse(
+  ctx: TenantFunctionContext,
+  customerId: Id<"customers">,
+  warehouse: Doc<"warehouses">,
+) {
+  const row = await ctx.tenantDb
+    .byIndex<Doc<"customerWarehouseActivity">>(
+      "customerWarehouseActivity",
+      "by_orgId_customerId_warehouseId",
+      [
+        { field: "customerId", value: customerId },
+        { field: "warehouseId", value: warehouse._id },
+      ],
+    )
+    .unique();
+  return row ? { row, warehouse } : null;
+}
+
+type ActivityEntry = {
+  row: Doc<"customerWarehouseActivity">;
+  warehouse: Doc<"warehouses">;
+};
+
+async function visibleActivity(
+  ctx: TenantFunctionContext,
+  allowed: Awaited<ReturnType<typeof allowedCustomerWarehouses>>,
+  rows: readonly Doc<"customerWarehouseActivity">[],
+) {
+  const visible = await Promise.all(
+    rows.map(async (row) => {
+      const listed = allowed.byId.get(row.warehouseId);
+      if (listed) return { row, warehouse: listed };
+      if (allowed.complete || !(await canAccessWarehouse(ctx, row.warehouseId)))
+        return null;
+      const warehouse = await ctx.tenantDb.get<Doc<"warehouses">>(
+        "warehouses",
+        row.warehouseId,
+      );
+      return warehouse ? { row, warehouse } : null;
+    }),
+  );
+  return visible.filter((entry) => entry !== null);
+}
+
+async function customerWarehouses(
+  ctx: TenantFunctionContext,
+  customerId: Id<"customers">,
+  allowed: Awaited<ReturnType<typeof allowedCustomerWarehouses>>,
+) {
+  const rows = await ctx.tenantDb
+    .byIndex<Doc<"customerWarehouseActivity">>(
+      "customerWarehouseActivity",
+      "by_orgId_customerId_warehouseId",
+      [{ field: "customerId", value: customerId }],
+    )
+    .take(MAX_CUSTOMER_WAREHOUSES + 1);
+  // Hidden warehouses can fill the preview. For a small complete scope,
+  // exact indexed reads recover every visible entry without scanning past it.
+  if (
+    rows.length > MAX_CUSTOMER_WAREHOUSES &&
+    allowed.complete &&
+    allowed.warehouses.length <= MAX_CUSTOMER_WAREHOUSES
+  ) {
+    const visible = await Promise.all(
+      allowed.warehouses.map((warehouse) =>
+        activityInWarehouse(ctx, customerId, warehouse),
+      ),
+    );
+    return {
+      entries: visible
+        .filter((entry) => entry !== null)
+        .sort((a, b) => a.warehouse.name.localeCompare(b.warehouse.name)),
+      complete: true,
+    };
+  }
+  const visible = await visibleActivity(
+    ctx,
+    allowed,
+    rows.slice(0, MAX_CUSTOMER_WAREHOUSES),
+  );
+  return {
+    entries: visible.sort((a, b) =>
+      a.warehouse.name.localeCompare(b.warehouse.name),
+    ),
+    complete: rows.length <= MAX_CUSTOMER_WAREHOUSES,
+  };
+}
+
+async function newestJobs(
+  ctx: TenantFunctionContext,
+  customerId: Id<"customers">,
+  entries: readonly ActivityEntry[],
+) {
+  // The newest jobs overall are among each warehouse's newest few, and the
+  // activity row tracks every warehouse's latest job.
+  const recent = entries
+    .filter(({ row }) => row.latestJobCreatedAt !== undefined)
+    .sort(
+      (a, b) =>
+        (b.row.latestJobCreatedAt ?? 0) - (a.row.latestJobCreatedAt ?? 0),
+    )
+    .slice(0, LATEST_JOBS);
+  const recentJobs = await Promise.all(
+    recent.map(async ({ warehouse }) =>
+      (
+        await customerJobRange(ctx, customerId, warehouse._id).take(
+          LATEST_JOBS,
+          "desc",
+        )
+      ).map((scan) => jobRow(scan, warehouse.name)),
+    ),
+  );
+  return recentJobs
+    .flat()
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, LATEST_JOBS);
+}
+
+async function overviewTotalsPage(
+  ctx: TenantFunctionContext,
+  customerId: Id<"customers">,
+  allowed: Awaited<ReturnType<typeof allowedCustomerWarehouses>>,
+  startWarehouse?: Id<"warehouses">,
+) {
+  // Recompute the lookahead on every subscription update. An insertion can
+  // move the boundary without growing a fixed native pagination window.
+  const rows = await ctx.tenantDb
+    .byIndex<Doc<"customerWarehouseActivity">>(
+      "customerWarehouseActivity",
+      "by_orgId_customerId_warehouseId",
+      [{ field: "customerId", value: customerId }],
+      startWarehouse && {
+        field: "warehouseId",
+        lower: { value: startWarehouse, inclusive: true },
+      },
+    )
+    .take(TENANT_INDEX_MAX_PAGE_SIZE);
+  const lookahead = rows[TENANT_INDEX_MAX_PAGE_SIZE - 1];
+  const visible = await visibleActivity(
+    ctx,
+    allowed,
+    lookahead ? rows.slice(0, -1) : rows,
+  );
+  return {
+    latestJobs: await newestJobs(ctx, customerId, visible),
+    linkedProductCount: visible.reduce(
+      (count, entry) => count + entry.row.linkedProductCount,
+      0,
+    ),
+    ...(lookahead && { nextCursor: lookahead._id }),
+  };
+}
+
+export const continueCustomerOverview = queryWithOrg({
+  ...readCustomers,
+  args: { customerId: v.id("customers"), cursor: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      latestJobs: v.array(workspaceJob),
+      linkedProductCount: v.number(),
+      nextCursor: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx, { customerId, cursor }) => {
+    const customer = await ctx.tenantDb.get<Doc<"customers">>(
+      "customers",
+      customerId,
+    );
+    if (!customer) return null;
+    const allowed = await allowedCustomerWarehouses(ctx);
+    if (!allowed.hasWarehouseRead) return null;
+    // The cursor identifies a customer activity row, including when its
+    // warehouse is outside the caller's scope. Only visible rows contribute.
+    const start = await ctx.tenantDb.get<Doc<"customerWarehouseActivity">>(
+      "customerWarehouseActivity",
+      cursor,
+    );
+    if (start?.customerId !== customer._id) return null;
+    return overviewTotalsPage(ctx, customer._id, allowed, start.warehouseId);
+  },
+});
+
+/**
+ * Workspace shell data: access flags, the selector's warehouses, and the
+ * overview rollup for the selected warehouse scope (all when omitted).
+ */
+export const getCustomerWorkspace = queryWithOrg({
+  ...readCustomers,
+  args: {
+    customerId: v.string(),
+    warehouseId: v.optional(v.string()),
+    includeOverview: v.optional(v.boolean()),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      access: v.object({
+        canManage: v.boolean(),
+        canViewWarehouseData: v.boolean(),
+        canReview: v.boolean(),
+        canScan: v.boolean(),
+      }),
+      warehouses: v.array(
+        v.object({
+          warehouseId: v.id("warehouses"),
+          code: v.string(),
+          name: v.string(),
+        }),
+      ),
+      warehousesComplete: v.boolean(),
+      scopeAvailable: v.boolean(),
+      rollup: v.optional(
+        v.object({
+          linkedJobs: boundedCount,
+          linkedProducts: boundedCount,
+          storedPallets: boundedCount,
+          unmappedJobs: boundedCount,
+          pendingReview: v.optional(
+            v.object({
+              names: v.number(),
+              scans: v.number(),
+              complete: v.boolean(),
+            }),
+          ),
+        }),
+      ),
+      overviewCursor: v.optional(v.string()),
+      latestJobs: v.array(workspaceJob),
+    }),
+  ),
+  handler: async (ctx, { customerId, warehouseId, includeOverview = true }) => {
+    const customer = await ctx.tenantDb.get<Doc<"customers">>(
+      "customers",
+      customerId,
+    );
+    if (!customer) return null;
+    const [grants, allowed] = await Promise.all([
+      grantedPermissionsAmong(ctx, [NAVIGATION_PERMISSION.customerManage]),
+      allowedCustomerWarehouses(ctx),
+    ]);
+    const canManage = grants.includes(NAVIGATION_PERMISSION.customerManage);
+    const access = {
+      canManage,
+      canViewWarehouseData: allowed.hasWarehouseRead,
+      canReview:
+        canManage && allowed.hasWarehouseRead && allowed.hasWarehouseManage,
+      canScan: allowed.hasWarehouseManage && customer.status === "ACTIVE",
+    };
+    if (!allowed.hasWarehouseRead) {
+      return {
+        access,
+        warehouses: [],
+        warehousesComplete: true,
+        scopeAvailable: warehouseId === undefined,
+        latestJobs: [],
+      };
+    }
+
+    const { entries, complete } = await customerWarehouses(
+      ctx,
+      customer._id,
+      allowed,
+    );
+    let selected = entries.find(
+      ({ warehouse }) => warehouse._id === warehouseId,
+    );
+    let selectedWarehouse = selected?.warehouse;
+    if (warehouseId !== undefined && !selectedWarehouse) {
+      selectedWarehouse = allowed.warehouses.find(
+        (warehouse) => warehouse._id === warehouseId,
+      );
+      if (!selectedWarehouse && !allowed.complete) {
+        const candidate = await ctx.tenantDb.get<Doc<"warehouses">>(
+          "warehouses",
+          warehouseId,
+        );
+        if (candidate && (await canAccessWarehouse(ctx, candidate._id)))
+          selectedWarehouse = candidate;
+      }
+      if (selectedWarehouse && !complete) {
+        selected =
+          (await activityInWarehouse(ctx, customer._id, selectedWarehouse)) ??
+          undefined;
+      }
+    }
+    const warehouses = entries.map(({ warehouse }) => ({
+      warehouseId: warehouse._id,
+      code: warehouse.code,
+      name: warehouse.name,
+    }));
+    // A directly linked scope may be outside the selector window or have
+    // no activity. Keep its name available while that scope is selected.
+    if (
+      selectedWarehouse &&
+      !warehouses.some((w) => w.warehouseId === selectedWarehouse._id)
+    ) {
+      warehouses.push({
+        warehouseId: selectedWarehouse._id,
+        code: selectedWarehouse.code,
+        name: selectedWarehouse.name,
+      });
+      warehouses.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    const scopeAvailable =
+      warehouseId === undefined || selectedWarehouse !== undefined;
+    const shell = {
+      access,
+      warehouses,
+      warehousesComplete: complete,
+      scopeAvailable,
+    };
+    if (!scopeAvailable || !includeOverview)
+      return { ...shell, latestJobs: [] };
+
+    const scoped =
+      warehouseId === undefined ? entries : selected ? [selected] : [];
+    const scopeComplete = warehouseId !== undefined || complete;
+
+    const linkedJobs = await countRanges(
+      scoped.map(
+        ({ warehouse }) =>
+          () =>
+            customerJobRange(ctx, customer._id, warehouse._id),
+      ),
+      COUNT_CAP,
+    );
+    const unmappedJobs = await countRanges(
+      scoped.map(
+        ({ warehouse }) =>
+          () =>
+            mappedJobRange(ctx, customer._id, warehouse._id, false),
+      ),
+      COUNT_CAP,
+    );
+
+    let stored = 0;
+    const linkedProductCount = scoped.reduce(
+      (sum, { row }) => sum + row.linkedProductCount,
+      0,
+    );
+    let storedComplete =
+      scopeComplete && linkedProductCount <= STOCK_PRODUCTS_CAP;
+    let productBudget = STOCK_PRODUCTS_CAP;
+    for (const { warehouse, row } of scoped) {
+      if (row.linkedProductCount === 0) continue;
+      const readiness = await summaryReadiness(ctx.tenantDb, warehouse._id);
+      if (!readiness?.ready) {
+        storedComplete = false;
+        continue;
+      }
+      const products = await customerProductRange(
+        ctx,
+        customer._id,
+        warehouse._id,
+      ).take(productBudget + 1);
+      if (products.length > productBudget) storedComplete = false;
+      const counted = products.slice(0, productBudget);
+      productBudget -= counted.length;
+      const summaries = await Promise.all(
+        counted.map((product) => readProductSummary(ctx, product, readiness)),
+      );
+      for (const summary of summaries) {
+        if (summary === null) storedComplete = false;
+        else stored += summary.stored;
+      }
+      if (productBudget === 0) break;
+    }
+
+    let pendingReview:
+      { names: number; scans: number; complete: boolean } | undefined;
+    if (access.canReview) {
+      const { scans, hasMore } = await readPendingScansSummary(
+        ctx,
+        PENDING_REVIEW_SCAN_BUDGET,
+        selectedWarehouse
+          ? { ...allowed, warehouses: [selectedWarehouse], complete: true }
+          : allowed,
+      );
+      // Group first: repeated tickets use a single candidate lookup. Bound the
+      // distinct-name lookups as well as the source rows on this live overview.
+      const groups = new Map<
+        string,
+        { display: string; latest: number; count: number }
+      >();
+      let complete = !hasMore;
+      for (const scan of scans) {
+        const display = scan.customer?.trim() ?? "";
+        const name = normalizeCustomerName(display);
+        if (!name) continue;
+        const group = groups.get(name);
+        if (group) {
+          group.count += 1;
+          if (scan.createdAt > group.latest) {
+            group.latest = scan.createdAt;
+            group.display = display;
+          }
+        } else if (groups.size < MAX_REVIEW_NAME_LOOKUPS) {
+          groups.set(name, { display, latest: scan.createdAt, count: 1 });
+        } else {
+          complete = false;
+        }
+      }
+      const candidatesForName = createReviewCandidateReader(ctx.tenantDb);
+      const hits = await Promise.all(
+        [...groups.values()].map(async (group) => {
+          const { candidates } = await candidatesForName(group.display);
+          return candidates.some((candidate) => candidate._id === customer._id)
+            ? group.count
+            : 0;
+        }),
+      );
+      pendingReview = {
+        names: hits.filter((count) => count > 0).length,
+        scans: hits.reduce((sum, count) => sum + count, 0),
+        complete,
+      };
+    }
+
+    // The selector is only a preview. Complete display metrics independently
+    // across all permitted activity, using live continuations for large scopes.
+    const overview = !scopeComplete
+      ? await overviewTotalsPage(ctx, customer._id, allowed)
+      : {
+          latestJobs: await newestJobs(ctx, customer._id, scoped),
+          linkedProductCount,
+          nextCursor: undefined,
+        };
+
+    return {
+      ...shell,
+      rollup: {
+        linkedJobs: {
+          ...linkedJobs,
+          complete: scopeComplete && linkedJobs.complete,
+        },
+        linkedProducts: {
+          count: overview.linkedProductCount,
+          complete: !overview.nextCursor,
+        },
+        storedPallets: { count: stored, complete: storedComplete },
+        unmappedJobs: {
+          ...unmappedJobs,
+          complete: scopeComplete && unmappedJobs.complete,
+        },
+        ...(pendingReview === undefined ? {} : { pendingReview }),
+      },
+      latestJobs: overview.latestJobs,
+      ...(overview.nextCursor ? { overviewCursor: overview.nextCursor } : {}),
+    };
+  },
+});
+
+const jobFilter = v.union(
+  v.literal("all"),
+  v.literal("mapped"),
+  v.literal("unmapped"),
+);
+
+/** Newest-first linked jobs, optionally one warehouse and mapped/unmapped. */
+export const listCustomerWorkspaceJobs = queryWithOrg({
+  ...readCustomers,
+  args: {
+    customerId: v.id("customers"),
+    warehouseId: v.optional(v.id("warehouses")),
+    filter: v.optional(jobFilter),
+    cursor: v.optional(v.string()),
+    pageSize: v.optional(v.number()),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      canViewWarehouseData: v.boolean(),
+      items: v.array(workspaceJob),
+      isDone: v.boolean(),
+      continueCursor: v.string(),
+    }),
+  ),
+  handler: async (
+    ctx,
+    { customerId, warehouseId, filter, cursor, pageSize },
+  ) => {
+    const limit = pageSize ?? JOBS_PAGE_DEFAULT;
+    if (!Number.isInteger(limit) || limit < 1 || limit > JOBS_PAGE_MAX)
+      throw new Error("INVALID_PAGE_SIZE");
+    const customer = await ctx.tenantDb.get<Doc<"customers">>(
+      "customers",
+      customerId,
+    );
+    if (!customer) return null;
+    const { items, ...page } = await pageWarehouseActivity(
+      ctx,
+      customer._id,
+      cursor,
+      limit,
+      (id) =>
+        filter === undefined || filter === "all"
+          ? customerJobRange(ctx, customer._id, id)
+          : mappedJobRange(ctx, customer._id, id, filter === "mapped"),
+      "desc",
+      warehouseId,
+    );
+    return {
+      ...page,
+      items: items.map(({ row, warehouseName }) => jobRow(row, warehouseName)),
+    };
+  },
+});
+
+/**
+ * Linked products with their stored pallets and zones: the products tab, the
+ * overview's product list, and the stock view share this read.
+ */
+export const listCustomerWorkspaceProducts = queryWithOrg({
+  ...readCustomers,
+  args: {
+    customerId: v.id("customers"),
+    warehouseId: v.optional(v.id("warehouses")),
+    includePallets: v.optional(v.boolean()),
+    cursor: v.optional(v.string()),
+    pageSize: v.optional(v.number()),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      canViewWarehouseData: v.boolean(),
+      items: v.array(workspaceProduct),
+      isDone: v.boolean(),
+      continueCursor: v.string(),
+    }),
+  ),
+  handler: async (
+    ctx,
+    { customerId, warehouseId, cursor, pageSize, includePallets = true },
+  ) => {
+    const limit = pageSize ?? PRODUCTS_PAGE_DEFAULT;
+    if (!Number.isInteger(limit) || limit < 1 || limit > PRODUCTS_PAGE_MAX)
+      throw new Error("INVALID_PAGE_SIZE");
+    const customer = await ctx.tenantDb.get<Doc<"customers">>(
+      "customers",
+      customerId,
+    );
+    if (!customer) return null;
+    const { items, ...page } = await pageWarehouseActivity(
+      ctx,
+      customer._id,
+      cursor,
+      limit,
+      (id) => customerProductRange(ctx, customer._id, id),
+      "asc",
+      warehouseId,
+    );
+
+    const readiness = new Map<
+      Id<"warehouses">,
+      Promise<Doc<"finishedGoodsSummaryReadiness"> | null>
+    >();
+    const zones = new Map<Id<"storageZones">, Promise<string | undefined>>();
+    const zoneLabel = (zoneId: Id<"storageZones">) => {
+      let label = zones.get(zoneId);
+      if (label === undefined) {
+        label = ctx.tenantDb
+          .get<Doc<"storageZones">>("storageZones", zoneId)
+          .then((zone) => zone?.label || zone?.code);
+        zones.set(zoneId, label);
+      }
+      return label;
+    };
+
+    const products = await Promise.all(
+      items.map(async ({ row: product, warehouseName }) => {
+        let ready = readiness.get(product.warehouseId);
+        if (ready === undefined) {
+          ready = summaryReadiness(ctx.tenantDb, product.warehouseId);
+          readiness.set(product.warehouseId, ready);
+        }
+        const [summary, palletRows] = await Promise.all([
+          ready.then((state) =>
+            state?.ready ? readProductSummary(ctx, product, state) : null,
+          ),
+          includePallets
+            ? ctx.tenantDb
+                .byIndex<Doc<"finishedGoodsPallets">>(
+                  "finishedGoodsPallets",
+                  "by_orgId_productId_status",
+                  [
+                    { field: "productId", value: product._id },
+                    { field: "status", value: "STORED" },
+                  ],
+                )
+                .take(PALLETS_PER_PRODUCT + 1)
+            : [],
+        ]);
+        const live = palletRows.filter(
+          (pallet) =>
+            pallet.retiredAt === undefined &&
+            pallet.warehouseId === product.warehouseId,
+        );
+        const pallets = await Promise.all(
+          live.slice(0, PALLETS_PER_PRODUCT).map(async (pallet) => {
+            const placement = pallet.placementId
+              ? await ctx.tenantDb.get<Doc<"finishedGoodsPlacements">>(
+                  "finishedGoodsPlacements",
+                  pallet.placementId,
+                )
+              : null;
+            const held = placement && placement.status !== "RELEASED";
+            const label = held ? await zoneLabel(placement.zoneId) : undefined;
+            return {
+              palletId: pallet._id,
+              code: pallet.code,
+              quantity: pallet.quantity,
+              ...(held
+                ? {
+                    positionCode: placement.positionCode,
+                    zoneId: placement.zoneId,
+                  }
+                : {}),
+              ...(label === undefined ? {} : { zoneLabel: label }),
+            };
+          }),
+        );
+        return {
+          productId: product._id,
+          sku: product.sku,
+          name: product.name,
+          unit: product.unit,
+          status: product.status,
+          warehouseId: product.warehouseId,
+          warehouseName,
+          ...(product.customerReference === undefined
+            ? {}
+            : { customerReference: product.customerReference }),
+          ...(summary === null
+            ? {}
+            : { storedCount: summary.stored, totalQuantity: summary.quantity }),
+          pallets,
+          hasMorePallets: palletRows.length > PALLETS_PER_PRODUCT,
+          zones: [
+            ...new Set(
+              pallets
+                .map((pallet) => pallet.zoneLabel)
+                .filter((label): label is string => label !== undefined),
+            ),
+          ],
+        };
+      }),
+    );
+    return { ...page, items: products };
+  },
+});

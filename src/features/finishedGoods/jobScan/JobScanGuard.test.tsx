@@ -30,6 +30,7 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ push: mocks.push, back: vi.fn(), replace: mocks.push }),
 }));
 vi.mock("convex/react", () => ({
+  useQuery: () => undefined,
   useMutation: getTestMutation,
   useAction: () => vi.fn(),
 }));

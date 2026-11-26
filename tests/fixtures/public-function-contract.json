@@ -4794,6 +4794,1305 @@
       }
     }
   },
+  "customers/workspace:continueCustomerOverview": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "customerId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "customers"
+          },
+          "optional": false
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "latestJobs": {
+                        "fieldType": {
+                          "type": "array",
+                          "value": {
+                            "type": "object",
+                            "value": {
+                              "jobScanId": {
+                                "fieldType": {
+                                  "type": "id",
+                                  "tableName": "finishedGoodsJobScans"
+                                },
+                                "optional": false
+                              },
+                              "factoryOrder": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "partName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              },
+                              "productCode": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "quantity": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "warehouseId": {
+                                "fieldType": {
+                                  "type": "id",
+                                  "tableName": "warehouses"
+                                },
+                                "optional": false
+                              },
+                              "warehouseName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "createdAt": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": false
+                              },
+                              "source": {
+                                "fieldType": {
+                                  "type": "union",
+                                  "value": [
+                                    {
+                                      "type": "literal",
+                                      "value": "AI"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "BARCODE"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "MANUAL"
+                                    }
+                                  ]
+                                },
+                                "optional": false
+                              },
+                              "mapped": {
+                                "fieldType": {
+                                  "type": "boolean"
+                                },
+                                "optional": false
+                              },
+                              "locationText": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "locationCode": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              },
+                              "locationName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              },
+                              "customerLinkSource": {
+                                "fieldType": {
+                                  "type": "union",
+                                  "value": [
+                                    {
+                                      "type": "literal",
+                                      "value": "AUTO"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "MANUAL"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "UNLINKED"
+                                    }
+                                  ]
+                                },
+                                "optional": true
+                              },
+                              "capturedName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              }
+                            }
+                          }
+                        },
+                        "optional": false
+                      },
+                      "linkedProductCount": {
+                        "fieldType": {
+                          "type": "number"
+                        },
+                        "optional": false
+                      },
+                      "nextCursor": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customers/workspace:getCustomerWorkspace": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "customerId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "warehouseId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "includeOverview": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "access": {
+                        "fieldType": {
+                          "type": "object",
+                          "value": {
+                            "canManage": {
+                              "fieldType": {
+                                "type": "boolean"
+                              },
+                              "optional": false
+                            },
+                            "canViewWarehouseData": {
+                              "fieldType": {
+                                "type": "boolean"
+                              },
+                              "optional": false
+                            },
+                            "canReview": {
+                              "fieldType": {
+                                "type": "boolean"
+                              },
+                              "optional": false
+                            },
+                            "canScan": {
+                              "fieldType": {
+                                "type": "boolean"
+                              },
+                              "optional": false
+                            }
+                          }
+                        },
+                        "optional": false
+                      },
+                      "warehouses": {
+                        "fieldType": {
+                          "type": "array",
+                          "value": {
+                            "type": "object",
+                            "value": {
+                              "warehouseId": {
+                                "fieldType": {
+                                  "type": "id",
+                                  "tableName": "warehouses"
+                                },
+                                "optional": false
+                              },
+                              "code": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "name": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              }
+                            }
+                          }
+                        },
+                        "optional": false
+                      },
+                      "warehousesComplete": {
+                        "fieldType": {
+                          "type": "boolean"
+                        },
+                        "optional": false
+                      },
+                      "scopeAvailable": {
+                        "fieldType": {
+                          "type": "boolean"
+                        },
+                        "optional": false
+                      },
+                      "rollup": {
+                        "fieldType": {
+                          "type": "object",
+                          "value": {
+                            "linkedJobs": {
+                              "fieldType": {
+                                "type": "object",
+                                "value": {
+                                  "count": {
+                                    "fieldType": {
+                                      "type": "number"
+                                    },
+                                    "optional": false
+                                  },
+                                  "complete": {
+                                    "fieldType": {
+                                      "type": "boolean"
+                                    },
+                                    "optional": false
+                                  }
+                                }
+                              },
+                              "optional": false
+                            },
+                            "linkedProducts": {
+                              "fieldType": {
+                                "type": "object",
+                                "value": {
+                                  "count": {
+                                    "fieldType": {
+                                      "type": "number"
+                                    },
+                                    "optional": false
+                                  },
+                                  "complete": {
+                                    "fieldType": {
+                                      "type": "boolean"
+                                    },
+                                    "optional": false
+                                  }
+                                }
+                              },
+                              "optional": false
+                            },
+                            "storedPallets": {
+                              "fieldType": {
+                                "type": "object",
+                                "value": {
+                                  "count": {
+                                    "fieldType": {
+                                      "type": "number"
+                                    },
+                                    "optional": false
+                                  },
+                                  "complete": {
+                                    "fieldType": {
+                                      "type": "boolean"
+                                    },
+                                    "optional": false
+                                  }
+                                }
+                              },
+                              "optional": false
+                            },
+                            "unmappedJobs": {
+                              "fieldType": {
+                                "type": "object",
+                                "value": {
+                                  "count": {
+                                    "fieldType": {
+                                      "type": "number"
+                                    },
+                                    "optional": false
+                                  },
+                                  "complete": {
+                                    "fieldType": {
+                                      "type": "boolean"
+                                    },
+                                    "optional": false
+                                  }
+                                }
+                              },
+                              "optional": false
+                            },
+                            "pendingReview": {
+                              "fieldType": {
+                                "type": "object",
+                                "value": {
+                                  "names": {
+                                    "fieldType": {
+                                      "type": "number"
+                                    },
+                                    "optional": false
+                                  },
+                                  "scans": {
+                                    "fieldType": {
+                                      "type": "number"
+                                    },
+                                    "optional": false
+                                  },
+                                  "complete": {
+                                    "fieldType": {
+                                      "type": "boolean"
+                                    },
+                                    "optional": false
+                                  }
+                                }
+                              },
+                              "optional": true
+                            }
+                          }
+                        },
+                        "optional": true
+                      },
+                      "overviewCursor": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": true
+                      },
+                      "latestJobs": {
+                        "fieldType": {
+                          "type": "array",
+                          "value": {
+                            "type": "object",
+                            "value": {
+                              "jobScanId": {
+                                "fieldType": {
+                                  "type": "id",
+                                  "tableName": "finishedGoodsJobScans"
+                                },
+                                "optional": false
+                              },
+                              "factoryOrder": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "partName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              },
+                              "productCode": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "quantity": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "warehouseId": {
+                                "fieldType": {
+                                  "type": "id",
+                                  "tableName": "warehouses"
+                                },
+                                "optional": false
+                              },
+                              "warehouseName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "createdAt": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": false
+                              },
+                              "source": {
+                                "fieldType": {
+                                  "type": "union",
+                                  "value": [
+                                    {
+                                      "type": "literal",
+                                      "value": "AI"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "BARCODE"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "MANUAL"
+                                    }
+                                  ]
+                                },
+                                "optional": false
+                              },
+                              "mapped": {
+                                "fieldType": {
+                                  "type": "boolean"
+                                },
+                                "optional": false
+                              },
+                              "locationText": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "locationCode": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              },
+                              "locationName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              },
+                              "customerLinkSource": {
+                                "fieldType": {
+                                  "type": "union",
+                                  "value": [
+                                    {
+                                      "type": "literal",
+                                      "value": "AUTO"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "MANUAL"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "UNLINKED"
+                                    }
+                                  ]
+                                },
+                                "optional": true
+                              },
+                              "capturedName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              }
+                            }
+                          }
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customers/workspace:listCustomerWorkspaceJobs": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "customerId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "customers"
+          },
+          "optional": false
+        },
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": true
+        },
+        "filter": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "all"
+              },
+              {
+                "type": "literal",
+                "value": "mapped"
+              },
+              {
+                "type": "literal",
+                "value": "unmapped"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "pageSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "canViewWarehouseData": {
+                        "fieldType": {
+                          "type": "boolean"
+                        },
+                        "optional": false
+                      },
+                      "items": {
+                        "fieldType": {
+                          "type": "array",
+                          "value": {
+                            "type": "object",
+                            "value": {
+                              "jobScanId": {
+                                "fieldType": {
+                                  "type": "id",
+                                  "tableName": "finishedGoodsJobScans"
+                                },
+                                "optional": false
+                              },
+                              "factoryOrder": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "partName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              },
+                              "productCode": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "quantity": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "warehouseId": {
+                                "fieldType": {
+                                  "type": "id",
+                                  "tableName": "warehouses"
+                                },
+                                "optional": false
+                              },
+                              "warehouseName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "createdAt": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": false
+                              },
+                              "source": {
+                                "fieldType": {
+                                  "type": "union",
+                                  "value": [
+                                    {
+                                      "type": "literal",
+                                      "value": "AI"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "BARCODE"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "MANUAL"
+                                    }
+                                  ]
+                                },
+                                "optional": false
+                              },
+                              "mapped": {
+                                "fieldType": {
+                                  "type": "boolean"
+                                },
+                                "optional": false
+                              },
+                              "locationText": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "locationCode": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              },
+                              "locationName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              },
+                              "customerLinkSource": {
+                                "fieldType": {
+                                  "type": "union",
+                                  "value": [
+                                    {
+                                      "type": "literal",
+                                      "value": "AUTO"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "MANUAL"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "UNLINKED"
+                                    }
+                                  ]
+                                },
+                                "optional": true
+                              },
+                              "capturedName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              }
+                            }
+                          }
+                        },
+                        "optional": false
+                      },
+                      "isDone": {
+                        "fieldType": {
+                          "type": "boolean"
+                        },
+                        "optional": false
+                      },
+                      "continueCursor": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customers/workspace:listCustomerWorkspaceProducts": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "customerId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "customers"
+          },
+          "optional": false
+        },
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": true
+        },
+        "includePallets": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "pageSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "canViewWarehouseData": {
+                        "fieldType": {
+                          "type": "boolean"
+                        },
+                        "optional": false
+                      },
+                      "items": {
+                        "fieldType": {
+                          "type": "array",
+                          "value": {
+                            "type": "object",
+                            "value": {
+                              "productId": {
+                                "fieldType": {
+                                  "type": "id",
+                                  "tableName": "finishedGoodsProducts"
+                                },
+                                "optional": false
+                              },
+                              "sku": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "name": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "unit": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "status": {
+                                "fieldType": {
+                                  "type": "union",
+                                  "value": [
+                                    {
+                                      "type": "literal",
+                                      "value": "DRAFT"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "ACTIVE"
+                                    },
+                                    {
+                                      "type": "literal",
+                                      "value": "ARCHIVED"
+                                    }
+                                  ]
+                                },
+                                "optional": false
+                              },
+                              "warehouseId": {
+                                "fieldType": {
+                                  "type": "id",
+                                  "tableName": "warehouses"
+                                },
+                                "optional": false
+                              },
+                              "warehouseName": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": false
+                              },
+                              "customerReference": {
+                                "fieldType": {
+                                  "type": "string"
+                                },
+                                "optional": true
+                              },
+                              "storedCount": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "totalQuantity": {
+                                "fieldType": {
+                                  "type": "number"
+                                },
+                                "optional": true
+                              },
+                              "pallets": {
+                                "fieldType": {
+                                  "type": "array",
+                                  "value": {
+                                    "type": "object",
+                                    "value": {
+                                      "palletId": {
+                                        "fieldType": {
+                                          "type": "id",
+                                          "tableName": "finishedGoodsPallets"
+                                        },
+                                        "optional": false
+                                      },
+                                      "code": {
+                                        "fieldType": {
+                                          "type": "string"
+                                        },
+                                        "optional": false
+                                      },
+                                      "quantity": {
+                                        "fieldType": {
+                                          "type": "number"
+                                        },
+                                        "optional": false
+                                      },
+                                      "positionCode": {
+                                        "fieldType": {
+                                          "type": "string"
+                                        },
+                                        "optional": true
+                                      },
+                                      "zoneId": {
+                                        "fieldType": {
+                                          "type": "id",
+                                          "tableName": "storageZones"
+                                        },
+                                        "optional": true
+                                      },
+                                      "zoneLabel": {
+                                        "fieldType": {
+                                          "type": "string"
+                                        },
+                                        "optional": true
+                                      }
+                                    }
+                                  }
+                                },
+                                "optional": false
+                              },
+                              "hasMorePallets": {
+                                "fieldType": {
+                                  "type": "boolean"
+                                },
+                                "optional": false
+                              },
+                              "zones": {
+                                "fieldType": {
+                                  "type": "array",
+                                  "value": {
+                                    "type": "string"
+                                  }
+                                },
+                                "optional": false
+                              }
+                            }
+                          }
+                        },
+                        "optional": false
+                      },
+                      "isDone": {
+                        "fieldType": {
+                          "type": "boolean"
+                        },
+                        "optional": false
+                      },
+                      "continueCursor": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
   "customers/writes:archiveCustomer": {
     "kind": "mutation",
     "visibility": "public",

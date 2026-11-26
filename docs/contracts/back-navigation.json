@@ -42,6 +42,7 @@
     "storageFloorPath",
     "customerPath",
     "customerEditPath",
+    "customerJobScanPath",
     "hrDayPath",
     "hrPeriodPath",
     "hrReviewPath",
@@ -630,6 +631,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
           "name": "explicit Change consumes the ticket step and the next Back uses the safe parent"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "native Back after a customer scan receipt restores the workspace locale, query and hash"
         }
       ]
     },
@@ -1002,8 +1007,8 @@
       "file": "src/app/[locale]/(desktop)/master-data/customers/[customerId]/page.tsx",
       "policy": "parent",
       "parent": "/master-data/customers",
-      "targets": ["src/features/customers/CustomerDetail#CustomerDetail"],
-      "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
+      "targets": ["src/features/customers/CustomerWorkspace#CustomerWorkspace"],
+      "expectation": "Section and job filter changes push. Warehouse scope changes and invalid URL cleanup replace. The products tab remains selected on the stock view. Header and browser Back restore the earlier workspace or the actual locale, query and hash of the origin. Direct entry uses the customer catalogue.",
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],
       "cases": [
         {
@@ -1013,6 +1018,42 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "a missing or foreign customer keeps a page frame with Back to the list"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pushes a workspace section, then native Back and Forward restore the section before leaving for the localized origin"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "replaces workspace scope without a Back step and pushes the jobs filter with a fresh cursor"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens and remounts a direct jobs deep link with its warehouse and filter"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "normalizes a catalogue-only deep link by replacement and hides the warehouse data without an error"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "keeps search and status local and returns from a rail customer to the prior scoped section"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens stock from products and Back from a destination restores the exact stock view, then products"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "shows a recovery action for an unavailable warehouse without querying its records"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "shows exact attention actions and selects the in-scope workspace warehouse when starting a scan"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "waits for the section URL commit before opening its scope, filters or destinations"
         }
       ]
     },
@@ -3143,7 +3184,18 @@
     {
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:location",
       "policy": "presentation",
-      "expectation": "Selected location data supplies status and the earlier location question only when the connected jobScanStep is inactive; jobScanStep enter/active owns the Location-to-ticket predecessor and retains ticket drafts.",
+      "expectation": "Selected location data supplies status and the earlier location question only when the connected jobScanStep is inactive; jobScanStep enter/active owns the Location-to-ticket predecessor and retains ticket drafts. A permitted active customer adds only the inline customerContext paragraph on the location question and ticket entry.",
+      "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "prefills editable manual customer text and keeps mismatch advisory when saving"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "silently ignores a %s scan customer"
+        }
+      ],
       "uses": ["branch", "return"],
       "render": [
         {
@@ -3159,6 +3211,7 @@
         {
           "shape": "early-return",
           "truthy": [
+            "p",
             "src/components/ui/PageContainer#PageContainer",
             "src/features/finishedGoods/jobScan/LocationPicker#LocationPicker",
             "src/features/finishedGoods/shared#Heading"
@@ -3254,7 +3307,14 @@
     {
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:saved",
       "policy": "presentation",
-      "expectation": "Successful job-ticket persistence replaces entry controls with a terminal saved receipt. Live operation completion consumes the old task, and Scan more explicitly starts a fresh ticket group; Back must not replay saved inputs.",
+      "expectation": "Successful job-ticket persistence replaces entry controls with a terminal saved receipt. Live operation completion consumes the old task, and Scan more explicitly starts a fresh ticket group; Back must not replay saved inputs. A permitted active customer adds a Link to the customer workspace jobs section in the receipt’s action row.",
+      "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "native Back after a customer scan receipt restores the workspace locale, query and hash"
+        }
+      ],
       "uses": ["branch", "return"],
       "render": [
         {
@@ -3282,11 +3342,16 @@
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:tickets",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Retained ticket rows drive inline item fields, duplicate status and the selected scanner input. Actual Location and acquisition transitions retain these rows through their separate workflow/disclosure owners. The save blocker derived from the rows names the incomplete, invalid-quantity or repeated tickets; its inline link Button only scrolls to and focuses the first affected TicketCard row or the duplicate-review checkbox on the same page, creating no foreground, URL or Back entry.",
+      "expectation": "Retained ticket rows drive inline item fields, duplicate status and the selected scanner input. TicketCard displays a customerNameMismatch paragraph for nonblank captured names that normalize differently from the permitted active customer. It is advisory and has no Back entry. Actual Location and acquisition transitions retain these rows through their separate workflow/disclosure owners. The save blocker derived from the rows names the incomplete, invalid-quantity or repeated tickets; its inline link Button only scrolls to and focuses the first affected TicketCard row or the duplicate-review checkbox on the same page, creating no foreground, URL or Back entry.",
       "tests": [
+        "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
         "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx"
       ],
       "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "prefills editable manual customer text and keeps mismatch advisory when saving"
+        },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
           "name": "names the incomplete tickets in the save blocker and jumps to the first one"
@@ -9481,204 +9546,9 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerDetail.tsx#CustomerJobsCard:cursors",
-      "policy": "presentation",
-      "expectation": "Pages through live warehouse-scoped jobs in the table and mobile list. Loading, denial, empty results, and Previous/Next controls stay in the same card without a browser history entry.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["p"],
-          "falsy": [
-            "div",
-            "li",
-            "span",
-            "src/components/ui/TableScroller#TableScroller",
-            "src/components/ui/table#Table",
-            "src/components/ui/table#TableBody",
-            "src/components/ui/table#TableCell",
-            "src/components/ui/table#TableHead",
-            "src/components/ui/table#TableHeader",
-            "src/components/ui/table#TableRow",
-            "ul"
-          ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
-          ],
-          "falsy": [
-            "div",
-            "li",
-            "p",
-            "span",
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
-            "src/components/ui/TableScroller#TableScroller",
-            "src/components/ui/table#Table",
-            "src/components/ui/table#TableBody",
-            "src/components/ui/table#TableCell",
-            "src/components/ui/table#TableHead",
-            "src/components/ui/table#TableHeader",
-            "src/components/ui/table#TableRow",
-            "ul"
-          ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
-          ],
-          "falsy": [
-            "div",
-            "li",
-            "p",
-            "span",
-            "src/components/ui/TableScroller#TableScroller",
-            "src/components/ui/table#Table",
-            "src/components/ui/table#TableBody",
-            "src/components/ui/table#TableCell",
-            "src/components/ui/table#TableHead",
-            "src/components/ui/table#TableHeader",
-            "src/components/ui/table#TableRow",
-            "ul"
-          ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/button#Button"],
-          "falsy": []
-        }
-      ],
-      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
-      "cases": [
-        {
-          "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "loads linked jobs inline across customer-scoped continuation pages"
-        }
-      ]
-    },
-    {
-      "id": "src/features/customers/CustomerDetail.tsx#CustomerProductsCard:cursors",
-      "policy": "presentation",
-      "expectation": "Pages through live warehouse-scoped products in the linked products list. Loading, denial, empty results, and Previous/Next controls stay in the same card without a browser history entry.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["li", "span", "src/i18n/navigation#Link", "ul"],
-          "falsy": ["p"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["p"],
-          "falsy": ["li", "p", "span", "src/i18n/navigation#Link", "ul"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
-          ],
-          "falsy": [
-            "li",
-            "p",
-            "span",
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
-            "src/i18n/navigation#Link",
-            "ul"
-          ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
-          ],
-          "falsy": ["li", "p", "span", "src/i18n/navigation#Link", "ul"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/button#Button"],
-          "falsy": []
-        }
-      ],
-      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
-      "cases": [
-        {
-          "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "revisits live product pages after a deletion and clears rows on authorization denial"
-        }
-      ]
-    },
-    {
-      "id": "src/features/customers/CustomerDetail.tsx#CustomerAliasesCard:pagingActive",
-      "policy": "presentation",
-      "expectation": "Activates inline pagination inside CustomerAliasesCard (loading/denied status, empty intermediate page, and Previous/Next controls) so all aliases remain reachable and removable; opens no foreground surface.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["button", "li", "lucide-react#X", "span", "ul"],
-          "falsy": ["p"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["div", "src/components/ui/button#Button"],
-          "falsy": ["div", "src/components/ui/button#Button"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["div", "src/components/ui/button#Button"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["p"],
-          "falsy": ["p"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
-          ],
-          "falsy": [
-            "button",
-            "li",
-            "lucide-react#X",
-            "p",
-            "span",
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
-            "ul"
-          ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
-          ],
-          "falsy": ["button", "li", "lucide-react#X", "p", "span", "ul"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/button#Button"],
-          "falsy": []
-        }
-      ],
-      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
-      "cases": [
-        {
-          "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts"
-        },
-        {
-          "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "pages customer aliases forward and backward, handles empty and denied pages, and steps review batches backward"
-        }
-      ]
-    },
-    {
       "id": "src/features/customers/CustomerDetail.tsx#CustomerAliasesCard:aliasCursors",
       "policy": "presentation",
-      "expectation": "Inline cursor stack for paging forward and backward through customer aliases (including empty and denied page states) inside CustomerAliasesCard; opens no foreground surface.",
+      "expectation": "The approved ticket-names card pages directly through the alias read. Loading, authorization denial, empty results, and Previous/Next controls stay inside that card while testing each cursor against the current customer.",
       "uses": ["branch"],
       "render": [
         {
@@ -9729,6 +9599,10 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "pages customer aliases forward and backward, handles empty and denied pages, and steps review batches backward"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "paginates customer detail aliases, shows alias transport errors, and guards dirty alias drafts"
         }
       ]
     },
@@ -10373,6 +10247,434 @@
           "name": "warns on a failed tax ID check digit and still saves the digits with leading zeros"
         }
       ]
+    },
+    {
+      "id": "src/features/customers/CustomerWorkspace.tsx#WorkspaceContent:selection",
+      "policy": "workflow",
+      "expectation": "The section and jobs filter are restored from the actual URL and use guarded pushes. Warehouse scope uses guarded replacement on the same entry and unavailable scope displays recovery without loading its records. The overview and details retain profile access; the archive confirmation still owns its own foreground entry.",
+      "integration": "useUrlBackedState",
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pushes a workspace section, then native Back and Forward restore the section before leaving for the localized origin"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "replaces workspace scope without a Back step and pushes the jobs filter with a fresh cursor"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens and remounts a direct jobs deep link with its warehouse and filter"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "normalizes a catalogue-only deep link by replacement and hides the warehouse data without an error"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens stock from products and Back from a destination restores the exact stock view, then products"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "shows a recovery action for an unavailable warehouse without querying its records"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerDirectory.tsx#CustomerDirectory:search",
+      "policy": "presentation",
+      "expectation": "Search is a local directory filter. The directory responds inline with loading, denial, retry, empty or results, and optional paging. Search does not add or modify a history entry.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "lucide-react#ChevronRight",
+            "p",
+            "span",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "lucide-react#ChevronRight",
+            "p",
+            "span",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": [
+            "li",
+            "lucide-react#ChevronRight",
+            "p",
+            "span",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": [
+            "li",
+            "lucide-react#ChevronRight",
+            "span",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "keeps search and status local and returns from a rail customer to the prior scoped section"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerDirectory.tsx#CustomerDirectory:status",
+      "policy": "presentation",
+      "expectation": "The directory status starts from the catalogue preference. Changing it updates only the local directory read and its inline status, results and paging. The browser URL and remembered catalogue preference are unchanged.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "lucide-react#ChevronRight",
+            "p",
+            "span",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "lucide-react#ChevronRight",
+            "p",
+            "span",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": [
+            "li",
+            "lucide-react#ChevronRight",
+            "p",
+            "span",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": [
+            "li",
+            "lucide-react#ChevronRight",
+            "span",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "keeps search and status local and returns from a rail customer to the prior scoped section"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerDirectory.tsx#CustomerDirectory:position",
+      "policy": "presentation",
+      "expectation": "Previous and Next retain directory search and status. They replace the inline rows or read state, with no URL or browser history change.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "lucide-react#ChevronRight",
+            "p",
+            "span",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "lucide-react#ChevronRight",
+            "p",
+            "span",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": [
+            "li",
+            "lucide-react#ChevronRight",
+            "p",
+            "span",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": [
+            "li",
+            "lucide-react#ChevronRight",
+            "span",
+            "src/components/ui/StatusBadge#StatusBadge",
+            "src/i18n/navigation#Link",
+            "strong",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "keeps search and status local and returns from a rail customer to the prior scoped section"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerWarehouseSection.tsx#WorkspaceJobs:cursors",
+      "policy": "presentation",
+      "expectation": "Previous and Next request another live jobs page in the existing tab. Loading, denial and paging controls stay in that card. A customer, warehouse or filter change resets the cursor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": ["src/components/system/LedgerPanelStatus#LedgerPanelStatus"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "loads linked jobs inline across customer-scoped continuation pages"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "replaces workspace scope without a Back step and pushes the jobs filter with a fresh cursor"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerWarehouseSection.tsx#WorkspaceProducts:cursors",
+      "policy": "presentation",
+      "expectation": "Previous and Next request another live products or stock page within the current section. Loading and denial stay inline. Scope or section changes reset the cursor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": ["src/components/system/LedgerPanelStatus#LedgerPanelStatus"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "revisits live product pages after a deletion and clears rows on authorization denial"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens stock from products and Back from a destination restores the exact stock view, then products"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerWorkspace.tsx#WorkspaceContent:changingUrl",
+      "policy": "presentation",
+      "expectation": "After the draft guard permits a workspace write, its control regions are inert and the previous visible section remains mounted until the URL commits. This prevents the scope, filter or an outgoing link from superseding an uncommitted push. Header Back remains available and the pending state adds no browser history entry.",
+      "uses": ["inert", "url-state"],
+      "render": [
+        {
+          "shape": "prop:inert",
+          "truthy": ["div"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "waits for the section URL commit before opening its scope, filters or destinations"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pushes a workspace section, then native Back and Forward restore the section before leaving for the localized origin"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "replaces workspace scope without a Back step and pushes the jobs filter with a fresh cursor"
+        }
+      ]
     }
   ],
   "overlayDelegates": [
@@ -10824,6 +11126,18 @@
       ]
     },
     {
+      "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#submit:$task:completeTask:customerJobScanPath",
+      "intent": "completion",
+      "expectation": "The live successful operation consumes the ticket entry and keeps the customer in the receipt URL. The next Back restores the actual workspace origin and Forward returns to the scan URL.",
+      "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "native Back after a customer scan receipt restores the workspace locale, query and hash"
+        }
+      ]
+    },
+    {
       "id": "src/components/shell/DesktopShell.tsx#AppSidebar:$navigate:push:$dynamic",
       "intent": "dispatch",
       "expectation": "A permitted sidebar link consumes the mobile Sheet entry before its live shell owner dispatches the destination. Desktop links retain native Link behavior. Dirty/pending drafts still gate departure and Back preserves source locale, query and hash.",
@@ -10960,6 +11274,70 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "creates a new customer from review using an opaque session prefill token without putting the raw name in the URL"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerWorkspace.tsx#WorkspaceContent:$navigate:replace:$dynamic",
+      "intent": "dispatch",
+      "expectation": "Normalize only the workspace's URL parameters after the permission read settles. Replacement retains unrelated query and hash and adds no Back step.",
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "normalizes a catalogue-only deep link by replacement and hides the warehouse data without an error"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerWorkspace.tsx#chooseSection:$navigate:push:$dynamic",
+      "intent": "advance",
+      "expectation": "Open a workspace section through the draft guard, preserving warehouse, unrelated query and hash. The stock section highlights Products and Back returns to the exact original section.",
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pushes a workspace section, then native Back and Forward restore the section before leaving for the localized origin"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "waits for the section URL commit before opening its scope, filters or destinations"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens stock from products and Back from a destination restores the exact stock view, then products"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "shows exact attention actions and selects the in-scope workspace warehouse when starting a scan"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerWorkspace.tsx#chooseWarehouse:$navigate:replace:$dynamic",
+      "intent": "dispatch",
+      "expectation": "Update the selected warehouse, including recovery from a forbidden or unavailable warehouse, through a guarded replacement. The current section and jobs filter stay selected.",
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "replaces workspace scope without a Back step and pushes the jobs filter with a fresh cursor"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "shows a recovery action for an unavailable warehouse without querying its records"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerWorkspace.tsx#chooseFilter:$navigate:push:$dynamic",
+      "intent": "advance",
+      "expectation": "Change the job-location filter through the draft guard. It pushes once and resets cursor paging, so Back restores the previous filter.",
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "replaces workspace scope without a Back step and pushes the jobs filter with a fresh cursor"
         }
       ]
     }

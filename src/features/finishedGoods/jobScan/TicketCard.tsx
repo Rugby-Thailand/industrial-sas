@@ -88,6 +88,7 @@ function TicketInput({
 
 export function TicketCard({
   ticket,
+  customerNameMismatch,
   index,
   onChange,
   onRemove,
@@ -97,6 +98,7 @@ export function TicketCard({
   duplicate = false,
 }: {
   ticket: TicketDraft;
+  customerNameMismatch: boolean;
   index: number;
   onChange: (field: TicketField, value: string) => void;
   onRemove: () => void;
@@ -196,6 +198,9 @@ export function TicketCard({
         placeholder={t("formatUnspecified")}
         emptyLabel={t("formatUnspecified")}
       />
+      {customerNameMismatch && (
+        <p className="text-sm text-warning">{t("customerNameMismatch")}</p>
+      )}
       <CollapsibleSection
         label={t("moreDetails")}
         badge={t("filledCount", { count: filled })}

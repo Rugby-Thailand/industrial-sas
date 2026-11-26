@@ -138,9 +138,10 @@ export async function pageWarehouseActivity<
   limit: number,
   range: (warehouseId: Id<"warehouses">) => TenantIndexReader<T>,
   order: "asc" | "desc",
+  only?: Id<"warehouses">,
 ) {
   const start = warehousePagePosition(cursor, customerId);
-  const allowed = await allowedCustomerWarehouses(ctx, start);
+  const allowed = await allowedCustomerWarehouses(ctx, start, only);
   const finish = (position?: Omit<WarehousePagePosition, "customerId">) => ({
     canViewWarehouseData: allowed.hasWarehouseRead,
     isDone: position === undefined,

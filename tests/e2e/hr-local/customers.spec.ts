@@ -182,6 +182,10 @@ test("a reviewer links a captured ticket name and the next ticket uses the saved
       .filter({ visible: true })
       .first(),
   ).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Customer workspace sections" })
+    .getByRole("button", { name: "Details", exact: true })
+    .click();
   await expect(
     page.getByText(captured, { exact: true }).filter({ visible: true }).first(),
   ).toBeVisible();

@@ -29,6 +29,7 @@ import type * as customers_matching from "../customers/matching.js";
 import type * as customers_provision from "../customers/provision.js";
 import type * as customers_validators from "../customers/validators.js";
 import type * as customers_warehouseScope from "../customers/warehouseScope.js";
+import type * as customers_workspace from "../customers/workspace.js";
 import type * as customers_writes from "../customers/writes.js";
 import type * as finishedGoods_attachmentCleanup from "../finishedGoods/attachmentCleanup.js";
 import type * as finishedGoods_attachments from "../finishedGoods/attachments.js";
@@ -220,6 +221,7 @@ declare const fullApi: ApiFromModules<{
   "customers/provision": typeof customers_provision;
   "customers/validators": typeof customers_validators;
   "customers/warehouseScope": typeof customers_warehouseScope;
+  "customers/workspace": typeof customers_workspace;
   "customers/writes": typeof customers_writes;
   "finishedGoods/attachmentCleanup": typeof finishedGoods_attachmentCleanup;
   "finishedGoods/attachments": typeof finishedGoods_attachments;

@@ -242,6 +242,9 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
     pageSize: 20,
   })),
   example("customers/linking:reviewSummary", "query", () => ({})),
+  example("customers/workspace:getCustomerWorkspace", "query", () => ({
+    customerId: "missing-customer",
+  })),
   example("hr/access:display", "query", () => ({})),
   example("hr/access:sitesPage", "query", () => ({ search: "a" })),
   example("hr/navigationIntent:interpret", "action", () => ({

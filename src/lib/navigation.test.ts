@@ -1,7 +1,11 @@
 import { expect, it } from "vitest";
 import {
   batchPath,
+  customerJobScanPath,
   customerNewPath,
+  customerWorkspacePath,
+  jobScanRecordSearchPath,
+  readCustomerWorkspaceUrl,
   productPackingPath,
   storageBuildingPath,
   storageFloorPath,
@@ -54,4 +58,69 @@ it("builds cross-warehouse packing and batch paths cleanly", () => {
   expect(batchPath("batch-a", "warehouse-b")).toBe(
     "/finished-goods/batches/batch-a?warehouseId=warehouse-b",
   );
+});
+
+it("omits customer workspace defaults and keeps the jobs filter only on the jobs section", () => {
+  expect(customerWorkspacePath("c1")).toBe("/master-data/customers/c1");
+  expect(
+    customerWorkspacePath("c1", {
+      section: "overview",
+      warehouse: "all",
+      filter: "all",
+    }),
+  ).toBe("/master-data/customers/c1");
+  expect(
+    customerWorkspacePath("c1", {
+      section: "jobs",
+      warehouse: "wh1",
+      filter: "unmapped",
+    }),
+  ).toBe(
+    "/master-data/customers/c1?section=jobs&warehouse=wh1&filter=unmapped",
+  );
+  expect(
+    customerWorkspacePath("c1", { section: "products", filter: "mapped" }),
+  ).toBe("/master-data/customers/c1?section=products");
+});
+
+it("normalizes customer workspace URLs for the member's warehouse access", () => {
+  const read = (query: string, canViewWarehouseData = true) =>
+    readCustomerWorkspaceUrl(new URLSearchParams(query), {
+      canViewWarehouseData,
+    });
+  expect(read("")).toEqual({
+    section: "overview",
+    warehouse: "all",
+    filter: "all",
+  });
+  expect(read("section=jobs&warehouse=wh1&filter=mapped")).toEqual({
+    section: "jobs",
+    warehouse: "wh1",
+    filter: "mapped",
+  });
+  expect(read("section=unknown&warehouse=../x&filter=mapped")).toEqual({
+    section: "overview",
+    warehouse: "all",
+    filter: "all",
+  });
+  expect(read("section=stock&warehouse=wh1", false)).toEqual({
+    section: "overview",
+    warehouse: "all",
+    filter: "all",
+  });
+  expect(read("section=details", false).section).toBe("details");
+});
+
+it("links workspace jobs to their saved record search and the scan page to the customer", () => {
+  const records = new URL(
+    jobScanRecordSearchPath("wh1", "JO-691124"),
+    "https://example.test",
+  );
+  expect(records.pathname).toBe("/finished-goods/scan/records");
+  expect(records.searchParams.get("warehouseId")).toBe("wh1");
+  expect(JSON.parse(records.searchParams.get("scans")!)).toEqual({
+    filter: "ALL",
+    search: "JO-691124",
+  });
+  expect(customerJobScanPath("c1")).toBe("/finished-goods/scan?customer=c1");
 });

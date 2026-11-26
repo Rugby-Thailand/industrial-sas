@@ -9,6 +9,7 @@ import { bumpCustomerCatalogueGeneration } from "./catalogueGeneration";
 import type { TenantDocumentAccess } from "../lib/tenantDb";
 import {
   classifyExactCustomerMatches,
+  compactCustomerStem,
   normalizeCustomerName,
 } from "../model/customers/customers";
 
@@ -190,5 +191,88 @@ export async function resolveExplicitCustomerLink(
     ok: true as const,
     customerId: customer._id,
     customerLinkSource: "MANUAL" as const,
+  };
+}
+
+type MatchKind = "AMBIGUOUS" | "ARCHIVED" | "SIMILAR" | "NONE";
+const ACTIVE_SAMPLE_SIZE = 100;
+const DISPLAY_LIMIT = 5;
+
+/** One bounded active sample and one doc cache per query, shared across names. */
+export function createReviewCandidateReader(db: TenantDocumentAccess) {
+  const customers = new Map<
+    Id<"customers">,
+    Promise<Doc<"customers"> | null>
+  >();
+  function readCustomer(id: Id<"customers">) {
+    let doc = customers.get(id);
+    if (!doc) {
+      doc = db.get<Doc<"customers">>("customers", id);
+      customers.set(id, doc);
+    }
+    return doc;
+  }
+
+  async function loadSample() {
+    const active = await db
+      .byIndex<Doc<"customers">>(
+        "customers",
+        "by_orgId_status_normalizedName",
+        [{ field: "status", value: "ACTIVE" }],
+      )
+      .take(ACTIVE_SAMPLE_SIZE);
+    return active.map((customer) => {
+      customers.set(customer._id, Promise.resolve(customer));
+      const stems = [customer.name, customer.legalNameTh, customer.legalNameEn]
+        .map((value) => compactCustomerStem(value ?? ""))
+        .filter((stem) => stem.length >= 2);
+      return { customer, stems };
+    });
+  }
+  let sample: ReturnType<typeof loadSample> | undefined;
+
+  return async function candidatesForName(
+    name: string,
+  ): Promise<{ matchKind: MatchKind; candidates: Doc<"customers">[] }> {
+    const exact = await resolveExactCustomerMatch(db, name);
+    if (exact.kind === "AMBIGUOUS") {
+      const docs = await Promise.all(exact.customerIds.map(readCustomer));
+      return {
+        matchKind: "AMBIGUOUS",
+        candidates: docs
+          .filter((doc): doc is Doc<"customers"> => doc?.status === "ACTIVE")
+          .slice(0, DISPLAY_LIMIT),
+      };
+    }
+    if (exact.kind !== "UNMATCHED") {
+      const doc = await readCustomer(exact.customerId);
+      return {
+        matchKind: exact.kind === "ARCHIVED" ? "ARCHIVED" : "SIMILAR",
+        candidates: doc ? [doc] : [],
+      };
+    }
+    const stem = compactCustomerStem(name);
+    if (stem.length < 2) return { matchKind: "NONE", candidates: [] };
+    const entries = await (sample ??= loadSample());
+    const direct = entries.filter((entry) => entry.stems.includes(stem));
+    const similar = direct
+      .slice(0, DISPLAY_LIMIT)
+      .map((entry) => entry.customer);
+    if (similar.length < 3) {
+      for (const { customer, stems } of entries) {
+        if (
+          !stems.includes(stem) &&
+          stems.some((other) => other.includes(stem) || stem.includes(other))
+        ) {
+          similar.push(customer);
+          if (similar.length === 3) break;
+        }
+      }
+    }
+    return {
+      matchKind:
+        similar.length > 1 ? "AMBIGUOUS" : similar.length ? "SIMILAR" : "NONE",
+      candidates: similar,
+    };
   };
 }

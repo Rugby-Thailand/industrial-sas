@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => ({
   locations: [] as string[],
 }));
 vi.mock("convex/react", () => ({
+  useQuery: () => undefined,
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
   useQuery_experimental: () => ({
     status: "success",

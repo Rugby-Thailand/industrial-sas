@@ -13,11 +13,13 @@ const photos =
 const aliases = [
   "convex/react",
   "@/components/system/QueryGate",
+  "@/components/providers/WorkspaceProvider",
   "@/hooks/useDraftKey",
   "@/hooks/useCanManage",
   "@/lib/uploadthing",
   "@/i18n/navigation",
   "next/image",
+  "next/navigation",
 ];
 export default defineConfig({
   root: here,

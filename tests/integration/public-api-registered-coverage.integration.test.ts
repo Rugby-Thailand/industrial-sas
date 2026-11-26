@@ -96,7 +96,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(44);
+    expect(coveredModules).toHaveLength(45);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -117,9 +117,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 53 representative functions, not every public export
+    // The inventory covers 54 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(53);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(54);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -190,7 +190,7 @@ describe("representative registered coverage of every shipping public module", (
 describe("representative registered payloads and safe HR capability gates", () => {
   it("keeps batch, product, pallet and storage detail fields used by existing clients", async () => {
     const world = await createPublicApiWorld(MODULES);
-    const expected: Readonly<Record<string, object>> = {
+    const expected: Readonly<Record<string, object | null>> = {
       "customers/catalogue:viewer": { canManage: true },
       "customers/catalogue:listCustomersPage": {
         status: "ready",
@@ -219,6 +219,8 @@ describe("representative registered payloads and safe HR capability gates", () =
         unresolvedScanCount: 0,
         hasMore: false,
       },
+      // A missing (or foreign) customer is null, not an error.
+      "customers/workspace:getCustomerWorkspace": null,
       "finishedGoods/attachments:createIntent": { assetId: expect.any(String) },
       "aiUsage/reports:summary": {
         complete: true,
@@ -432,7 +434,10 @@ describe("representative registered payloads and safe HR capability gates", () =
         requestId: expect.any(String),
       });
       const value = allowedValue(outcome);
-      if (example.name === "customers/catalogue:listCustomersPage")
+      if (
+        expectedResult === null ||
+        example.name === "customers/catalogue:listCustomersPage"
+      )
         expect(value).toEqual(expectedResult);
       else expect(value).toMatchObject(expectedResult);
       checked.push(example.name);
