@@ -40,6 +40,7 @@ export function JobScanRecordSearch({
   const [scanOpen, setScanOpen] = useState(false);
   const [scanEpoch, setScanEpoch] = useState(0);
   const [aiOpen, setAiOpen] = useState(false);
+  const [aiEpoch, setAiEpoch] = useState(0);
   const scan = useRef<DialogCompletionHandle>(null);
   const ai = useRef<DialogCompletionHandle>(null);
   const { search, searchField, facets, exactCode, locationId } = criteria;
@@ -50,12 +51,22 @@ export function JobScanRecordSearch({
     facets?.storageFormat && t(`format.${facets.storageFormat}`),
   ].filter(Boolean);
 
+  function retireScan() {
+    setScanOpen(false);
+    setScanEpoch((epoch) => epoch + 1);
+  }
+
   function cancelScan() {
-    const retire = () => {
-      setScanOpen(false);
-      setScanEpoch((epoch) => epoch + 1);
-    };
-    if (!scan.current?.completeOwned?.(retire)) retire();
+    if (!scan.current?.completeOwned?.(retireScan)) retireScan();
+  }
+
+  function retireAiSearch() {
+    setAiOpen(false);
+    setAiEpoch((epoch) => epoch + 1);
+  }
+
+  function cancelAiSearch() {
+    if (!ai.current?.completeOwned?.(retireAiSearch)) retireAiSearch();
   }
 
   return (
@@ -152,7 +163,7 @@ export function JobScanRecordSearch({
               active={scanOpen && !disabled}
               onCode={(code, locationId) => {
                 scan.current?.completeOwned?.(() => {
-                  setScanOpen(false);
+                  retireScan();
                   onChange({
                     filter: "ALL",
                     search: code,
@@ -177,8 +188,24 @@ export function JobScanRecordSearch({
           </Button>
         </DialogContent>
       </Dialog>
-      <Dialog open={aiOpen} onOpenChange={setAiOpen} completionRef={ai}>
-        <DialogContent size="sm" closeLabel={t("cancel")}>
+      <Dialog
+        open={aiOpen}
+        onOpenChange={setAiOpen}
+        completionRef={ai}
+        backRevocationEpoch={aiEpoch}
+      >
+        <DialogContent
+          size="sm"
+          showCloseButton={false}
+          onEscapeKeyDown={(event) => {
+            event.preventDefault();
+            cancelAiSearch();
+          }}
+          onPointerDownOutside={(event) => {
+            event.preventDefault();
+            cancelAiSearch();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{t("recordTools.aiSearch")}</DialogTitle>
             <DialogDescription>
@@ -191,7 +218,7 @@ export function JobScanRecordSearch({
               interpret={interpret}
               onApply={(intent) => {
                 ai.current?.completeOwned?.(() => {
-                  setAiOpen(false);
+                  retireAiSearch();
                   onChange({
                     ...intent,
                     searchField: intent.searchField,
@@ -203,6 +230,16 @@ export function JobScanRecordSearch({
               }}
             />
           )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute top-3 right-3"
+            onClick={cancelAiSearch}
+          >
+            <X aria-hidden="true" className="size-4" />
+            <span className="sr-only">{t("cancel")}</span>
+          </Button>
         </DialogContent>
       </Dialog>
     </div>

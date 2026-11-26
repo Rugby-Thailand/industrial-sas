@@ -277,6 +277,53 @@ it.each(["Cancel", "Escape"])(
   },
 );
 
+it.each(["Cancel", "Escape", "Apply search"])(
+  "%s retires AI search before Forward and the next Back",
+  async (dismissal) => {
+    const user = show();
+    const trigger = screen.getByRole("button", { name: "AI search" });
+    await user.click(trigger);
+    if (dismissal === "Escape") {
+      await user.keyboard("{Escape}");
+    } else if (dismissal === "Apply search") {
+      mocks.interpret.mockResolvedValue({
+        filter: "UNMAPPED",
+        search: "current",
+      });
+      await user.type(
+        screen.getByRole("textbox", { name: "Find tickets" }),
+        "Find current",
+      );
+      await user.click(screen.getByRole("button", { name: "Search tickets" }));
+      await user.click(await screen.findByRole("button", { name: dismissal }));
+      await waitFor(() => expect(mocks.change).toHaveBeenCalledOnce());
+    } else {
+      await user.click(screen.getByRole("button", { name: dismissal }));
+    }
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await act(async () => {
+      const visited = new Promise<void>((resolve) =>
+        window.addEventListener("popstate", () => resolve(), { once: true }),
+      );
+      window.history.forward();
+      await visited;
+    });
+    await waitFor(() => expect(window.location.search).toBe("?warehouse=one"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mocks.change).toHaveBeenCalledTimes(
+      dismissal === "Apply search" ? 1 : 0,
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe(origin),
+    );
+  },
+);
+
 it("does not fall back to a ticket code when a warehouse QR is unavailable", async () => {
   mocks.resolve.mockResolvedValueOnce({
     ok: true,

@@ -1087,13 +1087,15 @@ const EDIT_CLAUSE_START = [
   String.raw`(?:please\s+)?(?:move|assign|remap|transfer)\s+(?:(?:this|the|all|another)\s+)?(?:records?|scans?|jobs?|tickets?)\b|ย้าย(?:ใบงาน|งาน|รายการ)`,
 ].join("|");
 // Explicit conjunctions start a new clause even if its action is unknown.
-// Quoted names and codes are literal. Compact punctuation can also be part of
-// a value, so require a recognizable clause before splitting on it.
+// Quoted names and codes are literal. A punctuation mark or symbol can
+// separate a command even without spaces, but only when a clause follows.
 const EDIT_QUOTED_VALUE = /"([^"\r\n]+)"|“([^”\r\n]+)”/u;
 const EDIT_CONJUNCTION = String.raw`(?:\s+(?:and|plus)(?=\s|$)\s*|\s+[&+＆]\s*|[&+＆]\s+|\s*(?:และ|พร้อมทั้ง|พร้อมกับ)\s*)`;
 const UNSPLIT_EDIT_CONJUNCTION = new RegExp(EDIT_CONJUNCTION, "u");
+// Preserve quoted values, possessive field names, and the reserved QR prefix.
+const EDIT_PUNCTUATION = String.raw`(?!(?:["“”'‘’]|(?<=\bISAS):))[\p{P}\p{S}]`;
 const EDIT_CLAUSE_BOUNDARY = new RegExp(
-  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>(?:\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|${EXPLICIT_FOLLOW_UP}|${EDIT_CONJUNCTION})${FOLLOW_UP_MODIFIERS}|(?:${RECORD_FOLLOW_UP}|\s+${WITH_FOLLOW_UP}\s+|\s*${CLAUSE_PUNCTUATION}\s*|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))`,
+  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>(?:\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|${EXPLICIT_FOLLOW_UP}|${EDIT_CONJUNCTION})${FOLLOW_UP_MODIFIERS}|(?:\s*${EDIT_PUNCTUATION}\s*|\s+${WITH_FOLLOW_UP}\s+|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))`,
   "giu",
 );
 const EDIT_CONDITION =

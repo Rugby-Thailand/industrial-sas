@@ -355,6 +355,9 @@ describe("job-scan AI search and edit actions", () => {
     ["Set part name to ", "Widget.Delete this scan", '"', '"'],
     ["แก้ชื่อสินค้าเป็น ", "กล่อง，ลบใบงานนี้", "“", "”"],
     ["แก้ชื่อสินค้าเป็น ", "กล่อง。ลบใบงานนี้", "“", "”"],
+    ["Set part name to ", "Widget/delete this scan", '"', '"'],
+    ["Set part name to ", "Widget:delete this scan", '"', '"'],
+    ["แก้ชื่อสินค้าเป็น ", "กล่อง/ลบใบงานนี้", "“", "”"],
   ])(
     "treats a compact punctuation command as a literal only when quoted (%s%s)",
     async (prefix, partName, openQuote, closeQuote) => {
@@ -362,8 +365,8 @@ describe("job-scan AI search and edit actions", () => {
       const client = world.t.withIdentity(PUBLIC_API_ACTOR);
       const echo = JSON.stringify(editPayload({ partName }));
       transport
-        .mockResolvedValueOnce(openRouterOk(echo))
-        .mockResolvedValueOnce(openRouterOk(echo));
+        .mockResolvedValueOnce(openRouterOk(echo, { id: "compact-unquoted" }))
+        .mockResolvedValueOnce(openRouterOk(echo, { id: "compact-quoted" }));
       const action = api.finishedGoods.jobScans.proposeJobScanEdit;
       const warehouseId = world.warehouses.alphaA;
       await expect(

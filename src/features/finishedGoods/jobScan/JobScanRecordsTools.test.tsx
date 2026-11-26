@@ -131,6 +131,54 @@ it("restores warehouse QR identity in the records query and clears it on manual 
   expect(mocks.list.mock.lastCall?.[0]).not.toHaveProperty("locationId");
 });
 
+it("consumes a repeated warehouse QR scan without reopening it on Forward", async () => {
+  trackAppHistory();
+  const beforeScan = window.location.href;
+  const user = userEvent.setup();
+  mocks.resolve.mockResolvedValue(
+    querySuccess({
+      ok: true,
+      location: { code: "F2-L12-3", locationId: "locationa" },
+    }),
+  );
+  renderWithIntl(<JobScanRecordsScreen />, { locale: "en", workspace: false });
+  const trigger = screen.getByRole("button", { name: "Scan to search" });
+  const expectedQuery = expect.objectContaining({
+    locationId: "locationa",
+    search: "F2-L12-3",
+  });
+  for (let count = 1; count <= 2; count++) {
+    await user.click(trigger);
+    await user.click(
+      screen.getByRole("button", { name: "Read a location QR" }),
+    );
+    await waitFor(() => expect(mocks.resolve).toHaveBeenCalledTimes(count));
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await waitFor(() =>
+      expect(mocks.list).toHaveBeenLastCalledWith(expectedQuery),
+    );
+  }
+  const filtered = window.location.href;
+  expect(filtered).not.toBe(beforeScan);
+  await act(async () => {
+    const visited = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    window.history.forward();
+    await visited;
+  });
+  await waitFor(() => expect(window.location.href).toBe(filtered));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await waitFor(() =>
+    expect(mocks.list).toHaveBeenLastCalledWith(expectedQuery),
+  );
+  act(() => window.history.back());
+  await waitFor(() => expect(window.location.href).toBe(beforeScan));
+  await waitFor(() =>
+    expect(mocks.list.mock.lastCall?.[0]).not.toHaveProperty("locationId"),
+  );
+});
+
 it("applies scanned codes and AI filters to the actual records query and restores filters after remount", async () => {
   const user = userEvent.setup();
   mocks.action.mockResolvedValue({
