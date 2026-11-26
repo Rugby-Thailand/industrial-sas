@@ -72,6 +72,8 @@ const mocks = vi.hoisted(() => ({
   extractLocation: vi.fn(),
   /** Overrides the saved-record query for search and scan tests. */
   listJobScans: null as null | ((args: Record<string, unknown>) => unknown),
+  /** Overrides the location picker query for single/multi-page picker tests. */
+  searchLocations: null as null | ((args: Record<string, unknown>) => unknown),
   listCalls: [] as Record<string, unknown>[],
 }));
 const originalRecords = [...mocks.records];
@@ -88,14 +90,16 @@ vi.mock("convex/react", () => ({
   ) => {
     const name = getFunctionName(ref);
     if (name.endsWith(":searchPage"))
-      return querySuccess({
-        items: [{ zoneId: "zone-a", code: "ZONE-A", name: "Warehouse A" }],
-        page: 1,
-        pages: 1,
-        total: 1,
-        status: "ready",
-        isDone: true,
-      });
+      return mocks.searchLocations
+        ? mocks.searchLocations(args as unknown as Record<string, unknown>)
+        : querySuccess({
+            items: [{ zoneId: "zone-a", code: "ZONE-A", name: "Warehouse A" }],
+            page: 1,
+            pages: 1,
+            total: 1,
+            status: "ready",
+            isDone: true,
+          });
     if (name.endsWith(":options"))
       return querySuccess({
         buildings: [
@@ -186,6 +190,7 @@ beforeEach(() => {
   mocks.paginated = false;
   mocks.denied = false;
   mocks.listJobScans = null;
+  mocks.searchLocations = null;
   mocks.listCalls = [];
   window.localStorage.clear();
   window.history.replaceState(null, "", "/en/finished-goods/scan/records");
@@ -412,7 +417,7 @@ describe("scanned record deletion", () => {
     expect(
       screen.getByRole("button", { name: "All", hidden: true }),
     ).toBeDisabled();
-    // Records pager and the picker's always-visible pager are both locked.
+    // Records pager stays locked while the single-page compact picker omits its footer.
     for (const next of document.querySelectorAll<HTMLButtonElement>(
       'button[aria-label="Next page"]',
     ))
@@ -1987,4 +1992,236 @@ it("honors requestedWarehouseId on job scan records and yields when the user swi
     ).toBeNull(),
   );
   expect(mocks.listCalls.at(-1)).toMatchObject({ warehouseId: "warehouse-a" });
+});
+
+it("hides single-page picker pagination in saved records and preserves multi-page paging, pending locks, Back, and warehouse scope", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?origin=kept#scanner",
+  );
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/scan/records?filter=keep#rows",
+  );
+  const locationCalls: Record<string, unknown>[] = [];
+  let multiPage = false;
+  const locationPage = (
+    items: {
+      locationId: string;
+      zoneId: string;
+      code: string;
+      name: string;
+    }[],
+    extra: Partial<{ isDone: boolean; continueCursor: string }> = {},
+  ) =>
+    querySuccess({
+      status: "ready",
+      isDone: true,
+      continueCursor: "",
+      ...extra,
+      items,
+      page: items.map((location) => ({ _id: location.locationId, location })),
+    });
+  mocks.searchLocations = (args) => {
+    locationCalls.push(args);
+    if (args.warehouseId === "warehouse-b")
+      return locationPage([
+        {
+          locationId: "loc-wb-1",
+          zoneId: "zone-wb-1",
+          code: "WB-L1",
+          name: "Warehouse B Slot 1",
+        },
+      ]);
+    if (!multiPage)
+      return locationPage([
+        {
+          locationId: "loc-1",
+          zoneId: "zone-1",
+          code: "F2-L12-3",
+          name: "Slot L12-3",
+        },
+        {
+          locationId: "loc-2",
+          zoneId: "zone-2",
+          code: "F2-L12-4",
+          name: "Slot L12-4",
+        },
+      ]);
+    if (args.pageSize === 50)
+      return locationPage([
+        {
+          locationId: "loc-1",
+          zoneId: "zone-1",
+          code: "ZONE-1",
+          name: "Zone 1",
+        },
+        {
+          locationId: "loc-2",
+          zoneId: "zone-2",
+          code: "ZONE-2",
+          name: "Zone 2",
+        },
+      ]);
+    if (args.cursor === "loc-page-2")
+      return locationPage([
+        {
+          locationId: "loc-2",
+          zoneId: "zone-2",
+          code: "ZONE-2",
+          name: "Zone 2",
+        },
+      ]);
+    return locationPage(
+      [
+        {
+          locationId: "loc-1",
+          zoneId: "zone-1",
+          code: "ZONE-1",
+          name: "Zone 1",
+        },
+      ],
+      { isDone: false, continueCursor: "loc-page-2" },
+    );
+  };
+
+  let finishAssign!: (outcome: ReturnType<typeof writeSuccess>) => void;
+  mocks.assign.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishAssign = resolve;
+      }),
+  );
+
+  const user = userEvent.setup();
+  const view = renderWithIntl(
+    <NavigationGuardProvider>
+      <JobScanRecordsScreen />
+    </NavigationGuardProvider>,
+    { locale: "en", workspace: false, preserveProviders: true },
+  );
+  try {
+    // 1. Single settled page hides pagination inside the saved-records picker dialog.
+    await user.click(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    );
+    const singleDialog = screen.getByRole("dialog", { name: "Set location" });
+    expect(
+      within(singleDialog).getByRole("button", { name: /F2-L12-3/ }),
+    ).toBeEnabled();
+    expect(
+      within(singleDialog).getByRole("button", { name: /F2-L12-4/ }),
+    ).toBeEnabled();
+    expect(
+      within(singleDialog).queryByRole("navigation", { name: "Pagination" }),
+    ).not.toBeInTheDocument();
+
+    // Native Back still dismisses the picker and preserves the selected row.
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
+    );
+    expect(
+      screen.getByRole("checkbox", { name: "Select FO001" }),
+    ).toBeChecked();
+
+    // 2. Multi-page locations keep pagination, page-size control, and pending-write locks.
+    multiPage = true;
+    await user.click(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    );
+    const pagedDialog = screen.getByRole("dialog", { name: "Set location" });
+    expect(
+      within(pagedDialog).getByRole("navigation", { name: "Pagination" }),
+    ).toBeVisible();
+    await user.click(
+      within(pagedDialog).getByRole("button", { name: "Next page" }),
+    );
+    expect(
+      within(pagedDialog).getByRole("button", { name: /ZONE-2/ }),
+    ).toBeEnabled();
+    expect(
+      within(pagedDialog).getByRole("button", { name: "Previous page" }),
+    ).toBeEnabled();
+    await user.click(
+      within(pagedDialog).getByRole("button", { name: "Previous page" }),
+    );
+    expect(
+      within(pagedDialog).getByRole("button", { name: /ZONE-1/ }),
+    ).toBeEnabled();
+
+    // Switching page size to 50 keeps pagination visible even when the larger page is complete.
+    await user.click(
+      within(pagedDialog).getByRole("combobox", { name: "Records per page" }),
+    );
+    await user.click(screen.getByRole("option", { name: "50" }));
+    expect(locationCalls.at(-1)).toMatchObject({
+      warehouseId: "warehouse-a",
+      pageSize: 50,
+    });
+    expect(
+      within(pagedDialog).getByRole("navigation", { name: "Pagination" }),
+    ).toBeVisible();
+
+    // Switch back to 20 so Next page is enabled, then confirm a pick and verify pending locks it.
+    await user.click(
+      within(pagedDialog).getByRole("combobox", { name: "Records per page" }),
+    );
+    await user.click(screen.getByRole("option", { name: "20" }));
+    expect(
+      within(pagedDialog).getByRole("button", { name: "Next page" }),
+    ).toBeEnabled();
+    await user.click(
+      within(pagedDialog).getByRole("button", { name: /ZONE-1/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
+    expect(
+      within(pagedDialog).getByRole("combobox", {
+        name: "Records per page",
+        hidden: true,
+      }),
+    ).toBeDisabled();
+    expect(
+      pagedDialog.querySelector<HTMLButtonElement>(
+        'button[aria-label="Next page"]',
+      ),
+    ).toBeDisabled();
+    finishAssign(writeSuccess("scan-a"));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
+    );
+
+    // 3. Switching warehouse uses an isolated picker pagination scope with default page size.
+    mocks.warehouseId = "warehouse-b";
+    locationCalls.length = 0;
+    view.rerender(
+      <NavigationGuardProvider>
+        <JobScanRecordsScreen />
+      </NavigationGuardProvider>,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Set location for FO001" }),
+    );
+    const otherWarehouseDialog = screen.getByRole("dialog", {
+      name: "Set location",
+    });
+    expect(locationCalls.at(-1)).toMatchObject({
+      warehouseId: "warehouse-b",
+      pageSize: 20,
+    });
+    expect(
+      within(otherWarehouseDialog).getByRole("button", { name: /WB-L1/ }),
+    ).toBeEnabled();
+    expect(
+      within(otherWarehouseDialog).queryByRole("navigation", {
+        name: "Pagination",
+      }),
+    ).not.toBeInTheDocument();
+  } finally {
+    view.unmount();
+    stop();
+  }
 });

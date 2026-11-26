@@ -817,6 +817,7 @@ function Records({
                   allowUnmapped={false}
                   canReadImage={canManage}
                   browseWithoutSearch
+                  presentation="compact"
                   onPick={(location) => {
                     if (!actionable || !pickedLocationPayload(location)) return;
                     const chosen =

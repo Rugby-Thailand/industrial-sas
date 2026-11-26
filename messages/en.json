@@ -1655,7 +1655,7 @@
     "palletStepTitle": "Scan pallet",
     "palletStepHint": "Capture each pallet's job ticket.",
     "searchLocation": "Search location",
-    "searchPlaceholder": "Location code or name",
+    "searchPlaceholder": "Search",
     "ticketModes": "Add job tickets by",
     "scanCode": "Scan code",
     "photoAi": "Photo AI",
