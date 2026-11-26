@@ -222,6 +222,9 @@ describe("job-scan AI search and edit actions", () => {
     ],
     ["แก้ชื่อสินค้าเป็น กล่อง และรีเฟรชหน้านี้", "กล่อง และรีเฟรชหน้านี้"],
     ["Set part name to Gear and go back", "Gear and go back"],
+    ["Set part name to Gear and log out", "Gear and log out"],
+    ["Set part name to Gear and sign off", "Gear and sign off"],
+    ["แก้ชื่อสินค้าเป็น กล่อง และออกจากระบบ", "กล่อง และออกจากระบบ"],
     ["Set part name to Gear and take a photo", "Gear and take a photo"],
     ["แก้ชื่อสินค้าเป็น กล่อง และแนบรูป", "กล่อง และแนบรูป"],
     ["Set part name to Gear and reopen now", "Gear and reopen now"],
@@ -456,6 +459,7 @@ describe("job-scan AI search and edit actions", () => {
     ["หาใบงานที่อยู่ ข้างเสา C12 และปิดใบงาน", "ข้างเสา C12 และปิดใบงาน"],
     ["หาใบงานที่อยู่ A1 และทำการปิดใบงานนี้", "A1 และทำการปิดใบงานนี้"],
     ["Find jobs at location A1 and close", "A1 and close"],
+    ["Find jobs at location A1 and log out", "A1 and log out"],
     [
       "Find jobs at location A1 and refresh the page",
       "A1 and refresh the page",
@@ -513,6 +517,7 @@ describe("job-scan AI search and edit actions", () => {
     ['Find jobs at "DOCK NORTH"', "DOCK NORTH", "location"],
     ["Find jobs at DOCK NORTH", "DOCK NORTH", "location"],
     ["Find jobs at Receiving bay", "Receiving bay", "location"],
+    ["Find jobs at Trial floor", "Trial floor", "location"],
   ])(
     "accepts the saved-record search %s",
     async (prompt, search, searchField) => {
@@ -1768,6 +1773,7 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
     ["DOCK", "DOCK 2"],
     ["DOCK NORTH", "DOCK NORTH 2"],
     ["RACK#01", "ＲＡＣＫ＃０１"],
+    ["Trial floor", "TRIAL FLOOR 2"],
     ["maß", "MASS 2"],
   ])(
     "uses the registration code for %s across indexed and bounded searches",
@@ -1841,6 +1847,24 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
             searchField: "location",
           }),
         ).toEqual([ids.prefixFoPalletF2]);
+        expect(
+          await listAll(fixture, {
+            filter: "ALL",
+            search: code,
+            exactCode: true,
+          }),
+        ).toEqual([ids.southPalletF2, ids.exactFoPalletF2]);
+        expect(
+          await listAll(fixture, {
+            filter: "ALL",
+            search: secondCode,
+            exactCode: true,
+          }),
+        ).toEqual(
+          search === "RACK#01"
+            ? [ids.southPalletF2, ids.prefixFoPalletF2]
+            : [ids.prefixFoPalletF2],
+        );
       }
     },
   );

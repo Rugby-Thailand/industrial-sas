@@ -251,7 +251,9 @@ const THAI_CARDINAL = new RegExp(
   String.raw`^(?:(${THAI_UNIT})ร้อย)?(?:(${THAI_UNIT}|ยี่)?(สิบ))?(${THAI_UNIT}|เอ็ด)?$`,
   "u",
 );
-const FLOOR_VALUE = String.raw`(?:\d+(?:st|nd|rd|th)?|\b(?:ground|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\b|${THAI_NUMERAL})`;
+const ENGLISH_FLOOR_VALUE = String.raw`(?:[+-]?\d+(?:[.,]\d+)?(?:st|nd|rd|th)?|\b(?:ground|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\b)`;
+const ENGLISH_FLOOR_REFERENCE = String.raw`(?:floors?\s*[+-]?\d|${ENGLISH_FLOOR_VALUE}\s+floors?\b)`;
+const FLOOR_VALUE = String.raw`(?:${ENGLISH_FLOOR_VALUE}|${THAI_NUMERAL})`;
 const FLOOR_PAIR = String.raw`${FLOOR_VALUE}\s*(?:\b(?:or|and|to|through)\b|หรือ|และ|ถึง|[,/&–—-])\s*${FLOOR_VALUE}`;
 const FLOOR_ALTERNATIVE = new RegExp(
   String.raw`(?:\bfloors?\s*|ชั้น\s*)${FLOOR_PAIR}|${FLOOR_PAIR}\s+floors?\b`,
@@ -312,16 +314,16 @@ const STORAGE_ADDRESS_SEGMENT = String.raw`[\p{L}\p{M}\p{N}]+?`;
 const STORAGE_ADDRESS_CODE = String.raw`(?=[\p{L}\p{M}\p{N}_.-]*[\p{N}_-])${STORAGE_ADDRESS_SEGMENT}(?:[_.-]${STORAGE_ADDRESS_SEGMENT})*`;
 const WHOLE_STORAGE_ADDRESS = new RegExp(`^${STORAGE_ADDRESS_CODE}$`, "iu");
 const STORAGE_ADDRESS_TOKEN = String.raw`${STORAGE_ADDRESS_CODE}(?=$|[\s,;!?&/、+–—]|\.(?![\p{L}\p{M}\p{N}])|และ|หรือ|กับ|ถึง)`;
-const NON_LOCATION_RELATION = String.raw`(?!(?:least|most|(?:the\s+)?(?:building|(?:\S+\s+)?floors?))\b)`;
+const NON_LOCATION_RELATION = String.raw`(?!(?:least|most|(?:the\s+)?(?:building|floors?))\b|(?:the\s+)?${ENGLISH_FLOOR_REFERENCE})`;
 const RECORD_LOCATION_RELATION = String.raw`(?<=\b(?:jobs?|records?|tickets?|scans?)\s+)(?:at|in(?=\s+(?!\b(?:pallets?|boxes|box|cartons?|cases?|skids?)\b)))`;
-const IMPLIED_LOCATION_FIELD = String.raw`(?:${RECORD_LOCATION_RELATION}(?=\s+(?=\S)${NON_LOCATION_RELATION})|(?:at|in)(?=\s+(?:${STORAGE_ADDRESS_TOKEN}|["“])))`;
+const IMPLIED_LOCATION_FIELD = String.raw`(?:${RECORD_LOCATION_RELATION}|(?:at|in)(?=\s+(?:${STORAGE_ADDRESS_TOKEN}|["“])))(?=\s+(?=\S)${NON_LOCATION_RELATION})`;
 const MULTIPLE_STORAGE_ADDRESSES = new RegExp(
   String.raw`\s+(?:at|and|or|plus|to|through|และ|หรือ|พร้อมกับ|กับ|ถึง)\s+|^${STORAGE_ADDRESS_CODE}\s*(?:และ|หรือ|พร้อมกับ|กับ|ถึง|[&,;、/+–—])\s*(?:(?:ตำแหน่ง|จุดจัดเก็บ)\s*)?${STORAGE_ADDRESS_TOKEN}`,
   "iu",
 );
 const ENGLISH_SEARCH_FIELD = String.raw`\b(?:part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number)|(?:at|in|for|by)\s+(?:storage\s+)?location(?:\s+code)?|(?:storage\s+)?location\s+code|location(?=\s*(?:[:=]|\s+(?:${STORAGE_ADDRESS_TOKEN}|["“])))|located\s+at|${IMPLIED_LOCATION_FIELD})`;
 const THAI_SEARCH_FIELD = String.raw`(?:ชื่อสินค้า|ชื่อชิ้นส่วน|ชื่อลูกค้า|บาร์โค้ด|เลขที่ใบงาน|(?:ใบ)?งาน\s*ที่(?:อยู่\s*(?:ที่|ใน)(?:ตำแหน่ง|จุดจัดเก็บ)|ตำแหน่ง|จุดจัดเก็บ|อยู่)|^ตำแหน่ง)`;
-const ENGLISH_SEARCH_CLAUSE = String.raw`(?:${ENGLISH_SEARCH_FIELD}|\b(?:building|floors?|(?:storage\s+)?format|(?:factory\s+|customer\s+)?(?:quantity|qty|count)|(?:delivery|manufacturing|production)\s+date)\b)`;
+const ENGLISH_SEARCH_CLAUSE = String.raw`(?:${ENGLISH_SEARCH_FIELD}|\b(?:building\s+(?=\S)|${ENGLISH_FLOOR_REFERENCE}|(?:(?:storage\s+)?format|(?:factory\s+|customer\s+)?(?:quantity|qty|count)|(?:delivery|manufacturing|production)\s+date)\b))`;
 const THAI_SEARCH_CLAUSE = String.raw`(?:${THAI_SEARCH_FIELD}|อาคาร|ชั้น|รูปแบบ|ประเภทการจัดเก็บ|จำนวน|วันที่ส่ง|วันส่ง|วันที่ผลิต|วันผลิต)`;
 const KEYWORD_SEARCH_PREFIX = String.raw`^(?:(?:ค้นหา|หา)\s*สินค้า\s*|(?:find|show|search)\s+(?:(?:saved|scanned)\s+)?(?:jobs?|records?|tickets?|scans?)\s+for\s+)(?!${ENGLISH_SEARCH_CLAUSE}|${THAI_SEARCH_CLAUSE})`;
 const QUOTED_LITERAL = /"([^"\r\n]+)"|“([^”\r\n]+)”/gu;
@@ -350,12 +352,13 @@ const UNSUPPORTED_SEARCH_ASSIGNMENT = new RegExp(
 const ENGLISH_LIFECYCLE_VERB = String.raw`(?:close|open|reopen|finish|lock|unlock|activate|deactivate|complete|finalize|reject|resolve|suspend|resume|hold|pause|save|commit|refresh|reload|dismiss|exit|leave|minimize|maximize|navigate|switch)`;
 const ENGLISH_ACTION_TARGET = String.raw`(?:records?|tickets?|jobs?|scans?|dialogs?|modals?|pages?|screens?|forms?|views?|windows?|tabs?|menus?|popups?|pickers?|drawers?|camera|app)`;
 const THAI_LIFECYCLE_VERB = String.raw`(?:ปิด|เปิด(?:ใหม่)?|ล็อก|ปลดล็อก|ระงับ|พัก|จบ|สิ้นสุด|ส่งกลับ|คืนค่า|กู้คืน|รับรอง|ปฏิเสธ|รีเฟรช|โหลดใหม่|ออกจาก|สลับ)`;
-const THAI_ACTION_TARGET = String.raw`(?:(?:ใบ)?งาน|รายการ(?:สแกน)?|การสแกน|ตั๋ว|หน้าต่าง|หน้าจอ|หน้าเว็บ|หน้านี้|หน้า|เมนู|กล้อง|แอป)`;
+const THAI_ACTION_TARGET = String.raw`(?:(?:ใบ)?งาน|รายการ(?:สแกน)?|การสแกน|ตั๋ว|หน้าต่าง|หน้าจอ|หน้าเว็บ|หน้านี้|หน้า|เมนู|กล้อง|แอป|ระบบ|บัญชี)`;
 const RECORD_ACTION_END = String.raw`(?=\s*(?:$|[,;.!?，；。！？\r\n])|${RECORD_FOLLOW_UP})`;
 const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b`,
   String.raw`(?:make|take|generate|save)\s+(?:(?:a|an|another)\s+)?(?:copy|duplicate|backup|printout|snapshot)\b`,
   String.raw`(?:go|navigate|switch|return|jump)\s+(?:(?:back\s+)?to\s+\S|back\b)|(?:take|capture|attach|upload)\s+(?:(?:a|an|the)\s+)?(?:photos?|pictures?|images?|screenshots?|attachments?)\b`,
+  String.raw`(?:log|sign)[\s-]*(?:in|out|off|on)\b|(?:switch|change)\s+(?:(?:the|my|your)\s+)?accounts?\b|(?:เข้า|ออก)\s*(?:สู่)?\s*ระบบ|(?:สลับ|เปลี่ยน)\s*บัญชี`,
   String.raw`(?:mark|flag|tag|classify)\s+(?:it|them|this|that|the|as|records?|tickets?|jobs?|scans?)\b`,
   String.raw`(?:mark|flag|tag)\s+(?:for|deleted|void(?:ed)?|archived|cancelled|canceled|closed|complete(?:d)?|done|inactive|active|pending|on\s+hold|ready|approved|rejected|mapped|unmapped)\b`,
   String.raw`${ENGLISH_LIFECYCLE_VERB}\b(?:\s+(?:(?:to|back\s+to|away\s+from)\s+)?(?:(?:it|them)\b|(?:the|this|that|those|these|an?)\s+\p{L}|(?:(?:current|selected|scanned|saved)\s+)*${ENGLISH_ACTION_TARGET}\b)|(?:\s+(?:now|again|please|immediately|too))*${RECORD_ACTION_END})`,
@@ -372,7 +375,7 @@ const UNSUPPORTED_SEARCH_ACTION = new RegExp(
 const BUILDING_HINT = new RegExp(
   [
     String.raw`(?:\bbuilding\s+|อาคาร\s*)(?:"(?<quoted>[^"]+)"|“(?<thaiQuoted>[^”]+)”|(?<plain>[^"“].*?)`,
-    String.raw`(?=$|[.!?]$|[,;\r\n]|\s+(?:and|with)\b|\s+(?=${ENGLISH_SEARCH_CLAUSE})|\s+(?:on|at|in|from|within)\s+(?:the\s+)?(?:[\w-]+\s+)?floors?\b|\s*(?=${THAI_SEARCH_CLAUSE}|และ)`,
+    String.raw`(?=$|[.!?]$|[,;\r\n]|\s+(?:and|with)\b|\s+(?=${ENGLISH_SEARCH_CLAUSE})|\s+(?:on|at|in|from|within)\s+(?:the\s+)?${ENGLISH_FLOOR_REFERENCE}|\s*(?=${THAI_SEARCH_CLAUSE}|และ)`,
     String.raw`|\s+(?=(?:pallets?|skids?|boxes|box|cartons?|cases?|ctn)\b)|\s*(?:(?:currently|already|still|yet)\s+)*(?=${SEARCH_STATUS.source})))`,
   ].join(""),
   "giu",
@@ -384,7 +387,7 @@ const SEARCH_LITERAL = new RegExp(
     String.raw`(?:(?<english>${ENGLISH_SEARCH_FIELD})(?:\s*[:=]\s*|\s+)`,
     String.raw`|(?<thai>${THAI_SEARCH_FIELD})\s*[:=]?\s*|(?<keyword>${KEYWORD_SEARCH_PREFIX}))`,
     String.raw`(?:"(?<quoted>[^"]+)"|“(?<thaiQuoted>[^”]+)”|(?<plain>[^"“].*?)`,
-    String.raw`(?=$|[.!?]$|[,;\r\n]|\s+(?:(?:and|with)\s+)?(?=${ENGLISH_SEARCH_CLAUSE})|\s*(?:และ|โดยมี|ที่มี)\s*(?=${THAI_SEARCH_CLAUSE})|\s+(?:in|at|on|from|within)\s+(?:the\s+)?(?:building|(?:[\w-]+\s+)?floors?)\b|\s*(?:ที่|จาก)(?:อาคาร|ชั้น)`,
+    String.raw`(?=$|[.!?]$|[,;\r\n]|\s+(?:(?:and|with)\s+)?(?=${ENGLISH_SEARCH_CLAUSE})|\s*(?:และ|โดยมี|ที่มี)\s*(?=${THAI_SEARCH_CLAUSE})|\s+(?:in|at|on|from|within)\s+(?:the\s+)?(?:building\s+|${ENGLISH_FLOOR_REFERENCE})|\s*(?:ที่|จาก)(?:อาคาร|ชั้น)`,
     String.raw`|(?:\s+(?:(?:that|which)\s+(?:(?:are|is|have|has|were|was|remain|stay)\s+)?|and\s+)?|\s*(?:ที่|และ|[,;])\s*)(?:(?:currently|already|still|yet)\s+)*(?=${SEARCH_STATUS.source})))`,
   ].join(""),
   "giu",

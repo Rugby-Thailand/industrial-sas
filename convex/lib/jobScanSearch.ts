@@ -99,6 +99,10 @@ const SCAN_GRAMS = "finishedGoodsJobScanGrams";
 export function normalizeJobScanSearch(value: string) {
   return value.normalize("NFKC").trim().toLocaleLowerCase("en-US");
 }
+/** Registered location codes can differ only in their compatibility spelling. */
+export function normalizeJobScanLocationScan(value: string) {
+  return value.normalize("NFC").trim().toLocaleLowerCase("en-US");
+}
 function contains(value: string | undefined, needle: string) {
   return value !== undefined && normalizeJobScanSearch(value).includes(needle);
 }
@@ -113,13 +117,14 @@ export function jobScanTextMatches(
 export function jobScanExactCodeMatches(
   scan: Pick<Scan, (typeof JOB_SCAN_EXACT_CODE_FIELDS)[number]>,
   needle: string,
+  locationNeedle: string,
 ) {
-  return [
-    scan.factoryOrder,
-    scan.productBarcodeText,
-    scan.locationCode || scan.locationText,
-  ].some(
-    (value) => value !== undefined && normalizeJobScanSearch(value) === needle,
+  const location = scan.locationCode || scan.locationText;
+  return (
+    normalizeJobScanSearch(scan.factoryOrder) === needle ||
+    normalizeJobScanSearch(scan.productBarcodeText) === needle ||
+    (location !== undefined &&
+      normalizeJobScanLocationScan(location) === locationNeedle)
   );
 }
 export function jobScanNameMatches(name: string | undefined, needle: string) {

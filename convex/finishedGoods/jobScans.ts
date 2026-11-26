@@ -58,6 +58,7 @@ import { boundedRecordPage } from "../lib/boundedRecordPage";
 import {
   indexableNeedle,
   jobScanExactCodeMatches,
+  normalizeJobScanLocationScan,
   jobScanNameMatches,
   jobScanSearchIndex,
   jobScanTextMatches,
@@ -1290,6 +1291,9 @@ export const listJobScans = queryWithOrg({
     const exactLocationAddress =
       searchField === "location" && isSavedLocationAddress(needle);
     const exact = Boolean(needle) && !searchField && args.exactCode === true;
+    const scannedLocationCode = exact
+      ? normalizeJobScanLocationScan(args.search ?? "")
+      : "";
     const buildingNeedle =
       args.facets?.building !== undefined
         ? normalizeJobScanSearch(args.facets.building)
@@ -1338,7 +1342,7 @@ export const listJobScans = queryWithOrg({
     const criteriaScope =
       exact || searchField || hasFacets || args.locationId !== undefined
         ? {
-            ...(exact ? { exactCode: true } : {}),
+            ...(exact ? { exactCode: true, scannedLocationCode } : {}),
             ...(searchField ? { searchField } : {}),
             ...(registeredLocation
               ? { registeredLocationId: registeredLocation._id }
@@ -1421,7 +1425,7 @@ export const listJobScans = queryWithOrg({
         scan.storageFormat !== storageFormatFacet
       )
         return false;
-      if (needle && exact && !jobScanExactCodeMatches(scan, needle))
+      if (exact && !jobScanExactCodeMatches(scan, needle, scannedLocationCode))
         return false;
       let resolvedParents: Awaited<ReturnType<typeof parents>> | undefined;
       const getParents = async () => (resolvedParents ??= await parents(scan));

@@ -472,6 +472,29 @@ describe("parseJobScanSearchIntent", () => {
     }
   });
 
+  it("distinguishes visible location names ending in floor from actual floor criteria", () => {
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, search: "Trial floor" },
+        "Find jobs at Trial floor",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { filter: "ALL", search: "Trial floor", searchField: "location" },
+    });
+    for (const value of ["floor 2", "2nd floor", "the second floor"]) {
+      expect(
+        parseJobScanSearchIntent(
+          { ...base, floor: 2 },
+          `Find jobs at ${value}`,
+        ),
+      ).toEqual({
+        kind: "OK",
+        value: { filter: "ALL", search: "", facets: { floor: 2 } },
+      });
+    }
+  });
+
   it("keeps Thai digits and internal spacing in literal search values", () => {
     for (const [prompt, search, changed, searchField] of [
       ["หาบาร์โค้ด FBN-๒", "FBN-๒", "FBN-2", "productBarcodeText"],
@@ -1477,7 +1500,13 @@ describe("parseJobScanEditProposal", () => {
     }
   });
 
-  it.each(["close", "close the dialog", "refresh the page", "quit this form"])(
+  it.each([
+    "close",
+    "close the dialog",
+    "refresh the page",
+    "quit this form",
+    "log out",
+  ])(
     "requires quotes to treat follow-up command %s as literal text",
     (command) => {
       const partName = `Gear and ${command}`;
