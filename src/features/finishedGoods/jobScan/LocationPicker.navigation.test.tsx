@@ -505,7 +505,7 @@ it("native Back cancels pending retake preparation and keeps the corrected photo
     },
   });
   expect(mocks.prepare).toHaveBeenCalledTimes(2);
-  const signal = mocks.prepare.mock.calls[1]![1].signal;
+  const signal = mocks.prepare.mock.calls[1]?.[1]?.signal;
   expect(signal?.aborted).toBe(false);
   expect(camera).toBeVisible();
 
