@@ -238,6 +238,10 @@ describe("job-scan AI search and edit actions", () => {
       "Gear and scan the next ticket",
     ],
     ["Set part name to Gear and scan next ticket", "Gear and scan next ticket"],
+    [
+      "Set part name to Gear and scan one more ticket",
+      "Gear and scan one more ticket",
+    ],
     ["แก้ชื่อสินค้าเป็น กล่อง และสลับคลัง", "กล่อง และสลับคลัง"],
     ["แก้ชื่อสินค้าเป็น กล่อง และสแกนใบงานถัดไป", "กล่อง และสแกนใบงานถัดไป"],
     ["แก้ชื่อสินค้าเป็น กล่อง และสแกน QR ถัดไป", "กล่อง และสแกน QR ถัดไป"],
@@ -373,6 +377,33 @@ describe("job-scan AI search and edit actions", () => {
         ok: true,
         value: { ok: true, value: { locationCode: "DOCK NORTH" } },
       });
+    },
+  );
+
+  it.each(["DOCK NORTH / DOCK SOUTH", "THE NEAREST AVAILABLE LOCATION"])(
+    "requires an explicitly quoted literal for ambiguous destination %s",
+    async (locationCode) => {
+      const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
+      const client = world.t.withIdentity(PUBLIC_API_ACTOR);
+      const warehouseId = world.warehouses.alphaA;
+      const action = api.finishedGoods.jobScans.proposeJobScanEdit;
+      const reply = JSON.stringify(editPayload({ locationCode }));
+      for (const prompt of [
+        `Move to ${locationCode}`,
+        `Move to "${locationCode}"`,
+      ]) {
+        transport.mockResolvedValueOnce(openRouterOk(reply));
+        const result = await client.action(action, { warehouseId, prompt });
+        expect(result).toMatchObject({
+          ok: true,
+          value: prompt.includes('"')
+            ? { ok: true, value: { locationCode } }
+            : {
+                ok: false,
+                error: { code: "UNSUPPORTED", fallback: "MANUAL_EDIT" },
+              },
+        });
+      }
     },
   );
 

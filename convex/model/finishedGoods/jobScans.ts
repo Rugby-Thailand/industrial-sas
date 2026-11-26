@@ -318,7 +318,7 @@ const NON_LOCATION_RELATION = String.raw`(?!(?:least|most|(?:the\s+)?(?:building
 const RECORD_LOCATION_RELATION = String.raw`(?<=\b(?:jobs?|records?|tickets?|scans?)\s+)(?:at|in(?=\s+(?!\b(?:pallets?|boxes|box|cartons?|cases?|skids?)\b)))`;
 const IMPLIED_LOCATION_FIELD = String.raw`(?:${RECORD_LOCATION_RELATION}|(?:at|in)(?=\s+(?:${STORAGE_ADDRESS_TOKEN}|["“])))(?=\s+(?=\S)${NON_LOCATION_RELATION})`;
 const MULTIPLE_STORAGE_ADDRESSES = new RegExp(
-  String.raw`\s+(?:at|and|or|plus|to|through|และ|หรือ|พร้อมกับ|กับ|ถึง)\s+|^${STORAGE_ADDRESS_CODE}\s*(?:และ|หรือ|พร้อมกับ|กับ|ถึง|[&,;、/+–—])\s*(?:(?:ตำแหน่ง|จุดจัดเก็บ)\s*)?${STORAGE_ADDRESS_TOKEN}`,
+  String.raw`\s+(?:at|and|or|plus|to|through|และ|หรือ|พร้อมกับ|กับ|ถึง)\s+|\s.*[/|]|[/|].*\s|\s+[&+,–—]|[&+,–—]\s+|^${STORAGE_ADDRESS_CODE}\s*(?:และ|หรือ|พร้อมกับ|กับ|ถึง|[&,;、/+–—])\s*(?:(?:ตำแหน่ง|จุดจัดเก็บ)\s*)?${STORAGE_ADDRESS_TOKEN}`,
   "iu",
 );
 const ENGLISH_SEARCH_FIELD = String.raw`\b(?:part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number)|(?:at|in|for|by)\s+(?:storage\s+)?location(?:\s+code)?|(?:storage\s+)?location\s+code|location(?=\s*(?:[:=]|\s+(?:${STORAGE_ADDRESS_TOKEN}|["“])))|located\s+at|${IMPLIED_LOCATION_FIELD})`;
@@ -349,13 +349,16 @@ const UNSUPPORTED_SEARCH_ASSIGNMENT = new RegExp(
   String.raw`(?:[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?!${SEARCH_FACET_ASSIGNMENT})(?:${BARE_FIELD_ASSIGNMENT}|${PROTECTED_RECORD_FIELD})`,
   "u",
 );
-const ENGLISH_LIFECYCLE_VERB = String.raw`(?:close|open|reopen|finish|lock|unlock|activate|deactivate|complete|finalize|reject|resolve|suspend|resume|hold|pause|save|commit|refresh|reload|dismiss|exit|leave|minimize|maximize|navigate|switch|end|terminate|disconnect|quit|scan|rescan)`;
+const ENGLISH_LIFECYCLE_VERB = String.raw`(?:close|open|reopen|finish|lock|unlock|activate|deactivate|complete|finalize|reject|resolve|suspend|resume|hold|pause|save|commit|refresh|reload|dismiss|exit|leave|minimize|maximize|navigate|switch|end|terminate|disconnect|quit)`;
 const ENGLISH_ACTION_TARGET = String.raw`(?:records?|tickets?|jobs?|scans?|dialogs?|modals?|pages?|screens?|forms?|views?|windows?|tabs?|menus?|popups?|pickers?|drawers?|sessions?|connections?|accounts?|warehouses?|buildings?|floors?|zones?|pallets?|barcodes?|qrs?|camera|app)`;
-const THAI_LIFECYCLE_VERB = String.raw`(?:ปิด|เปิด(?:ใหม่)?|ล็อก|ปลดล็อก|ระงับ|พัก|จบ|สิ้นสุด|ส่งกลับ|คืนค่า|กู้คืน|รับรอง|ปฏิเสธ|รีเฟรช|โหลดใหม่|ออกจาก|สลับ|เปลี่ยน(?:ไป)?|สแกน(?:ใหม่)?)`;
+const THAI_LIFECYCLE_VERB = String.raw`(?:ปิด|เปิด(?:ใหม่)?|ล็อก|ปลดล็อก|ระงับ|พัก|จบ|สิ้นสุด|ส่งกลับ|คืนค่า|กู้คืน|รับรอง|ปฏิเสธ|รีเฟรช|โหลดใหม่|ออกจาก|สลับ|เปลี่ยน(?:ไป)?)`;
 const THAI_ACTION_TARGET = String.raw`(?:(?:ใบ)?งาน|รายการ(?:สแกน)?|การสแกน|ตั๋ว|หน้าต่าง|หน้าจอ|หน้าเว็บ|หน้านี้|หน้า|เมนู|กล้อง|แอป|ระบบ|บัญชี|คลัง(?:สินค้า)?|อาคาร|ชั้น|โซน|พาเลท|บาร์โค้ด|qr\b|คิวอาร์)`;
 const RECORD_ACTION_END = String.raw`(?=\s*(?:$|[,;.!?，；。！？\r\n])|${RECORD_FOLLOW_UP})`;
 const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b`,
+  // Once a new clause starts with a scanning verb, its object and
+  // qualifiers do not make it an editable ticket value.
+  String.raw`(?:re[- ]?)?scan\b|สแกน`,
   String.raw`(?:make|take|generate|save)\s+(?:(?:a|an|another)\s+)?(?:copy|duplicate|backup|printout|snapshot)\b`,
   String.raw`(?:go|navigate|switch|return|jump)\s+(?:(?:back\s+)?to\s+\S|back\b)|(?:take|capture|attach|upload)\s+(?:(?:a|an|the)\s+)?(?:photos?|pictures?|images?|screenshots?|attachments?)\b`,
   String.raw`(?:log|sign)(?:[\s-]*|\s+(?:me|us|them)\s+)(?:in|out|off|on)\b|lock\s+(?:me|us|them)\s+out\b|(?:switch|change)\s+(?:(?:the|my|your)\s+)?accounts?\b|(?:เข้า|ออก)\s*(?:สู่)?\s*ระบบ|(?:สลับ|เปลี่ยน)\s*บัญชี|(?:ล็อ[กค]|ลอ[กค])\s*(?:เอา[ตท]์?|อิน)|(?:จบ|สิ้นสุด|ยุติ|ปิด|ตัด)\s*(?:เซสชั่?น|การเข้าสู่ระบบ|การเชื่อมต่อ)`,
@@ -1090,7 +1093,7 @@ const EDIT_REQUEST_SUFFIX =
 const EDIT_RECORD_SCOPE =
   /\b(?:all|any|both|other|every|each|multiple|selected|matching|these|those|remaining)\s+(?:(?:the|saved|scanned|mapped|unmapped)\s+)*(?:records?|tickets?|jobs?|scans?)\b|\b(?:for|on|across|in)\s+(?:the\s+)?(?:records?|tickets?|jobs?|scans?)\b|\b(?:for|on|across)\s+f[o0]m?\d{4,}\b|(?:ทุก|หลาย|ทั้งสอง)(?:ใบงาน|งาน|รายการ)|(?:ใบงาน|งาน|รายการ)\s*(?:ทั้งหมด|อื่น|ที่เลือก)/u;
 const VAGUE_EDIT_LOCATION =
-  /^(?:(?:near|around|anywhere|somewhere|next to|close to)\b|(?:(?:an?|any|the)\s+)?(?:empty|free|available|nearest|suitable)\s+(?:spot|slot|location|space)\b|(?:ที่|จุด|ช่อง)ว่าง|ที่ไหนก็ได้|ใกล้)/u;
+  /^(?:(?:(?:an?|any|the)\s+)?(?:near|around|anywhere|somewhere|close to|empty|free|available|open|nearest|closest|next|first|suitable|unoccupied)(?=\s|$)|(?:ตำแหน่ง|จุดจัดเก็บ|ช่อง|พื้นที่|ที่)\s*(?:ที่)?\s*(?:ว่าง|ใกล้)|ที่ไหนก็ได้|ใกล้)/u;
 
 function editOperand(field: EditableField, value: string): string | undefined {
   if (!value) return undefined;

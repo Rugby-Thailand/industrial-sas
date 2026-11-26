@@ -1512,6 +1512,8 @@ describe("parseJobScanEditProposal", () => {
     "switch warehouses",
     "scan the next ticket",
     "scan next ticket",
+    "scan one more ticket",
+    "rescan both barcodes",
   ])(
     "requires quotes to treat follow-up command %s as literal text",
     (command) => {
@@ -1530,7 +1532,12 @@ describe("parseJobScanEditProposal", () => {
     for (const locationCode of [
       "near the door",
       "an empty spot",
+      "the nearest available location",
+      "first free pallet position",
       "DOCK NORTH and DOCK SOUTH",
+      "DOCK NORTH / DOCK SOUTH",
+      "DOCK NORTH/DOCK SOUTH",
+      "DOCK NORTH | DOCK SOUTH",
     ]) {
       expect(
         parseJobScanEditProposal(
@@ -1538,6 +1545,12 @@ describe("parseJobScanEditProposal", () => {
           `Move to ${locationCode}`,
         ),
       ).toEqual({ kind: "UNSUPPORTED" });
+      expect(
+        parseJobScanEditProposal(
+          { ...emptyEdit, locationCode },
+          `Move to "${locationCode}"`,
+        ),
+      ).toEqual({ kind: "OK", value: { locationCode } });
     }
   });
 });
