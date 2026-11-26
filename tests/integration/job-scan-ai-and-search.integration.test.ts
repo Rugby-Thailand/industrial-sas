@@ -351,6 +351,43 @@ describe("job-scan AI search and edit actions", () => {
   );
 
   it.each([
+    ["Set part name to ", "Widget，delete this scan", '"', '"'],
+    ["Set part name to ", "Widget.Delete this scan", '"', '"'],
+    ["แก้ชื่อสินค้าเป็น ", "กล่อง，ลบใบงานนี้", "“", "”"],
+    ["แก้ชื่อสินค้าเป็น ", "กล่อง。ลบใบงานนี้", "“", "”"],
+  ])(
+    "treats a compact punctuation command as a literal only when quoted (%s%s)",
+    async (prefix, partName, openQuote, closeQuote) => {
+      const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
+      const client = world.t.withIdentity(PUBLIC_API_ACTOR);
+      const echo = JSON.stringify(editPayload({ partName }));
+      transport
+        .mockResolvedValueOnce(openRouterOk(echo))
+        .mockResolvedValueOnce(openRouterOk(echo));
+      const action = api.finishedGoods.jobScans.proposeJobScanEdit;
+      const warehouseId = world.warehouses.alphaA;
+      await expect(
+        client.action(action, { warehouseId, prompt: prefix + partName }),
+      ).resolves.toMatchObject({
+        ok: true,
+        value: {
+          ok: false,
+          error: { code: "UNSUPPORTED", fallback: "MANUAL_EDIT" },
+        },
+      });
+      await expect(
+        client.action(action, {
+          warehouseId,
+          prompt: prefix + openQuote + partName + closeQuote,
+        }),
+      ).resolves.toMatchObject({
+        ok: true,
+        value: { ok: true, value: { fields: { partName } } },
+      });
+    },
+  );
+
+  it.each([
     "and set its quantity to 10",
     "and make the quantity 10",
     "with quantity 10",

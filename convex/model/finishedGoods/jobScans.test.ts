@@ -1225,7 +1225,20 @@ describe("parseJobScanEditProposal", () => {
   });
 
   it("keeps supported compounds and rejects record actions across separator styles", () => {
-    for (const separator of [" — ", "—", "–", "•", " | ", " / ", " and "]) {
+    for (const separator of [
+      " — ",
+      "—",
+      "–",
+      "•",
+      " | ",
+      " / ",
+      " and ",
+      "，",
+      "、",
+      ".",
+      "．",
+      "。",
+    ]) {
       for (const modifier of ["", "also ", "please also ", "and then "]) {
         for (const action of [
           "delete this record",
@@ -1254,7 +1267,7 @@ describe("parseJobScanEditProposal", () => {
         });
       }
     }
-    for (const separator of ["—", "｜", " และ "]) {
+    for (const separator of ["—", "｜", " และ ", "，", "、", ".", "．", "。"]) {
       const partName = "กล่อง" + separator + "ก็ช่วยทำสำเนาใบงานนี้";
       expect(
         parseJobScanEditProposal(
@@ -1263,6 +1276,28 @@ describe("parseJobScanEditProposal", () => {
         ),
       ).toEqual({ kind: "UNSUPPORTED" });
     }
+  });
+
+  it("preserves ordinary periods, commas, and numeric punctuation inside values", () => {
+    for (const partName of [
+      "Widget.RevA",
+      "Widget，Blue",
+      "Widget 3.5",
+      "Widget, Inc.",
+    ]) {
+      expect(
+        parseJobScanEditProposal(
+          { ...emptyEdit, partName },
+          `Set part name to ${partName}`,
+        ),
+      ).toEqual({ kind: "OK", value: { fields: { partName } } });
+    }
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, quantity: 1234.5 },
+        "Set quantity to 1,234.5",
+      ),
+    ).toEqual({ kind: "OK", value: { fields: { quantity: 1234.5 } } });
   });
 
   it("does not strip negation or replacement from a follow-up edit", () => {

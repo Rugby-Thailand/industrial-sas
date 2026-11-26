@@ -353,7 +353,8 @@ const ENGLISH_LIFECYCLE_VERB = String.raw`(?:close|open|reopen|finish|lock|unloc
 const ENGLISH_ACTION_TARGET = String.raw`(?:records?|tickets?|jobs?|scans?|dialogs?|modals?|pages?|screens?|forms?|views?|windows?|tabs?|menus?|popups?|pickers?|drawers?|sessions?|connections?|accounts?|warehouses?|buildings?|floors?|zones?|pallets?|barcodes?|qrs?|camera|app)`;
 const THAI_LIFECYCLE_VERB = String.raw`(?:ปิด|เปิด(?:ใหม่)?|ล็อก|ปลดล็อก|ระงับ|พัก|จบ|สิ้นสุด|ส่งกลับ|คืนค่า|กู้คืน|รับรอง|ปฏิเสธ|รีเฟรช|โหลดใหม่|ออกจาก|สลับ|เปลี่ยน(?:ไป)?)`;
 const THAI_ACTION_TARGET = String.raw`(?:(?:ใบ)?งาน|รายการ(?:สแกน)?|การสแกน|ตั๋ว|หน้าต่าง|หน้าจอ|หน้าเว็บ|หน้านี้|หน้า|เมนู|กล้อง|แอป|ระบบ|บัญชี|คลัง(?:สินค้า)?|อาคาร|ชั้น|โซน|พาเลท|บาร์โค้ด|qr\b|คิวอาร์)`;
-const RECORD_ACTION_END = String.raw`(?=\s*(?:$|[,;.!?，；。！？\r\n])|${RECORD_FOLLOW_UP})`;
+const CLAUSE_PUNCTUATION = String.raw`[,;.!?，、｡；．。！？﹐﹑﹔﹒﹖﹗､،؛؟]`;
+const RECORD_ACTION_END = String.raw`(?=\s*(?:$|${CLAUSE_PUNCTUATION}|[\r\n])|${RECORD_FOLLOW_UP})`;
 const SCAN_ACTION_OBJECT = String.raw`(?:(?:re[- ]?)?scan(?:ning|s|ners?)?|barcodes?|qr(?:\s+codes?)?|cameras?|readers?|tickets?|labels?|codes?)\b`;
 // A follow-up can name the scan, the device, or the code it should read.
 // Match the verb and object within the same clause, including mixed code names.
@@ -1086,13 +1087,13 @@ const EDIT_CLAUSE_START = [
   String.raw`(?:please\s+)?(?:move|assign|remap|transfer)\s+(?:(?:this|the|all|another)\s+)?(?:records?|scans?|jobs?|tickets?)\b|ย้าย(?:ใบงาน|งาน|รายการ)`,
 ].join("|");
 // Explicit conjunctions start a new clause even if its action is unknown.
-// Quoted names and codes are literal. Commas and compact symbols also occur
-// inside values, so split those only when they introduce a recognizable clause.
+// Quoted names and codes are literal. Compact punctuation can also be part of
+// a value, so require a recognizable clause before splitting on it.
 const EDIT_QUOTED_VALUE = /"([^"\r\n]+)"|“([^”\r\n]+)”/u;
 const EDIT_CONJUNCTION = String.raw`(?:\s+(?:and|plus)(?=\s|$)\s*|\s+[&+＆]\s*|[&+＆]\s+|\s*(?:และ|พร้อมทั้ง|พร้อมกับ)\s*)`;
 const UNSPLIT_EDIT_CONJUNCTION = new RegExp(EDIT_CONJUNCTION, "u");
 const EDIT_CLAUSE_BOUNDARY = new RegExp(
-  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>(?:\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|${EXPLICIT_FOLLOW_UP}|${EDIT_CONJUNCTION})${FOLLOW_UP_MODIFIERS}|(?:${RECORD_FOLLOW_UP}|\s+${WITH_FOLLOW_UP}\s+|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))`,
+  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>(?:\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|${EXPLICIT_FOLLOW_UP}|${EDIT_CONJUNCTION})${FOLLOW_UP_MODIFIERS}|(?:${RECORD_FOLLOW_UP}|\s+${WITH_FOLLOW_UP}\s+|\s*${CLAUSE_PUNCTUATION}\s*|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))`,
   "giu",
 );
 const EDIT_CONDITION =
