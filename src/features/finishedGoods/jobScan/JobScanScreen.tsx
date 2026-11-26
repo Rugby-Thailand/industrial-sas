@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import {
   Camera,
   CheckCircle2,
@@ -11,7 +11,16 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { completeTask } from "@/lib/taskNavigation";
-import { FG_PATH } from "@/lib/navigation";
+import {
+  customerJobScanPath,
+  customerWorkspacePath,
+  FG_PATH,
+} from "@/lib/navigation";
+import { useQueryParams } from "@/lib/deepLink";
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
+import { api } from "../../../../convex/_generated/api";
+import { NAVIGATION_PERMISSION } from "../../../../convex/model/authorization/navigationPermissions";
+import { normalizeCustomerName } from "../../../../convex/model/customers/customers";
 import { useBackDisclosure } from "@/hooks/useBackDisclosure";
 import { useWorkflowStep } from "@/hooks/useWorkflowStep";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
@@ -117,10 +126,33 @@ export function LocationSummary({
   );
 }
 
+function useScanCustomer() {
+  const customerId = useQueryParams().get("customer");
+  const { navigationPermissions } = useWorkspace();
+  const outcome = useQuery(
+    api.customers.catalogue.getCustomer,
+    customerId &&
+      /^[A-Za-z0-9_-]{1,64}$/.test(customerId) &&
+      navigationPermissions.includes(NAVIGATION_PERMISSION.customers)
+      ? { customerId }
+      : "skip",
+  );
+  if (!customerId || !outcome?.ok || outcome.value?.status !== "ACTIVE")
+    return undefined;
+  const { name, code } = outcome.value;
+  return {
+    customerId,
+    name,
+    code,
+    normalizedName: normalizeCustomerName(name),
+  };
+}
+
 function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const t = useTranslations("JobScan");
   const router = useRouter();
   const canManage = useCanManage();
+  const scanCustomer = useScanCustomer();
   // Tickets are not persisted, so neither are their save IDs (see module map).
   const operation = useOperation();
   const extract = useAction(fgRefs.extractJobTicket);
@@ -398,7 +430,14 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         setTickets([]);
         setSaved({ count: currentTickets.length, location });
         changePanel(null);
-        operation.complete(() => completeTask(JOB_SCAN_PATH, router.replace));
+        operation.complete(() => {
+          if (scanCustomer)
+            completeTask(
+              customerJobScanPath(scanCustomer.customerId),
+              router.replace,
+            );
+          else completeTask(JOB_SCAN_PATH, router.replace);
+        });
       },
     );
     if (result === null) acquisitionBlocked.current = false;
@@ -447,6 +486,17 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             <Button asChild variant="outline" className="min-h-12">
               <Link href={JOB_SCAN_RECORDS_PATH}>{t("viewRecords")}</Link>
             </Button>
+            {scanCustomer && (
+              <Button asChild variant="outline" className="min-h-12">
+                <Link
+                  href={customerWorkspacePath(scanCustomer.customerId, {
+                    section: "jobs",
+                  })}
+                >
+                  {t("viewCustomerJobs")}
+                </Link>
+              </Button>
+            )}
           </div>
         </Panel>
       </PageContainer>
@@ -460,6 +510,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           title={t("locationStepTitle")}
           description={t("locationStepHint")}
         />
+        {scanCustomer && (
+          <p className="text-sm text-muted">
+            {t("customerContext", scanCustomer)}
+          </p>
+        )}
         <LocationPicker
           warehouseId={warehouseId}
           onPick={(value) => {
@@ -556,6 +611,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         title={t("palletStepTitle")}
         description={t("palletStepHint")}
       />
+      {scanCustomer && (
+        <p className="text-sm text-muted">
+          {t("customerContext", scanCustomer)}
+        </p>
+      )}
       <Panel
         padding="compact"
         aria-label={t("location")}
@@ -638,7 +698,15 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                 setTickets((current) =>
                   current.length >= MAX_JOB_SCAN_ITEMS
                     ? current
-                    : [...current, newTicket("MANUAL")],
+                    : [
+                        ...current,
+                        newTicket(
+                          "MANUAL",
+                          scanCustomer
+                            ? { customer: scanCustomer.name }
+                            : undefined,
+                        ),
+                      ],
                 );
               },
             },
@@ -692,6 +760,12 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               <TicketCard
                 key={ticket.key}
                 ticket={ticket}
+                customerNameMismatch={
+                  scanCustomer !== undefined &&
+                  Boolean(ticket.values.customer?.trim()) &&
+                  normalizeCustomerName(ticket.values.customer ?? "") !==
+                    scanCustomer.normalizedName
+                }
                 duplicate={duplicateKeys.includes(ticket.key)}
                 index={index}
                 disabled={saving}

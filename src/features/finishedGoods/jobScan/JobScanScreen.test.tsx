@@ -2,6 +2,9 @@ import {
   getTestMutation,
   registerTestMutation,
 } from "@tests/fixtures/convex-mutation";
+import type * as NextNavigation from "next/navigation";
+import type * as WorkspaceProviderModule from "@/components/providers/WorkspaceProvider";
+import { api } from "../../../../convex/_generated/api";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
@@ -23,6 +26,8 @@ import type * as PreparePhotoModule from "./prepareJobTicketPhoto";
 const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   save: vi.fn(),
+  customerQuery: vi.fn(),
+  canReadCustomers: false,
   resize: vi.fn(),
   prepareUpload: vi.fn(),
   upload: vi.fn(),
@@ -63,8 +68,21 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn(), replace: mocks.replace }),
 }));
 vi.mock("convex/react", () => ({
+  useQuery: (query: unknown, args: unknown) => mocks.customerQuery(query, args),
   useMutation: getTestMutation,
   useAction: () => mocks.extract,
+}));
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof NextNavigation>()),
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
+vi.mock("@/components/providers/WorkspaceProvider", async (original) => ({
+  ...(await original<typeof WorkspaceProviderModule>()),
+  useWorkspace: () => ({
+    navigationPermissions: mocks.canReadCustomers
+      ? ["masterData.customer.read"]
+      : [],
+  }),
 }));
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (id: string) => ReactNode }) =>
@@ -173,6 +191,8 @@ beforeEach(() => {
   registerTestMutation(fgRefs.saveJobScans, mocks.save);
 
   mocks.realPhotos = false;
+  mocks.canReadCustomers = false;
+  mocks.customerQuery.mockReset();
   mocks.warehouseId = "warehouse-a";
   mocks.actorId = "actor-a";
   window.history.replaceState({ __NA: true }, "", "/en/finished-goods/scan");
@@ -180,6 +200,7 @@ beforeEach(() => {
   mocks.extract.mockReset().mockResolvedValue(querySuccess({ ok: false }));
   mocks.toDataUrl.mockReset().mockResolvedValue("data:image/jpeg;base64,AA");
   mocks.save.mockReset().mockResolvedValue(writeSuccess("scan-a"));
+  mocks.replace.mockReset();
   mocks.resize.mockReset().mockRejectedValue(new Error("Unreadable image"));
   mocks.prepareUpload
     .mockReset()
@@ -211,6 +232,121 @@ function addTicket(index = 0) {
     { target: { value: "DEMO-BOX" } },
   );
 }
+
+function allowCustomer(status: "ACTIVE" | "ARCHIVED" = "ACTIVE") {
+  mocks.canReadCustomers = true;
+  mocks.customerQuery.mockImplementation((_query, args) =>
+    args === "skip"
+      ? undefined
+      : querySuccess({ name: "Acme Foods", code: "C-001", status }),
+  );
+}
+
+it("prefills editable manual customer text and keeps mismatch advisory when saving", async () => {
+  allowCustomer();
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?customer=customer-a",
+  );
+  start();
+  expect(mocks.customerQuery).toHaveBeenCalledWith(
+    api.customers.catalogue.getCustomer,
+    { customerId: "customer-a" },
+  );
+  expect(screen.getByText("Scanning for Acme Foods · C-001")).toBeVisible();
+  addTicket();
+  fireEvent.click(screen.getByRole("button", { name: /More details/ }));
+  const customer = screen.getByRole("textbox", { name: "Customer" });
+  expect(customer).toHaveValue("Acme Foods");
+  const hint = /name on the ticket differs/;
+  fireEvent.change(customer, { target: { value: "ＡＣＭＥ  foods" } });
+  expect(screen.queryByText(hint)).not.toBeInTheDocument();
+  fireEvent.change(customer, { target: { value: "Different ticket name" } });
+  expect(screen.getByText(hint)).toBeVisible();
+  const save = screen.getByRole("button", { name: /Save 1/ });
+  expect(save).toBeEnabled();
+  fireEvent.click(save);
+  expect(
+    await screen.findByRole("link", { name: "View customer jobs" }),
+  ).toHaveAttribute("href", "/master-data/customers/customer-a?section=jobs");
+  expect(mocks.save).toHaveBeenCalledWith(
+    expect.objectContaining({
+      items: [expect.objectContaining({ customer: "Different ticket name" })],
+    }),
+  );
+});
+
+it.each([
+  ["malformed", "customer%20a", true],
+  ["forbidden", "customer-a", false],
+  ["archived", "customer-a", true],
+  ["missing", "customer-a", true],
+] as const)("silently ignores a %s scan customer", (reason, id, permitted) => {
+  allowCustomer("ARCHIVED");
+  mocks.canReadCustomers = permitted;
+  if (reason === "missing")
+    mocks.customerQuery.mockReturnValue(querySuccess(null));
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    `/en/finished-goods/scan?customer=${id}`,
+  );
+  start();
+  addTicket();
+  fireEvent.click(screen.getByRole("button", { name: /More details/ }));
+  expect(screen.getByRole("textbox", { name: "Customer" })).toHaveValue("");
+  expect(screen.queryByText(/Scanning for/)).not.toBeInTheDocument();
+  if (!permitted || reason === "malformed")
+    expect(mocks.customerQuery).toHaveBeenCalledWith(
+      api.customers.catalogue.getCustomer,
+      "skip",
+    );
+});
+
+it("native Back after a customer scan receipt restores the workspace locale, query and hash", async () => {
+  allowCustomer();
+  const origin =
+    "/th/master-data/customers/customer-a?section=jobs&warehouse=warehouse-a&filter=unmapped#recent";
+  mocks.replace.mockImplementation((href: string) =>
+    window.history.replaceState(window.history.state, "", `/th${href}`),
+  );
+  window.history.replaceState({ appNavigationIndex: 0 }, "", origin);
+  window.history.pushState(
+    { appNavigationIndex: 1, appRouteOrigin: { href: origin, index: 0 } },
+    "",
+    "/th/finished-goods/scan?customer=customer-a",
+  );
+  const view = start();
+  addTicket();
+  fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+  await screen.findByRole("link", { name: "View customer jobs" });
+  await waitFor(() =>
+    expect(window.location.search).toBe("?customer=customer-a"),
+  );
+  expect(mocks.replace).toHaveBeenCalledWith(
+    "/finished-goods/scan?customer=customer-a",
+  );
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe(origin),
+  );
+  view.unmount();
+  act(() => window.history.forward());
+  await waitFor(() =>
+    expect(window.location.search).toBe("?customer=customer-a"),
+  );
+  renderWithIntl(<JobScanScreen />, { locale: "en" });
+  expect(screen.getByText("Scanning for Acme Foods · C-001")).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Choose demo location" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("link", { name: "View customer jobs" }),
+  ).not.toBeInTheDocument();
+});
 
 it("retains entered tickets and reuses the same request after a lost save response", async () => {
   // Synthetic rejection checks retry policy; a real disconnect stays pending.
@@ -730,6 +866,43 @@ function submitPhoto() {
   fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
   fireEvent.click(screen.getByRole("button", { name: "Submit demo photo" }));
 }
+
+it("leaves barcode and AI customer values untouched by scan context", async () => {
+  allowCustomer();
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?customer=customer-a",
+  );
+  mocks.resize.mockResolvedValue(
+    new File(["ticket"], "ticket.jpg", { type: "image/jpeg" }),
+  );
+  mocks.extract.mockResolvedValue(
+    querySuccess({
+      ok: true,
+      fields: {
+        factoryOrder: "FO69070073",
+        productBarcodeText: "DEMO-BOX",
+        customer: "Printed name",
+      },
+      raw: "{}",
+      mock: false,
+    }),
+  );
+  start();
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+  act(() => mocks.decode?.("FO69070074"));
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+  submitPhoto();
+  await screen.findByText(/name on the ticket differs/);
+  for (const button of screen.getAllByRole("button", { name: /More details/ }))
+    fireEvent.click(button);
+  const [barcodeCustomer, extractedCustomer] = screen.getAllByRole("textbox", {
+    name: "Customer",
+  });
+  expect(barcodeCustomer).toHaveValue("");
+  expect(extractedCustomer).toHaveValue("Printed name");
+});
 
 it("uploads one resized image, extracts independently, and saves its owned asset ID", async () => {
   const resized = new File(["resized"], "resized.jpg", { type: "image/jpeg" });

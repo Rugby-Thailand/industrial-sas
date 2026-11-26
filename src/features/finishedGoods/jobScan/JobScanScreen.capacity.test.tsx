@@ -67,6 +67,7 @@ vi.mock("@/lib/uploadthing", () => ({
   useUploadThing: () => ({ startUpload: vi.fn() }),
 }));
 vi.mock("convex/react", () => ({
+  useQuery: () => undefined,
   useMutation: getTestMutation,
   useAction: () => vi.fn(),
 }));
