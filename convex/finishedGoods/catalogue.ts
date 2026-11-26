@@ -3,7 +3,7 @@ import {
   signCatalogueCursor,
   verifyCatalogueCursor,
 } from "../lib/signedCatalogueCursor";
-import { v } from "convex/values";
+import { getDocumentSize, v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import {
   queryWithOrg,
@@ -28,7 +28,13 @@ import {
   canReadCustomers,
   projectProductCustomerFields,
 } from "../customers/warehouseScope";
-import type { TenantIndexPage } from "../lib/tenantDb";
+import {
+  TENANT_INDEX_ID_SUFFIX,
+  TENANT_INDEX_TIEBREAKER,
+  type TenantIndexPage,
+  type TenantIndexEquality,
+  type TenantIndexRange,
+} from "../lib/tenantDb";
 
 const READ = "masterData.storageLayout.read";
 const range = v.object({ min: v.string(), max: v.string() });
@@ -196,28 +202,50 @@ function unitFilter(unit: UnitRow): FilterRow {
     updatedAt: unit.updatedAt,
   };
 }
-/** Raw unit rows read by one native continuation page of a large product. */
-const SEARCH_UNIT_PAGE = 50;
-/** A bounded probe reads one extra raw row: fewer rows proves the whole range. */
-const SEARCH_UNIT_PROBE = SEARCH_UNIT_PAGE + 1;
-/** Products in one native product chunk, and so the most pending products. */
+// Eight maximum-size Convex documents still leave room for the rest of the
+// query. Stop before starting another slice after reading 512 KiB of units.
+const SEARCH_UNIT_SLICE = 8;
+const SEARCH_UNIT_BYTE_BUDGET = 512 * 1024;
+const SEARCH_UNIT_ROW_BUDGET = 510;
 const SEARCH_PRODUCT_CHUNK = 20;
-/** Raw unit rows that probes may read in one request (10 full probes). */
-const SEARCH_PROBE_ROW_BUDGET = 10 * SEARCH_UNIT_PROBE;
+
+type UnitKeysetPosition = {
+  /** Last consumed raw unit's `updatedAt`. */
+  u: number;
+  /** Last consumed raw unit's `_creationTime`. */
+  t: number;
+  /** Last consumed raw unit's `_id`. */
+  i: string;
+};
+
+function validUnitPosition(value: unknown): value is UnitKeysetPosition {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const pos = value as Record<string, unknown>;
+  return (
+    typeof pos.u === "number" &&
+    Number.isFinite(pos.u) &&
+    typeof pos.t === "number" &&
+    Number.isFinite(pos.t) &&
+    typeof pos.i === "string" &&
+    pos.i.length > 0 &&
+    pos.i.length <= 64
+  );
+}
 
 /** Search products and their unit text without loading every unit.
  *
  * Each product matches when its name/SKU text, followed by every live unit's
- * code/lot text in index order, contains the needle. The inner cursor keeps a
- * text tail so matches spanning field/record boundaries keep the semantics of
- * the former joined browser string.
+ * code/lot text in descending index order, contains the needle. The inner
+ * cursor keeps a text tail so matches spanning field/record boundaries keep
+ * the semantics of the former joined browser string.
  *
- * One request evaluates products in index order until it fills `limit`, runs
- * out of probe budget, or needs a second native page. Small products are read
- * completely with a bounded `take` probe, which does not consume the single
- * native `paginate` Convex allows per query. Only when a probe returns more raw
- * rows (retired and cancelled included) than one unit page does the product
- * continue through the native per-product unit range, from its first unit. */
+ * One request evaluates products in descending index order until it fills
+ * `limit`, runs out of unit-row budget, or needs a second native product page.
+ * Each product's units are scanned in bounded descending keyset slices (`take`)
+ * on `by_orgId_warehouseId_productId_updatedAt`, resuming immediately after the
+ * last consumed raw unit with exact `(updatedAt, _creationTime, _id)` tie
+ * handling, so large products neither rescan their first page nor consume the
+ * single native `paginate` Convex allows per query. */
 async function readSearchedProducts(
   ctx: TenantFunctionContext,
   warehouseId: string,
@@ -228,14 +256,14 @@ async function readSearchedProducts(
   type SearchState = {
     scope: string;
     productRange?: NativeRangeState | undefined;
-    /** Unfinished products in index order; the first may own `unitRange`. */
+    /** Unfinished products in index order; the first may own `unitPos`. */
     products: string[];
     productsDone: boolean;
-    /** Present (possibly `{}`) while the first product uses native unit pages. */
-    unitRange?: NativeRangeState | undefined;
+    /** Last consumed raw unit of `products[0]` while scanning its remaining units. */
+    unitPos?: UnitKeysetPosition | undefined;
     tail?: string | undefined;
   };
-  const scope = catalogueScope(ctx, ["product-text-v2", warehouseId, search]);
+  const scope = catalogueScope(ctx, ["product-text-v3", warehouseId, search]);
   const prior = raw ? decodeCatalogueCursor<SearchState>(raw, scope) : null;
   if (raw && !prior) throw new Error("CATALOGUE_CURSOR_INVALID");
   const state: SearchState = prior ?? {
@@ -243,53 +271,121 @@ async function readSearchedProducts(
     products: [],
     productsDone: false,
   };
+  const needle = search.trim().toLocaleLowerCase();
+  const maxTailLength = Math.min(600, Math.max(0, needle.length - 1));
   if (
     !validNativeRange(state.productRange) ||
-    !validNativeRange(state.unitRange) ||
     !Array.isArray(state.products) ||
     state.products.length > 100 ||
-    state.products.some((id) => typeof id !== "string") ||
+    state.products.some(
+      (id) => typeof id !== "string" || id.length === 0 || id.length > 64,
+    ) ||
     typeof state.productsDone !== "boolean" ||
+    "unitRange" in state ||
+    (state.unitPos === undefined) !== (state.tail === undefined) ||
+    (state.unitPos !== undefined &&
+      (!state.products.length || !validUnitPosition(state.unitPos))) ||
     (state.tail !== undefined &&
-      (typeof state.tail !== "string" || state.tail.length > 600))
+      (typeof state.tail !== "string" || state.tail.length > maxTailLength))
   )
     throw new Error("CATALOGUE_CURSOR_INVALID");
-  const needle = search.trim().toLocaleLowerCase();
-  const units = (productId: string) =>
-    ctx.tenantDb.byIndex<Doc<"finishedGoodsPallets">>(
-      "finishedGoodsPallets",
-      "by_orgId_warehouseId_productId_updatedAt",
-      [
-        { field: "warehouseId", value: warehouseId },
-        { field: "productId", value: productId },
-      ],
-    );
-  /** Stream live unit text after `tail`; returns the new tail or a match. */
+
+  const trimTail = (text: string) =>
+    needle.length > 1 ? text.slice(-(needle.length - 1)) : "";
+
+  // A compound cursor splits the remaining index into three disjoint ranges.
+  // Read each in the database's descending order, including imported ID ties.
+  const readUnitSlice = async (
+    productId: string,
+    after: UnitKeysetPosition | undefined,
+  ) => {
+    const prefix = [
+      { field: "warehouseId", value: warehouseId },
+      { field: "productId", value: productId },
+    ];
+    const take = (
+      terms: TenantIndexEquality,
+      count: number,
+      range?: TenantIndexRange,
+    ) =>
+      ctx.tenantDb
+        .byIndex<Doc<"finishedGoodsPallets">>(
+          "finishedGoodsPallets",
+          "by_orgId_warehouseId_productId_updatedAt",
+          terms,
+          range,
+        )
+        .take(count, "desc");
+    if (!after) return take(prefix, SEARCH_UNIT_SLICE);
+    const updated = [...prefix, { field: "updatedAt", value: after.u }];
+    const created = [
+      ...updated,
+      { field: TENANT_INDEX_TIEBREAKER, value: after.t },
+    ];
+    const below = (
+      field: string,
+      value: number | string,
+    ): TenantIndexRange => ({
+      field,
+      upper: { value, inclusive: false },
+    });
+    const rows = [
+      ...(await take(
+        created,
+        SEARCH_UNIT_SLICE,
+        below(TENANT_INDEX_ID_SUFFIX, after.i),
+      )),
+    ];
+    if (rows.length < SEARCH_UNIT_SLICE) {
+      rows.push(
+        ...(await take(
+          updated,
+          SEARCH_UNIT_SLICE - rows.length,
+          below(TENANT_INDEX_TIEBREAKER, after.t),
+        )),
+      );
+    }
+    if (rows.length < SEARCH_UNIT_SLICE) {
+      rows.push(
+        ...(await take(
+          prefix,
+          SEARCH_UNIT_SLICE - rows.length,
+          below("updatedAt", after.u),
+        )),
+      );
+    }
+    return rows;
+  };
+
+  /** Stream live unit text after `initialTail`; returns the trimmed tail or a match. */
   const scanUnits = (
-    tail: string,
+    initialTail: string,
     rows: readonly Doc<"finishedGoodsPallets">[],
   ) => {
+    let currentTail = trimTail(initialTail);
     for (const unit of rows) {
       if (
         unit.retiredAt !== undefined ||
         ["CANCELLED", "REPLACED"].includes(unit.status)
       )
         continue;
-      const text = tail + `${unit.code} ${unit.lot ?? ""} `.toLocaleLowerCase();
+      const text =
+        currentTail + `${unit.code} ${unit.lot ?? ""} `.toLocaleLowerCase();
       if (text.includes(needle)) return { found: true, tail: "" };
-      tail = needle.length > 1 ? text.slice(-(needle.length - 1)) : "";
+      currentTail = trimTail(text);
     }
-    return { found: false, tail };
+    return { found: false, tail: currentTail };
   };
 
   const output: Doc<"finishedGoodsProducts">[] = [];
   let queue: Array<string | Doc<"finishedGoodsProducts">> = [...state.products];
   let productRange: NativeRangeState | undefined = state.productRange;
   let productsDone = state.productsDone;
-  let unitRange: NativeRangeState | undefined = state.unitRange;
+  let unitPos: UnitKeysetPosition | undefined = state.unitPos;
   let tail: string | undefined = state.tail;
   let nativeUsed = false;
-  let probeRows = 0;
+  let unitRows = 0;
+  let unitBytes = 0;
   while (output.length < limit) {
     if (!queue.length) {
       if (productsDone || nativeUsed) break;
@@ -324,43 +420,44 @@ async function readSearchedProducts(
         throw new Error("CATALOGUE_CURSOR_INVALID");
       product = loaded;
     } else product = head;
-    const prefix =
-      tail ?? `${product.name} ${product.sku} `.toLocaleLowerCase();
-    let found = prefix.includes(needle);
-    if (!found && unitRange === undefined && tail === undefined) {
-      // Reserve a full probe so this request's probe reads stay bounded.
+    const fresh = unitPos === undefined;
+    let found = false;
+    let currentTail: string;
+    if (fresh) {
+      const prefix = `${product.name} ${product.sku} `.toLocaleLowerCase();
+      found = prefix.includes(needle);
+      currentTail = trimTail(prefix);
+    } else {
+      currentTail = tail!;
+    }
+    let suspended = false;
+    while (!found) {
       if (
-        probeRows > 0 &&
-        probeRows + SEARCH_UNIT_PROBE > SEARCH_PROBE_ROW_BUDGET
-      )
+        unitRows + SEARCH_UNIT_SLICE > SEARCH_UNIT_ROW_BUDGET ||
+        unitBytes >= SEARCH_UNIT_BYTE_BUDGET
+      ) {
+        suspended = true;
         break;
-      const probe = await units(product._id).take(SEARCH_UNIT_PROBE, "desc");
-      probeRows += probe.length;
-      found = scanUnits(prefix, probe).found;
-      // Exhaustion is decided by raw rows. Otherwise restart this product on
-      // native pages from its name prefix: the probe has no native cursor.
-      if (!found && probe.length >= SEARCH_UNIT_PROBE) unitRange = {};
-    }
-    if (!found && (unitRange !== undefined || tail !== undefined)) {
-      if (nativeUsed) break;
-      nativeUsed = true;
-      const range = unitRange ?? {};
-      const chunk = await units(product._id).page({
-        limit: SEARCH_UNIT_PAGE,
-        cursor: range.raw,
-        endCursor: range.end,
-        order: "desc",
-      });
-      const advance = advanceNativeRange(range, chunk);
-      unitRange = advance.range;
-      if (advance.split) break;
-      const scanned = scanUnits(prefix, chunk.page);
+      }
+      const rows = await readUnitSlice(product._id, unitPos);
+      unitRows += rows.length;
+      for (const unit of rows) unitBytes += getDocumentSize(unit);
+      const scanned = scanUnits(currentTail, rows);
       found = scanned.found;
-      tail = scanned.tail;
-      if (!found && !advance.exhausted) break;
+      currentTail = scanned.tail;
+      if (found) break;
+      if (rows.length < SEARCH_UNIT_SLICE) break;
+      const last = rows[rows.length - 1]!;
+      unitPos = {
+        u: last.updatedAt,
+        t: last._creationTime,
+        i: last._id,
+      };
+      tail = currentTail;
     }
+    if (suspended) break;
     queue.shift();
-    unitRange = undefined;
+    unitPos = undefined;
     tail = undefined;
     if (found) output.push(product);
   }
@@ -369,7 +466,7 @@ async function readSearchedProducts(
     productRange,
     products: queue.map((item) => (typeof item === "string" ? item : item._id)),
     productsDone,
-    unitRange,
+    unitPos,
     tail,
   };
   const isDone = next.productsDone && !next.products.length;

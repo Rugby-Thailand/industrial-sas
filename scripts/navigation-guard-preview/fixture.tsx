@@ -8,7 +8,7 @@ import { useNavigationDraft } from "@/components/navigation/NavigationGuardProvi
 import { useHrListCriteria } from "@/features/hr/HrListCriteria";
 import { Link, useRouter } from "@/i18n/navigation";
 import { updateBrowserQuery } from "@/lib/browser/history";
-import { StorageFixture } from "./storageFixture";
+import { StorageCatalogueFixture, StorageFixture } from "./storageFixture";
 import { WorkflowFixture } from "./workflowFixture";
 import { PageBackButton } from "@/components/ui/PageBackButton";
 
@@ -108,6 +108,7 @@ export function Fixture({ screen }: { readonly screen: string }) {
       <p data-testid="discards">{discards}</p>
       <p data-testid="draft-b">{draftB}</p>
       {screen === "storage" ? <StorageFixture /> : null}
+      {screen === "storage-catalogue" ? <StorageCatalogueFixture /> : null}
       {screen === "workflow" ? <WorkflowFixture /> : null}
       {screen === "editor" ? (
         <>

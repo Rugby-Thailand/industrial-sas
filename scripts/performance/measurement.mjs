@@ -136,7 +136,10 @@ export function observeTransition({
       Boolean(
         node &&
         node.getClientRects().length &&
-        !node.closest('[hidden], [aria-hidden="true"], [aria-busy="true"]'),
+        node.checkVisibility?.({ visibilityProperty: true }) !== false &&
+        !node.closest(
+          '[hidden], [inert], [aria-hidden="true"], [aria-busy="true"]',
+        ),
       );
     const dataReady = () => {
       const main = document.querySelector("main");
@@ -199,7 +202,8 @@ export function observeTransition({
     const element =
       action.kind === "link"
         ? [...document.querySelectorAll("a")].find(
-            (node) => node.getAttribute("href") === action.href,
+            (node) =>
+              node.getAttribute("href") === action.href && visible(node),
           )
         : [...document.querySelectorAll("button")].find(
             (node) =>

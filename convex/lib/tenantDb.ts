@@ -198,8 +198,8 @@ export interface TenantIndexBound {
 /**
  * One checked range on the index field that follows the equality prefix (or
  * on the implicit `_creationTime` tie-breaker once every declared field is
- * fixed). The tenant prefix is always injected first, so a range can only
- * narrow this tenant's rows, never widen beyond them.
+ * fixed). A range on the implicit `_id` requires equality on every declared
+ * field and `_creationTime`. Every range stays inside the tenant prefix.
  */
 export interface TenantIndexRange {
   readonly field: string;
@@ -208,6 +208,7 @@ export interface TenantIndexRange {
 }
 
 export const TENANT_INDEX_TIEBREAKER = "_creationTime";
+export const TENANT_INDEX_ID_SUFFIX = "_id";
 
 /** Shared validation for the accessor and the storage port; `null` is invalid. */
 export function checkedTenantIndexRange(
@@ -215,16 +216,14 @@ export function checkedTenantIndexRange(
   equalityLength: number,
   range: unknown,
 ): TenantIndexRange | undefined | null {
-  if (range === undefined) return undefined;
+  const suffixPosition = equalityLength - fieldsAfterOrg.length;
+  if (range === undefined) return suffixPosition > 0 ? null : undefined;
   if (range === null || typeof range !== "object" || Array.isArray(range))
     return null;
   const record = range as Record<string, unknown>;
+  const suffixFields = [TENANT_INDEX_TIEBREAKER, TENANT_INDEX_ID_SUFFIX];
   const expected =
-    equalityLength < fieldsAfterOrg.length
-      ? fieldsAfterOrg[equalityLength]
-      : equalityLength === fieldsAfterOrg.length
-        ? TENANT_INDEX_TIEBREAKER
-        : undefined;
+    fieldsAfterOrg[equalityLength] ?? suffixFields[suffixPosition];
   if (typeof record.field !== "string" || record.field !== expected)
     return null;
   const bound = (value: unknown): TenantIndexBound | undefined | null => {
@@ -234,8 +233,10 @@ export function checkedTenantIndexRange(
     const item = value as Record<string, unknown>;
     if (typeof item.inclusive !== "boolean") return null;
     const ok =
-      typeof item.value === "string" ||
-      (typeof item.value === "number" && Number.isFinite(item.value));
+      expected === TENANT_INDEX_ID_SUFFIX
+        ? isUsableKey(item.value)
+        : typeof item.value === "string" ||
+          (typeof item.value === "number" && Number.isFinite(item.value));
     return ok
       ? Object.freeze({
           value: item.value as string | number,
@@ -500,7 +501,7 @@ export function createTenantDocumentAccess(
     supplied: TenantIndexEquality,
   ): TenantIndexEquality => {
     if (!Array.isArray(supplied)) throw invalidQuery();
-    if (supplied.length > facts.fieldsAfterOrg.length) throw invalidQuery();
+    if (supplied.length > facts.fieldsAfterOrg.length + 1) throw invalidQuery();
 
     const terms: TenantIndexEqualityTerm[] = [
       Object.freeze({ field: TENANT_DISCRIMINATOR, value: orgId }),
@@ -516,7 +517,13 @@ export function createTenantDocumentAccess(
       const field: unknown = record.field;
       if (typeof field !== "string") throw invalidQuery();
       if (seen.has(field)) throw invalidQuery();
-      if (field !== facts.fieldsAfterOrg[position]) throw invalidQuery();
+      if (field !== (facts.fieldsAfterOrg[position] ?? TENANT_INDEX_TIEBREAKER))
+        throw invalidQuery();
+      if (
+        field === TENANT_INDEX_TIEBREAKER &&
+        (typeof record.value !== "number" || !Number.isFinite(record.value))
+      )
+        throw invalidQuery();
       seen.add(field);
       if (record.missing === true) {
         if (record.value !== undefined) throw invalidQuery();

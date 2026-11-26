@@ -5,7 +5,9 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { useState, type ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { storageLayoutRefs } from "@/lib/convex/storageLayoutApi";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 
 const state = vi.hoisted(() => ({
@@ -23,6 +25,7 @@ const state = vi.hoisted(() => ({
 vi.mock("convex/react", () => ({
   useQuery: (...args: unknown[]) => {
     state.query(...args);
+    if (args[1] === "skip") return undefined;
     // One shape answers the status, lifecycle-impact and readiness reads.
     return {
       ok: true,
@@ -66,13 +69,18 @@ function toggle(confirm = "Activate building") {
   );
 }
 
-function renderToggle() {
+type SharedControl = ComponentProps<
+  typeof BuildingStatusToggle
+>["sharedControl"];
+
+function renderToggle(sharedControl?: SharedControl) {
   return renderWithIntl(
     <BuildingStatusToggle
       warehouseId="warehouse"
       buildingId="building"
       code="MAIN"
       status="DRAFT"
+      {...(sharedControl === undefined ? {} : { sharedControl })}
     />,
     { locale: "en", workspace: false },
   );
@@ -262,23 +270,154 @@ import { unconfiguredEnvironment } from "@tests/fixtures/intl-render";
 import { NextIntlClientProvider } from "next-intl";
 import { messagesFor } from "@/i18n/messages";
 
-it("uses shared occupancy controls without a second status subscription", () => {
-  renderWithIntl(
-    <BuildingStatusToggle
-      warehouseId="warehouse"
-      buildingId="building"
-      code="MAIN"
-      status="DRAFT"
-      sharedControl={{
-        loaded: true,
-        value: { status: "ACTIVE", version: 9, blocked: true },
-      }}
-    />,
-    { locale: "en", workspace: false },
-  );
-  expect(state.query).toHaveBeenCalledWith(expect.anything(), "skip");
-  expect(screen.getByRole("switch")).toBeDisabled();
-  expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+describe("catalogue status control", () => {
+  it("announces and explains a transport failure using the loaded row", async () => {
+    state.mutation.mockRejectedValue(new Error("offline"));
+    renderToggle({
+      loaded: true,
+      value: { status: "DRAFT", version: 7, blocked: false },
+    });
+    toggle();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Check your connection/,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Status change failed: MAIN" }),
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      /Check your connection/,
+    );
+    expect(screen.getByRole("switch")).toBeEnabled();
+    expect(screen.getByRole("switch")).not.toBeChecked();
+  });
+
+  it("shows loading while occupancy is pending and explains a refused occupancy read", () => {
+    function Fixture() {
+      const [loaded, setLoaded] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setLoaded(true)}>
+            Refuse occupancy
+          </button>
+          <BuildingStatusToggle
+            warehouseId="warehouse"
+            buildingId="building"
+            code="MAIN"
+            status="DRAFT"
+            sharedControl={{ loaded, value: null }}
+          />
+        </>
+      );
+    }
+
+    renderWithIntl(<Fixture />, { locale: "en", workspace: false });
+    expect(screen.getByRole("status")).toHaveTextContent("Checking status");
+    expect(screen.getByRole("switch")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Refuse occupancy" }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("switch")).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Why status cannot change: MAIN" }),
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent("Status unavailable.");
+  });
+
+  it("shows the reason when the server refuses the write", async () => {
+    state.mutation.mockResolvedValue({
+      ok: false,
+      denial: { code: "PERMISSION_MISSING" },
+    });
+    renderToggle({
+      loaded: true,
+      value: { status: "DRAFT", version: 7, blocked: false },
+    });
+    toggle();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /workspace administrator/,
+    );
+    expect(screen.getByRole("switch")).not.toBeChecked();
+  });
+
+  it("retries with the same request ID and waits for authoritative occupancy after a save", async () => {
+    let fail!: (error: Error) => void;
+    state.mutation.mockReturnValueOnce(
+      new Promise((_, reject) => {
+        fail = reject;
+      }),
+    );
+    function Fixture() {
+      const [status, setStatus] = useState<"ACTIVE" | "DRAFT">("DRAFT");
+      return (
+        <>
+          <button type="button" onClick={() => setStatus("ACTIVE")}>
+            Publish occupancy
+          </button>
+          <BuildingStatusToggle
+            warehouseId="warehouse"
+            buildingId="building"
+            code="MAIN"
+            status="DRAFT"
+            sharedControl={{
+              loaded: true,
+              value: {
+                status,
+                version: status === "DRAFT" ? 7 : 8,
+                blocked: false,
+              },
+            }}
+          />
+        </>
+      );
+    }
+    renderWithIntl(<Fixture />, { locale: "en", workspace: false });
+    toggle();
+    const confirm = within(screen.getByRole("dialog")).getByRole("button", {
+      name: /Saving status/,
+    });
+    expect(confirm).toBeDisabled();
+    expect(screen.getByRole("switch", { hidden: true })).toBeDisabled();
+    fireEvent.click(confirm);
+    expect(state.mutation).toHaveBeenCalledTimes(1);
+    fail(new Error("offline"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Check your connection/,
+    );
+    toggle();
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(state.mutation).toHaveBeenCalledTimes(2);
+    const firstArgs = state.mutation.mock.calls[0]![0];
+    expect(firstArgs.requestId).toEqual(expect.any(String));
+    expect(state.mutation).toHaveBeenLastCalledWith(firstArgs);
+    expect(screen.getByRole("switch")).not.toBeChecked();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Publish occupancy" }));
+    expect(screen.getByRole("switch")).toBeChecked();
+  });
+
+  it("uses shared occupancy controls without a second status subscription", () => {
+    renderToggle({
+      loaded: true,
+      value: { status: "ACTIVE", version: 9, blocked: true },
+    });
+    expect(state.query).toHaveBeenNthCalledWith(
+      1,
+      storageLayoutRefs.statusControl,
+      "skip",
+    );
+    expect(screen.getByRole("switch")).toBeDisabled();
+    expect(screen.getByRole("switch")).toBeChecked();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Why status cannot change: MAIN" }),
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      /Move or release all stock/,
+    );
+    expect(state.mutation).not.toHaveBeenCalled();
+  });
 });
 
 it.each(["DRAFT", "ACTIVE"])(

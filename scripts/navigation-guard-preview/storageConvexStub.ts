@@ -2,6 +2,7 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { getFunctionName } from "convex/server";
+import { fixtureBuilding } from "./storageFixtureData";
 
 import type {
   HrUnreadSummary,
@@ -54,11 +55,22 @@ export function useConvex() {
 }
 
 export function useMutation(reference: Reference) {
+  const name = getFunctionName(reference);
+  if (name === "storageLayouts/writes:activateStorageBuilding") {
+    return async (args: unknown) => {
+      const response = await fetch("/fixture-save?write=activate-building", {
+        method: "POST",
+        body: JSON.stringify(args),
+      });
+      if (!response.ok) throw new Error("Fixture activation failed");
+      return { ok: true, value: { written: true } };
+    };
+  }
   return async (args: {
     expectedVersion: number;
     pinnedKeys: QuickMenuKey[];
   }) => {
-    if (getFunctionName(reference) !== "workspace/quickMenus:save") {
+    if (name !== "workspace/quickMenus:save") {
       throw new Error("Storage fixture writes are disabled");
     }
     const response = await fetch("/fixture-save", { method: "POST" });
@@ -81,8 +93,37 @@ export function useMutation(reference: Reference) {
   };
 }
 
-export function useQuery() {
-  return undefined;
+const loaded = <T>(value: T) => ({ ok: true as const, value });
+const catalogueReads = {
+  "storageLayouts/catalogue:listStorageBuildingsPage": loaded({
+    status: "ready",
+    page: [fixtureBuilding],
+    isDone: true,
+    continueCursor: "",
+  }),
+  "storageLayouts/catalogue:buildingOccupancy": loaded({
+    ...fixtureBuilding,
+    blocked: false,
+  }),
+  "storageLayouts/writes:buildingLifecycleImpact": loaded({
+    found: true,
+    zoneCount: 3,
+    positionCount: 4,
+    namedRegistrationCount: 1,
+    complete: true,
+    canArchive: true,
+  }),
+  "storageLayouts/writes:layoutReadiness": loaded({
+    found: true,
+    ready: true,
+    version: fixtureBuilding.version,
+  }),
+};
+
+export function useQuery(reference: Reference, args: unknown) {
+  if (args === "skip") return undefined;
+  const name = getFunctionName(reference);
+  return catalogueReads[name as keyof typeof catalogueReads];
 }
 
 export function useQuery_experimental({
