@@ -145,7 +145,7 @@ export const QUICK_MENU_PERMISSION_CODES: readonly string[] = Object.freeze([
   ...new Set(QUICK_MENU_CATALOG.flatMap(quickMenuPermissions)),
 ]);
 
-/** Default pin order; the first `DEFAULT_PINNED_COUNT` available keys pin. */
+/** Default candidate order, before reserving a slot for Today. */
 export const DEFAULT_QUICK_MENU_ORDER: readonly QuickMenuKey[] = Object.freeze([
   "planner.finishedGoods",
   "planner.jobScan",
@@ -225,10 +225,15 @@ export function defaultPinnedKeys(
   available: readonly QuickMenuKey[],
 ): QuickMenuKey[] {
   const allowed = new Set(available);
-  return DEFAULT_QUICK_MENU_ORDER.filter((key) => allowed.has(key)).slice(
-    0,
-    DEFAULT_PINNED_COUNT,
-  );
+  const pinned = DEFAULT_QUICK_MENU_ORDER.filter((key) =>
+    allowed.has(key),
+  ).slice(0, DEFAULT_PINNED_COUNT);
+
+  // When warehouse shortcuts fill the menu, give clock-in a tile and keep
+  // the aggregate Notifications badge, which also counts unread payslips.
+  return allowed.has("hr.today") && !pinned.includes("hr.today")
+    ? pinned.map((key) => (key === "hr.payslips" ? "hr.today" : key))
+    : pinned;
 }
 
 export type PinnedKeysProblem = "TOO_MANY" | "UNKNOWN_KEY" | "DUPLICATE_KEY";

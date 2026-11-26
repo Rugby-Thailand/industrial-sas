@@ -70,6 +70,14 @@ async function fixture(roleA = "HR_EMPLOYEE") {
     roleA,
     roleB: "SUPERVISOR",
     extraRoles: [
+      {
+        key: "WAREHOUSE_AND_HR",
+        permissionCodes: [
+          "masterData.warehouse.read",
+          "masterData.storageLayout.read",
+          "hr.self.access",
+        ],
+      },
       { key: "NOTHING", permissionCodes: [] },
       { key: "CUSTOMER_READER", permissionCodes: ["masterData.customer.read"] },
     ],
@@ -126,6 +134,46 @@ describe("workspace/quickMenus:current", () => {
     });
     expect(await preferences(world)).toEqual([]);
     expect(await storedAuditEvents(world, world.orgA)).toEqual([]);
+  });
+
+  it("pins Today alongside warehouse intake and Notifications until the member saves a menu", async () => {
+    const world = await fixture("WAREHOUSE_AND_HR");
+    const current = async () =>
+      value<QuickMenuCurrent>(
+        await world.t.withIdentity(ACTOR).query(currentRef, {}),
+      );
+
+    expect(await current()).toMatchObject({
+      pinnedKeys: [
+        "planner.finishedGoods",
+        "planner.jobScan",
+        "hr.announcements",
+        "hr.leave",
+        "hr.today",
+        "hr.notifications",
+      ],
+      customized: false,
+    });
+    expect((await current()).availableKeys).toContain("hr.payslips");
+
+    const pinnedKeys = ["hr.payslips", "planner.jobScan"];
+    expect(
+      await save(world, {
+        requestId: "mixed-role-menu-saved",
+        expectedVersion: 0,
+        pinnedKeys,
+      }),
+    ).toMatchObject({ ok: true });
+    expect(await current()).toMatchObject({ pinnedKeys, customized: true });
+
+    expect(
+      await save(world, {
+        requestId: "mixed-role-menu-empty",
+        expectedVersion: 1,
+        pinnedKeys: [],
+      }),
+    ).toMatchObject({ ok: true });
+    expect(await current()).toMatchObject({ pinnedKeys: [], customized: true });
   });
 
   it("opens Home through any module entry permission and filters per key", async () => {
