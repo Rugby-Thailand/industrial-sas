@@ -127,6 +127,50 @@ describe("job-scan AI search and edit actions", () => {
     vi.unstubAllEnvs();
   });
 
+  it("accepts the Thai prototype query and refuses a provider response that omits its pallet filter", async () => {
+    const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
+    const client = world.t.withIdentity(PUBLIC_API_ACTOR);
+    const args = {
+      warehouseId: world.warehouses.alphaA,
+      prompt: "หางานพาเลทชั้น 2",
+    };
+    transport
+      .mockResolvedValueOnce(
+        openRouterOk(JSON.stringify(searchPayload({ floor: 2 }))),
+      )
+      .mockResolvedValueOnce(
+        openRouterOk(
+          JSON.stringify(searchPayload({ floor: 2, storageFormat: "PALLET" })),
+          { id: "gen-thai-pallet" },
+        ),
+      );
+    expect(
+      await client.action(
+        api.finishedGoods.jobScans.interpretJobScanSearch,
+        args,
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: { ok: false, error: { code: "AI_UNREADABLE" } },
+    });
+    expect(
+      await client.action(
+        api.finishedGoods.jobScans.interpretJobScanSearch,
+        args,
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        ok: true,
+        value: {
+          filter: "ALL",
+          search: "",
+          facets: { floor: 2, storageFormat: "PALLET" },
+        },
+      },
+    });
+  });
+
   it("enforces warehouse READ vs MANAGE scoping and tenant isolation before provider calls", async () => {
     const readOnlyWorld = await createPublicApiWorld(MODULES, "SUPERVISOR");
     transport.mockResolvedValueOnce(

@@ -1878,7 +1878,7 @@
       "aiSearch": "ค้นหาด้วย AI",
       "aiSearchHint": "ระบุว่าต้องการหาใบงานที่สแกนแล้วแบบไหน",
       "searchPrompt": "ต้องการหาใบงานอะไร",
-      "searchExample": "เช่น พาเลทบนชั้น 2",
+      "searchExample": "เช่น หางานพาเลทชั้น 2",
       "searchAction": "ค้นหาใบงาน",
       "applySearch": "ใช้ตัวกรอง",
       "noFacetMatches": "ไม่มีรายการที่ตรงกับตัวกรองนี้",

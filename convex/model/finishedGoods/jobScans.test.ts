@@ -205,6 +205,45 @@ describe("parseJobScanSearchIntent", () => {
     });
   });
 
+  it("requires all Thai prototype filters and honors the records screen status labels", () => {
+    for (const prompt of [
+      "หางานที่ยังไม่ระบุตำแหน่ง",
+      "หางานที่รอระบุตำแหน่ง",
+      "Needs location",
+    ]) {
+      expect(
+        parseJobScanSearchIntent({ ...base, filter: "UNMAPPED" }, prompt),
+      ).toEqual({ kind: "OK", value: { filter: "UNMAPPED", search: "" } });
+      expect(parseJobScanSearchIntent(base, prompt)).toEqual({
+        kind: "UNREADABLE",
+      });
+    }
+    const palletPrompt = "หางานพาเลทชั้น 2";
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, floor: 2, storageFormat: "PALLET" },
+        palletPrompt,
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: {
+        filter: "ALL",
+        search: "",
+        facets: { floor: 2, storageFormat: "PALLET" },
+      },
+    });
+    expect(
+      parseJobScanSearchIntent({ ...base, floor: 2 }, palletPrompt),
+    ).toEqual({ kind: "UNREADABLE" });
+    const locationPrompt = "หาใบงานที่อยู่ F2-L12-1";
+    expect(
+      parseJobScanSearchIntent({ ...base, search: "F2-L12-1" }, locationPrompt),
+    ).toEqual({ kind: "OK", value: { filter: "ALL", search: "F2-L12-1" } });
+    expect(
+      parseJobScanSearchIntent({ ...base, search: "F2-L12" }, locationPrompt),
+    ).toEqual({ kind: "UNREADABLE" });
+  });
+
   it("returns UNSUPPORTED when the model declines an out-of-scope prompt", () => {
     expect(
       parseJobScanSearchIntent(
@@ -647,6 +686,30 @@ describe("parseJobScanEditProposal", () => {
     ).toEqual({
       kind: "OK",
       value: { fields: { quantity: 15, deliveryDate: "6/7/2569" } },
+    });
+  });
+
+  it("accepts the prototype Thai edit examples", () => {
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, locationCode: "F2-L12-3" },
+        "ย้ายไป F2-L12-3",
+      ),
+    ).toEqual({ kind: "OK", value: { locationCode: "F2-L12-3" } });
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, quantity: 40 },
+        "แก้จำนวนเป็น 40",
+      ),
+    ).toEqual({ kind: "OK", value: { fields: { quantity: 40 } } });
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, partName: "กล่อง Outer 131" },
+        "แก้ชื่อสินค้าเป็น กล่อง Outer 131",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { fields: { partName: "กล่อง Outer 131" } },
     });
   });
 });
