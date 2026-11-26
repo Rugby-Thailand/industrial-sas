@@ -648,6 +648,37 @@ describe("parseJobScanSearchIntent", () => {
     }
   });
 
+  it("declines unsupported filters even when a model absorbs them into a name", () => {
+    for (const [lead, name, qualifier] of [
+      ["Find product name ", "Widget", " with quantity greater than 20"],
+      ["Find product name ", "Widget", " with quantity = 20"],
+      ["Find product name ", "Widget", " shipped after 2026-11-26"],
+      ["Find product name ", "Widget", " with priority high"],
+      ["Find ", "Widget", " with priority high"],
+      ["หาชื่อสินค้า ", "กล่อง Outer 131", " ที่มีจำนวนมากกว่า 20"],
+    ]) {
+      const prompt = lead + name + qualifier;
+      for (const search of [name, name + qualifier]) {
+        expect(parseJobScanSearchIntent({ ...base, search }, prompt)).toEqual({
+          kind: "UNSUPPORTED",
+        });
+      }
+    }
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, search: "Widget with Handle" },
+        'Find product name "Widget with Handle"',
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: {
+        filter: "ALL",
+        search: "Widget with Handle",
+        searchField: "partName",
+      },
+    });
+  });
+
   it("rejects untrusted, ungrounded, extra-key, ID or truncated responses", () => {
     expect(
       parseJobScanSearchIntent({ ...base, jobScanId: "scan_123" }, "unmapped"),
@@ -1005,5 +1036,34 @@ describe("parseJobScanEditProposal", () => {
         'Set part name to "After Dark" once it is mapped',
       ),
     ).toEqual({ kind: "UNSUPPORTED" });
+  });
+
+  it("declines record scope and unsupported secondary edits instead of storing them as names", () => {
+    for (const [prompt, partName] of [
+      ["Set part name to Widget for all records", "Widget for all records"],
+      [
+        "Set part name to Widget and clear the barcode",
+        "Widget and clear the barcode",
+      ],
+      [
+        "Set part name to Widget then increase the quantity",
+        "Widget then increase the quantity",
+      ],
+      ["Change product name from Old to New", "from Old to New"],
+      [
+        "แก้ชื่อสินค้าเป็น กล่อง Outer 131 ทุกใบงาน",
+        "กล่อง Outer 131 ทุกใบงาน",
+      ],
+      [
+        "แก้ชื่อสินค้าเป็น กล่อง Outer 131 และลบบาร์โค้ด",
+        "กล่อง Outer 131 และลบบาร์โค้ด",
+      ],
+    ]) {
+      for (const value of [partName, "Widget"]) {
+        expect(
+          parseJobScanEditProposal({ ...emptyEdit, partName: value }, prompt),
+        ).toEqual({ kind: "UNSUPPORTED" });
+      }
+    }
   });
 });

@@ -141,8 +141,14 @@ describe("job-scan AI search and edit actions", () => {
       "แก้ชื่อสินค้าเป็น กล่อง Outer 131 เฉพาะงานพาเลท",
       "กล่อง Outer 131 เฉพาะงานพาเลท",
     ],
+    ["Set part name to Widget for all records", "Widget for all records"],
+    [
+      "Set part name to Widget and clear the barcode",
+      "Widget and clear the barcode",
+    ],
+    ["Change product name from Old to New", "from Old to New"],
   ])(
-    "returns manual edit when the model copies the condition in %s",
+    "returns manual edit when the model copies an unsupported clause in %s",
     async (prompt, partName) => {
       const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
       transport.mockResolvedValueOnce(
@@ -196,6 +202,30 @@ describe("job-scan AI search and edit actions", () => {
           searchField: "productBarcodeText",
           facets: { floor: 2 },
         },
+      },
+    });
+  });
+
+  it("returns manual search when the model turns a quantity comparison into a name", async () => {
+    const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
+    transport.mockResolvedValueOnce(
+      openRouterOk(
+        JSON.stringify(
+          searchPayload({ search: "Widget with quantity greater than 20" }),
+        ),
+      ),
+    );
+    const result = await world.t
+      .withIdentity(PUBLIC_API_ACTOR)
+      .action(api.finishedGoods.jobScans.interpretJobScanSearch, {
+        warehouseId: world.warehouses.alphaA,
+        prompt: "Find product name Widget with quantity greater than 20",
+      });
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        ok: false,
+        error: { code: "UNSUPPORTED", fallback: "MANUAL_SEARCH" },
       },
     });
   });
