@@ -3205,7 +3205,7 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
-          "name": "explicit Cancel while nested QR camera is open consumes both overlays before the next Back"
+          "name": "closing the nested QR camera and cancelling the picker consumes both overlays before the next Back"
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
@@ -9070,7 +9070,7 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:scanOpen",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "The shared record scanner Dialog owns acquisition; success consumes its entry before applying an exact search, and dismissal invalidates late warehouse lookups.",
+      "expectation": "The shared full-screen record scanner Dialog owns acquisition. Success consumes its entry before applying an exact search, and dismissal invalidates late warehouse lookups.",
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx"
       ],

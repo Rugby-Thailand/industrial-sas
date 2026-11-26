@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { trackAppHistory } from "@/lib/browser/appHistory";
@@ -17,12 +18,20 @@ vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
     onCode,
     disabled,
+    presentation,
+    progress,
   }: {
     onCode: (code: string) => void;
     disabled?: boolean;
+    presentation?: string;
+    progress?: ReactNode;
   }) => (
     <>
-      <button disabled={disabled} onClick={() => onCode("FO12345")}>
+      <button
+        data-presentation={presentation}
+        disabled={disabled}
+        onClick={() => onCode("FO12345")}
+      >
         Read job code
       </button>
       <button
@@ -37,6 +46,7 @@ vi.mock("../BarcodeCameraBox", () => ({
       <button disabled={disabled} onClick={() => onCode("legacy-location-qr")}>
         Read legacy location QR
       </button>
+      {progress}
     </>
   ),
 }));
@@ -73,7 +83,11 @@ function show() {
 it("uses the scanned job code as an exact search and consumes the camera before the next Back", async () => {
   const user = show();
   await user.click(screen.getByRole("button", { name: "Scan to search" }));
-  await user.click(screen.getByRole("button", { name: "Read job code" }));
+  const dialog = screen.getByRole("dialog", { name: "Scan to search" });
+  expect(dialog).toHaveAttribute("data-camera-dialog", "true");
+  const read = within(dialog).getByRole("button", { name: "Read job code" });
+  expect(read).toHaveAttribute("data-presentation", "fullscreen");
+  await user.click(read);
   await waitFor(() =>
     expect(mocks.change).toHaveBeenCalledWith({
       filter: "ALL",

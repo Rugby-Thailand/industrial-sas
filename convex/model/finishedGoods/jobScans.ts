@@ -314,7 +314,7 @@ const SEARCH_LITERAL = new RegExp(
     String.raw`(?:\b(?<english>part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number)|(?:at|in|for|by)\s+(?:storage\s+)?location(?:\s+code)?|(?:storage\s+)?location\s+code|location(?=\s*[:=])|located\s+at)(?:\s*[:=]\s*|\s+)`,
     String.raw`|(?<thai>ชื่อสินค้า|ชื่อชิ้นส่วน|ชื่อลูกค้า|บาร์โค้ด|เลขที่ใบงาน|(?:ใบ)?งาน\s*ที่(?:อยู่\s*(?:ที่|ใน)(?:ตำแหน่ง|จุดจัดเก็บ)|ตำแหน่ง|จุดจัดเก็บ|อยู่)|^ตำแหน่ง)\s*[:=]?\s*)`,
     String.raw`(?:"(?<quoted>[^"]+)"|“(?<thaiQuoted>[^”]+)”|(?<plain>.+?))`,
-    String.raw`(?=$|[.!?]$|[,;]\s*(?:building|floor|format|อาคาร|ชั้น|รูปแบบ)|\s+(?:in|at|on)\s+(?:the\s+)?(?:building|(?:[\w-]+\s+)?floors?)\b|\s*ที่(?:อาคาร|ชั้น)`,
+    String.raw`(?=$|[.!?]$|(?:[,;]\s*|\s+and\s+)(?:building|floors?|format|อาคาร|ชั้น|รูปแบบ)|\s+(?:in|at|on)\s+(?:the\s+)?(?:building|(?:[\w-]+\s+)?floors?)\b|\s*ที่(?:อาคาร|ชั้น)`,
     String.raw`|(?:\s+(?:(?:that|which)\s+(?:(?:are|is|have|has|were|was)\s+)?|and\s+)|\s*(?:ที่|และ|[,;])\s*)(?=${SEARCH_STATUS.source}))`,
   ].join(""),
   "giu",
@@ -645,7 +645,13 @@ export function parseJobScanSearchIntent(
   );
   if (
     statuses.size > 1 ||
-    UNSUPPORTED_SEARCH_OPERATOR.test(instructions.replace(SEARCH_STATUS, " "))
+    UNSUPPORTED_SEARCH_OPERATOR.test(
+      instructions.replace(SEARCH_STATUS, " "),
+    ) ||
+    (literalGroups?.plain !== undefined &&
+      UNSUPPORTED_SEARCH_OPERATOR.test(
+        normalizeForGrounding(literalGroups.plain),
+      ))
   )
     return { kind: "UNSUPPORTED" };
   if (filter !== ([...statuses][0] ?? "ALL")) return { kind: "UNREADABLE" };

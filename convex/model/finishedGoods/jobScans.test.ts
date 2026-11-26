@@ -535,6 +535,11 @@ describe("parseJobScanSearchIntent", () => {
       ["หางานที่ไม่ได้อยู่ชั้น 2", { floor: 2 }],
       ["Find jobs not on floor 2", { floor: 2 }],
       [
+        "Find barcode ABC-123 not on floor 2",
+        { search: "ABC-123 not", floor: 2 },
+      ],
+      ["Find barcode ABC-123 or XYZ-123", { search: "ABC-123 or XYZ-123" }],
+      [
         "Show pallet jobs or unmapped jobs",
         { filter: "UNMAPPED", storageFormat: "PALLET" },
       ],

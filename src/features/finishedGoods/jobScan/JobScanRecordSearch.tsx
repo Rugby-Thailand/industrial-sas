@@ -119,7 +119,7 @@ export function JobScanRecordSearch({
         </div>
       )}
       <Dialog open={scanOpen} onOpenChange={setScanOpen} completionRef={scan}>
-        <DialogContent size="sm" closeLabel={t("cancel")}>
+        <DialogContent size="camera" closeLabel={t("cancel")}>
           <DialogHeader>
             <DialogTitle>{t("recordTools.scanSearch")}</DialogTitle>
             <DialogDescription>{t("recordTools.scanHint")}</DialogDescription>
@@ -250,22 +250,25 @@ function RecordCodeCapture({
   }
 
   return (
-    <div className="space-y-3">
-      <BarcodeCameraBox
-        mode="PACKAGES"
-        onCode={(code) => void receive(code)}
-        closeControl={false}
-        disabled={!active || checking}
-      />
-      {checking && <p role="status">{t("checkingLocation")}</p>}
-      {invalid && (
-        <Notice
-          tone="warning"
-          role="alert"
-          title={t("recordTools.invalidCode")}
-        />
-      )}
-    </div>
+    <BarcodeCameraBox
+      mode="PACKAGES"
+      onCode={(code) => void receive(code)}
+      closeControl={false}
+      presentation="fullscreen"
+      disabled={!active || checking}
+      progress={
+        <>
+          {checking && <p role="status">{t("checkingLocation")}</p>}
+          {invalid && (
+            <Notice
+              tone="warning"
+              role="alert"
+              title={t("recordTools.invalidCode")}
+            />
+          )}
+        </>
+      }
+    />
   );
 }
 

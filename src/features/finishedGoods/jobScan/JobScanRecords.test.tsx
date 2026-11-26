@@ -1509,31 +1509,32 @@ it("nested QR and Photo AI Back flows dismiss in order inside the location picke
     );
     const picker = screen.getByRole("dialog", { name: "Set location" });
     await user.click(within(picker).getByRole("button", { name: "Scan code" }));
-    await within(picker).findByRole("button", {
-      name: "Read barcode photo with AI",
-    });
+    const camera = await screen.findByRole("dialog", { name: "Scan code" });
+    expect(camera).toHaveAttribute("data-camera-dialog", "true");
     await user.click(
-      within(picker).getByRole("button", {
+      within(camera).getByRole("button", {
         name: "Read barcode photo with AI",
       }),
     );
-    await within(picker).findByRole("region", {
+    const ai = await screen.findByRole("dialog", {
       name: "Read a location label",
     });
+    expect(ai).toHaveAttribute("data-camera-dialog", "true");
     act(() => window.history.back());
     await waitFor(() =>
       expect(
-        within(picker).queryByRole("region", { name: "Read a location label" }),
+        screen.queryByRole("dialog", { name: "Read a location label" }),
       ).toBeNull(),
     );
     expect(
-      within(picker).getByRole("button", { name: "Scan test location" }),
+      within(screen.getByRole("dialog", { name: "Scan code" })).getByRole(
+        "button",
+        { name: "Scan test location" },
+      ),
     ).toBeVisible();
     act(() => window.history.back());
     await waitFor(() =>
-      expect(
-        within(picker).queryByRole("button", { name: "Scan test location" }),
-      ).toBeNull(),
+      expect(screen.queryByRole("dialog", { name: "Scan code" })).toBeNull(),
     );
     expect(picker).toBeVisible();
     act(() => window.history.back());
@@ -1554,7 +1555,7 @@ it("nested QR and Photo AI Back flows dismiss in order inside the location picke
   }
 });
 
-it("explicit Cancel while nested QR camera is open consumes both overlays before the next Back", async () => {
+it("closing the nested QR camera and cancelling the picker consumes both overlays before the next Back", async () => {
   window.history.replaceState(
     { appNavigationIndex: 0 },
     "",
@@ -1577,7 +1578,11 @@ it("explicit Cancel while nested QR camera is open consumes both overlays before
     );
     const picker = screen.getByRole("dialog", { name: "Set location" });
     await user.click(within(picker).getByRole("button", { name: "Scan code" }));
-    await within(picker).findByRole("button", { name: "Scan test location" });
+    const camera = await screen.findByRole("dialog", { name: "Scan code" });
+    await user.click(
+      within(camera).getByRole("button", { name: "Close camera" }),
+    );
+    await waitFor(() => expect(camera).not.toBeInTheDocument());
     await user.click(within(picker).getByRole("button", { name: "Cancel" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
@@ -1626,8 +1631,9 @@ it("dirty location registration inside the picker Dialog guards Cancel and Back 
     );
     const picker = screen.getByRole("dialog", { name: "Set location" });
     await user.click(within(picker).getByRole("button", { name: "Scan code" }));
+    const camera = await screen.findByRole("dialog", { name: "Scan code" });
     await user.click(
-      await within(picker).findByRole("button", { name: "Scan test location" }),
+      within(camera).getByRole("button", { name: "Scan test location" }),
     );
     await user.click(
       await within(picker).findByRole("button", { name: "Add location" }),
