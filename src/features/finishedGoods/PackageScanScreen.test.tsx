@@ -551,6 +551,105 @@ it("direct unit package scanning rejects a different first package identity", as
   expect(screen.queryByRole("spinbutton", { name: "Fullness (%)" })).toBeNull();
   expect(mocks.assign).not.toHaveBeenCalled();
 });
+async function addAnotherPackage(code: string, id: string) {
+  mocks.query.mockResolvedValueOnce(
+    querySuccess({ ok: true, unit: { ...unit, id, code } }),
+  );
+  fireEvent.change(screen.getByRole("textbox", { name: "Package code" }), {
+    target: { value: code },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Add package" }));
+  await screen.findByText(new RegExp(`[0-9]\\. ${code}`));
+}
+
+it("reorders scanned packages without another lookup and requires renewed physical confirmation", async () => {
+  show();
+  await add();
+  await addAnotherPackage("P-B", "pallet-b");
+  await addAnotherPackage("P-C", "pallet-c");
+  const queue = screen.getByRole("list");
+  fireEvent.change(
+    within(queue).getAllByRole("spinbutton", { name: "Fullness (%)" })[2]!,
+    { target: { value: "62" } },
+  );
+  await verify();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review storage assignment" }),
+  );
+  let dialog = await screen.findByRole("dialog", {
+    name: "Confirm package storage",
+  });
+  fireEvent.click(within(dialog).getByRole("checkbox"));
+  fireEvent.click(
+    within(dialog).getAllByRole("button", { name: "Back to edit" })[0]!,
+  );
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+  mocks.query.mockClear();
+  fireEvent.click(screen.getByRole("button", { name: "Move P-C up" }));
+  expect(within(queue).getAllByRole("listitem")[1]).toHaveTextContent("2. P-C");
+  expect(
+    within(within(queue).getAllByRole("listitem")[1]!).getByRole("spinbutton"),
+  ).toHaveValue(62);
+  expect(mocks.query).not.toHaveBeenCalled();
+
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review storage assignment" }),
+  );
+  dialog = await screen.findByRole("dialog", {
+    name: "Confirm package storage",
+  });
+  expect(
+    within(dialog).getByRole("button", { name: "Confirm stored" }),
+  ).toBeDisabled();
+  expect(within(dialog).getAllByRole("listitem")[1]).toHaveTextContent(
+    "2. P-C · 62%",
+  );
+  fireEvent.click(within(dialog).getByRole("checkbox"));
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Confirm stored" }),
+  );
+  await waitFor(() =>
+    expect(mocks.assign).toHaveBeenCalledWith(
+      expect.objectContaining({
+        units: [
+          { unitId: "pallet-a", version: 20, fillPercent: 100 },
+          { unitId: "pallet-c", version: 20, fillPercent: 62 },
+          { unitId: "pallet-b", version: 20, fillPercent: 100 },
+        ],
+        physicalConfirmed: true,
+      }),
+    ),
+  );
+});
+
+it("keeps the direct-entry package first when reordering the rest of the queue", async () => {
+  renderWithIntl(
+    <NavigationGuardProvider>
+      <PackageScanScreen unitId="pallet-a" />
+    </NavigationGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  await add();
+  await addAnotherPackage("P-B", "pallet-b");
+  await addAnotherPackage("P-C", "pallet-c");
+  expect(screen.queryByRole("button", { name: "Move P-A down" })).toBeNull();
+  const firstMovable = screen.getByRole("button", { name: "Move P-B up" });
+  expect(firstMovable).toHaveAttribute("aria-disabled", "true");
+  fireEvent.click(firstMovable);
+  expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("1. P-A");
+  const moveDown = screen.getByRole("button", { name: "Move P-B down" });
+  moveDown.focus();
+  fireEvent.click(moveDown);
+  expect(moveDown).toHaveFocus();
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "P-B moved to position 3.",
+  );
+  expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("1. P-A");
+  expect(screen.getAllByRole("listitem")[1]).toHaveTextContent("2. P-C");
+  expect(screen.getAllByRole("listitem")[2]).toHaveTextContent("3. P-B");
+});
+
 it("direct batch package scan Header Back uses its safe batch parent", async () => {
   show();
   mocks.replace.mockClear();

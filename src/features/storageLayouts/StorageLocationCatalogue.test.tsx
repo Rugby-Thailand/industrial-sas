@@ -196,10 +196,19 @@ it("does not retain one actor's view preferences after an actor switch", async (
 });
 it("switches to all locations, opens coordinates and QR, and exposes exact planner links", async () => {
   const { container } = renderPage();
-  fireEvent.click(screen.getByRole("button", { name: "All locations" }));
-  expect(
-    screen.getByRole("table", { name: "All storage locations" }),
-  ).toBeVisible();
+  const buildings = screen.getByRole("button", { name: "Buildings" });
+  const locations = screen.getByRole("button", { name: "All locations" });
+  expect(buildings).toHaveTextContent("Buildings");
+  expect(buildings).toHaveAttribute("aria-pressed", "true");
+  expect(locations).toHaveTextContent("All locations");
+  fireEvent.click(locations);
+  expect(locations).toHaveAttribute("aria-pressed", "true");
+  const results = screen.getByRole("table", { name: "All storage locations" });
+  expect(results).toBeVisible();
+  const firstRow = within(results).getByRole("row", { name: /FG-1/ });
+  expect(within(firstRow).getAllByRole("cell")).toHaveLength(5);
+  expect(within(firstRow).getByText("Main storage")).toBeVisible();
+  expect(within(firstRow).getByText("2 × 2 × 3 m")).toBeVisible();
   expect(screen.getByRole("link", { name: "FG-1" })).toHaveAttribute(
     "href",
     "/master-data/storage-layouts/building-a?floor=4#storage-zone-zone-a",
@@ -220,7 +229,7 @@ it("switches to all locations, opens coordinates and QR, and exposes exact plann
   expect(
     screen.getByRole("columnheader", { name: "Building status" }),
   ).toBeVisible();
-  fireEvent.click(screen.getAllByText(/Sublocations \/ occupancy/)[0]!);
+  fireEvent.click(within(firstRow).getByText(/Sublocations \/ occupancy/));
   await waitFor(() =>
     expect(screen.getByText(/STOCK-1.*90°.*Stored/)).toBeVisible(),
   );
