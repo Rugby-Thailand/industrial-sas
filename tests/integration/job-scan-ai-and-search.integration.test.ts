@@ -204,6 +204,10 @@ describe("job-scan AI search and edit actions", () => {
       "Blue Box and close the record",
     ],
     [
+      "แก้ชื่อสินค้าเป็น กล่อง Outer 131 และปิดใบงาน",
+      "กล่อง Outer 131 และปิดใบงาน",
+    ],
+    [
       "Change product name to Blue Box and finish the selected ticket",
       "Blue Box and finish the selected ticket",
     ],
@@ -429,6 +433,10 @@ describe("job-scan AI search and edit actions", () => {
     ["หาชื่อสินค้า กล่อง ｜ ก็ช่วยลบใบงานนี้", "กล่อง ｜ ก็ช่วยลบใบงานนี้"],
     ["หาชื่อสินค้า กล่อง — ลบใบงานนี้", "กล่อง — ลบใบงานนี้"],
     ["หาชื่อสินค้า กล่อง รวมทั้งลบใบงานนี้", "กล่อง รวมทั้งลบใบงานนี้"],
+    ["หาใบงานที่อยู่ ข้างเสา C12 และปิดใบงาน", "ข้างเสา C12 และปิดใบงาน"],
+    ["Find jobs at F2-L12-1 and F2-L12-3", "F2-L12-1 and F2-L12-3"],
+    ["Find jobs at A1 and A2", "A1"],
+    ["หาใบงานที่ตำแหน่ง A1 และ A2", "A1 และ A2"],
     [
       "หาชื่อสินค้า กล่อง และก็ช่วยย้ายใบงานไป A01",
       "กล่อง และก็ช่วยย้ายใบงานไป A01",
@@ -461,6 +469,8 @@ describe("job-scan AI search and edit actions", () => {
     ["หาใบงานที่อยู่ ข้างเสา C12", "ข้างเสา C12", "location"],
     ["หาใบงานที่อยู่ F2-L12-1", "F2-L12-1", "location"],
     ["Find jobs at F2-L12-1", "F2-L12-1", "location"],
+    ["Find jobs at A1", "A1", "location"],
+    ['Find jobs in "A10"', "A10", "location"],
   ])(
     "accepts the saved-record search %s",
     async (prompt, search, searchField) => {
@@ -1645,14 +1655,18 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
       await ctx.db.patch(ids.prefixFoPalletF2, { partName: search });
       await ctx.db.patch(ids.southPalletF2, { productBarcodeText: search });
       await ctx.db.patch(ids.legacyZoneOnlyPalletF2, { locationText: search });
+      await ctx.db.patch(ids.unmappedBoxShortPrefix, {
+        locationText: search + "0",
+        partName: savedLabel,
+      });
       await ctx.db.patch(ids.unmappedBoxShort, { locationText: savedLabel });
-      await ctx.db.patch(ids.unmappedBoxShortPrefix, { partName: savedLabel });
     });
     await buildIndex(fixture);
     for (const ready of [true, false]) {
       await setReady(world, ready);
       const args = { filter: "ALL" as const, search, pageSize: 1 };
       expect(await listAll(fixture, args)).toEqual([
+        ids.unmappedBoxShortPrefix,
         ids.southPalletF2,
         ids.legacyZoneOnlyPalletF2,
         ids.prefixFoPalletF2,
@@ -1686,6 +1700,23 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
         await listAll(fixture, { ...args, searchField: "productBarcodeText" }),
       ).toEqual([ids.southPalletF2]);
     }
+  });
+
+  it("matches a short location address without barcode or location-prefix collisions", async () => {
+    const fixture = await seedListFixture();
+    const { world, ids } = fixture;
+    await world.t.run(async (ctx) => {
+      await ctx.db.patch(ids.exactFoPalletF2, { locationCode: "A1" });
+      await ctx.db.patch(ids.prefixFoPalletF2, { locationCode: "A10" });
+      await ctx.db.patch(ids.southPalletF2, { productBarcodeText: "A1" });
+    });
+    expect(
+      await listAll(fixture, {
+        filter: "ALL",
+        search: "A1",
+        searchField: "location",
+      }),
+    ).toEqual([ids.exactFoPalletF2]);
   });
 
   it("filters by building, floor, and storageFormat facets across index and bounded fallback", async () => {

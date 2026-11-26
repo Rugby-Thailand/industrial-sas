@@ -471,6 +471,41 @@ describe("parseJobScanSearchIntent", () => {
     }
   });
 
+  it("accounts for every location address without mistaking a status or floor for part of the code", () => {
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, search: "A1", floor: 2, filter: "MAPPED" },
+        "Find mapped jobs at A1 and floor 2",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: {
+        filter: "MAPPED",
+        search: "A1",
+        searchField: "location",
+        facets: { floor: 2 },
+      },
+    });
+    for (const [prompt, firstCode, list] of [
+      [
+        "Find jobs at F2-L12-1 and F2-L12-3",
+        "F2-L12-1",
+        "F2-L12-1 and F2-L12-3",
+      ],
+      ["Find jobs at A1, A2", "A1", "A1, A2"],
+      ["Find jobs at A1/A2", "A1", "A1/A2"],
+      ["Find jobs by location A1/A2", "A1", "A1/A2"],
+      ["Find jobs at location A1 through A4", "A1", "A1 through A4"],
+      ["หาใบงานที่ตำแหน่ง A1 และ A2", "A1", "A1 และ A2"],
+    ]) {
+      for (const search of [firstCode, list]) {
+        expect(parseJobScanSearchIntent({ ...base, search }, prompt)).toEqual({
+          kind: "UNSUPPORTED",
+        });
+      }
+    }
+  });
+
   it("treats negated statuses as unmapped and refuses conflicting statuses", () => {
     for (const prompt of [
       "Find jobs that are not mapped",
@@ -1397,6 +1432,19 @@ describe("parseJobScanEditProposal", () => {
           parseJobScanEditProposal({ ...emptyEdit, partName: value }, prompt),
         ).toEqual({ kind: "UNSUPPORTED" });
       }
+    }
+  });
+
+  it("distinguishes Thai record commands from quoted product names", () => {
+    for (const command of ["ปิดใบงาน", "เปิดใหม่ใบงาน", "ล็อกรายการสแกน"]) {
+      const partName = `กล่อง Outer 131 และ${command}`;
+      const proposal = { ...emptyEdit, partName };
+      expect(
+        parseJobScanEditProposal(proposal, `แก้ชื่อสินค้าเป็น ${partName}`),
+      ).toEqual({ kind: "UNSUPPORTED" });
+      expect(
+        parseJobScanEditProposal(proposal, `แก้ชื่อสินค้าเป็น “${partName}”`),
+      ).toEqual({ kind: "OK", value: { fields: { partName } } });
     }
   });
 });
