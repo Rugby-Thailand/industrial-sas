@@ -162,7 +162,9 @@ test("warehouse scope, ticket filtering and product navigation survive Back and 
   await expect(page).toHaveURL(
     (url) => url.pathname + url.search + url.hash === origin,
   );
-  await page.getByRole("link", { name: "Scan job ticket", exact: true }).click();
+  await page
+    .getByRole("link", { name: "Scan job ticket", exact: true })
+    .click();
   await expect(page).toHaveURL(
     (url) =>
       url.pathname.endsWith("/finished-goods/scan") &&
