@@ -175,6 +175,11 @@ describe("job-scan AI search and edit actions", () => {
       "Change product name to Blue Box plus delete this record",
       "Blue Box plus delete this record",
     ],
+    [
+      "Change product name to Outer 131 – delete this record",
+      "Outer 131 – delete this record",
+    ],
+    ["แก้ชื่อสินค้าเป็น กล่อง ｜ ลบใบงานนี้", "กล่อง ｜ ลบใบงานนี้"],
     ["แก้ชื่อสินค้าเป็น กล่อง รวมทั้งลบใบงานนี้", "กล่อง รวมทั้งลบใบงานนี้"],
     [
       "แก้ชื่อสินค้าเป็น กล่อง แล้วก็ช่วยสร้างใบงานใหม่",
@@ -202,6 +207,23 @@ describe("job-scan AI search and edit actions", () => {
       });
     },
   );
+
+  it("accepts a Thai quantity adjacent to its field name", async () => {
+    const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
+    transport.mockResolvedValueOnce(
+      openRouterOk(JSON.stringify(editPayload({ quantity: 10 }))),
+    );
+    const result = await world.t
+      .withIdentity(PUBLIC_API_ACTOR)
+      .action(api.finishedGoods.jobScans.proposeJobScanEdit, {
+        warehouseId: world.warehouses.alphaA,
+        prompt: "แก้จำนวน๑๐",
+      });
+    expect(result).toMatchObject({
+      ok: true,
+      value: { ok: true, value: { fields: { quantity: 10 } } },
+    });
+  });
 
   it("keeps a barcode and its floor separate in a scoped search proposal", async () => {
     const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
@@ -276,6 +298,11 @@ describe("job-scan AI search and edit actions", () => {
       "Find product name Blue Box plus delete this record",
       "Blue Box plus delete this record",
     ],
+    [
+      "Find product name Outer 131 – delete this record",
+      "Outer 131 – delete this record",
+    ],
+    ["หาชื่อสินค้า กล่อง — ลบใบงานนี้", "กล่อง — ลบใบงานนี้"],
     ["หาชื่อสินค้า กล่อง รวมทั้งลบใบงานนี้", "กล่อง รวมทั้งลบใบงานนี้"],
     [
       "หาชื่อสินค้า กล่อง และก็ช่วยย้ายใบงานไป A01",

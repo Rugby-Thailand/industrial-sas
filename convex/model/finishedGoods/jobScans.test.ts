@@ -1051,6 +1051,7 @@ describe("parseJobScanEditProposal", () => {
         "แก้ชื่อสินค้าเป็น กล่อง Outer 131 รวมทั้งแก้จำนวน ๑๐",
         "กล่อง Outer 131",
       ],
+      ["แก้ชื่อสินค้าเป็น กล่อง Outer 131 — แก้จำนวน๑๐", "กล่อง Outer 131"],
     ] as const) {
       expect(
         parseJobScanEditProposal(
@@ -1068,6 +1069,18 @@ describe("parseJobScanEditProposal", () => {
         "Change product name to Outer 131 and set quantity 10",
       ),
     ).toEqual({ kind: "UNREADABLE" });
+  });
+
+  it("keeps punctuation in a literal name when no second command follows", () => {
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, partName: "Outer 131 – Blue" },
+        "Change product name to Outer 131 – Blue",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { fields: { partName: "Outer 131 – Blue" } },
+    });
   });
 
   it("accepts a compound edit that names a date without an assignment word", () => {

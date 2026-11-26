@@ -313,7 +313,10 @@ const QUOTED_LITERAL = /"([^"\r\n]+)"|“([^”\r\n]+)”/gu;
 // Compound instructions can include a connective without changing the
 // underlying action. Use the same boundary for search and edit operands.
 const EXPLICIT_FOLLOW_UP = String.raw`(?:\s+(?:as\s+well\s+as|in\s+addition(?:\s+to)?|followed\s+by|and\s+also|(?:and\s+)?(?:then|additionally|furthermore))\s+|\s*(?:และ\s*)?(?:รวมทั้ง|รวม(?:ไป)?ถึง|อีกทั้ง|นอกจากนี้|จากนั้น|ต่อด้วย|แล้ว)\s*(?:(?:ก็|จึง|ยัง|ให้)\s*)*)`;
-const RECORD_FOLLOW_UP = String.raw`(?:${EXPLICIT_FOLLOW_UP}|\s+(?:and|plus)\s+(?:(?:also|additionally|then|next)\s+)*|\s*[&+＆]\s*|\s*(?:พร้อมทั้ง|พร้อมกับ|และ)\s*(?:(?:ก็|อีกทั้ง|ยัง|ให้)\s*)*)`;
+// A spaced punctuation mark can separate two instructions. Keep punctuation
+// within codes and literal names when it is not followed by a command.
+const FOLLOW_UP_MARK = String.raw`[\p{Pd}:/|¦·•…→⇒：／｜]`;
+const RECORD_FOLLOW_UP = String.raw`(?:${EXPLICIT_FOLLOW_UP}|\s+(?:and|plus)\s+(?:(?:also|additionally|then|next)\s+)*|\s*[&+＆]\s*|\s+${FOLLOW_UP_MARK}\s*|${FOLLOW_UP_MARK}\s+|\s*(?:พร้อมทั้ง|พร้อมกับ|และ)\s*(?:(?:ก็|อีกทั้ง|ยัง|ให้)\s*)*)`;
 const UNSUPPORTED_RECORD_ACTION = String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก)`;
 const UNSUPPORTED_SEARCH_ACTION = new RegExp(
   String.raw`(?:^|[,;.!?]\s*|${RECORD_FOLLOW_UP})(?:${UNSUPPORTED_RECORD_ACTION}|(?:please\s+)?(?:move|set|change|update|edit|assign|remap|transfer)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ย้าย|แก้(?:ไข)?|เปลี่ยน|ระบุ))`,
@@ -1048,7 +1051,9 @@ function requestedEditValues(
         const label = EDIT_FIELD_NAMES[name].exec(instruction)?.[0];
         return (
           label &&
-          /^(?:\s|[:=]|เป็น|ให้เป็น|\d)/u.test(instruction.slice(label.length))
+          /^(?:\s|[:=]|เป็น|ให้เป็น|[\d๐-๙])/u.test(
+            instruction.slice(label.length),
+          )
         );
       },
     );
