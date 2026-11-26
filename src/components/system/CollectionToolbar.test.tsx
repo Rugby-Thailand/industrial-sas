@@ -28,6 +28,9 @@ describe("shared collection controls", () => {
     expect(screen.getByRole("searchbox")).toHaveValue("A1");
     await user.click(screen.getByRole("button", { name: "Clear search" }));
     expect(screen.getByRole("searchbox")).toHaveValue("");
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+    await user.keyboard("B2");
+    expect(screen.getByRole("searchbox")).toHaveValue("B2");
     expect(submit).not.toHaveBeenCalled();
   });
 
