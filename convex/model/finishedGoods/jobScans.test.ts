@@ -497,7 +497,7 @@ describe("parseJobScanSearchIntent", () => {
       ["Find jobs by location A1/A2", "A1", "A1/A2"],
       ["Find jobs at location A1 through A4", "A1", "A1 through A4"],
       ["หาใบงานที่ตำแหน่ง A1 และ A2", "A1", "A1 และ A2"],
-    ]) {
+    ] as const) {
       for (const search of [firstCode, list]) {
         expect(parseJobScanSearchIntent({ ...base, search }, prompt)).toEqual({
           kind: "UNSUPPORTED",
