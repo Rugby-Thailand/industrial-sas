@@ -1165,10 +1165,15 @@ describe("parseJobScanEditProposal", () => {
     for (const addition of [
       " and set the status to deleted",
       " and set status deleted",
+      " and status: deleted",
+      " and review flag = hold",
+      "— warehouse: different",
       " and change its owner to Alex",
       " — update priority: high",
       " และตั้งสถานะเป็นลบ",
       " และตั้งสถานะลบ",
+      " และสถานะเป็นลบ",
+      " และผู้รับผิดชอบ：สมชาย",
     ]) {
       const partName = "Blue Box" + addition;
       for (const proposed of [partName, "Blue Box"]) {
@@ -1180,6 +1185,27 @@ describe("parseJobScanEditProposal", () => {
         ).toEqual({ kind: "UNSUPPORTED" });
       }
     }
+  });
+
+  it("supports authorized shorthand fields and keeps explicitly quoted text literal", () => {
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, partName: "Blue Box", quantity: 10 },
+        "Change product name to Blue Box and quantity: 10",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { fields: { partName: "Blue Box", quantity: 10 } },
+    });
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, partName: "Blue Box and status: deleted" },
+        'Change product name to "Blue Box and status: deleted"',
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { fields: { partName: "Blue Box and status: deleted" } },
+    });
   });
 
   it("accepts a compound edit that names a date without an assignment word", () => {

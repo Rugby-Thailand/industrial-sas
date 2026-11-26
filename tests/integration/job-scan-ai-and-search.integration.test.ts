@@ -200,10 +200,15 @@ describe("job-scan AI search and edit actions", () => {
       "Blue Box and set the status to deleted",
     ],
     [
+      "Change product name to Blue Box and status: deleted",
+      "Blue Box and status: deleted",
+    ],
+    [
       "Change product name to Blue Box and update its owner: Alex",
       "Blue Box and update its owner: Alex",
     ],
     ["แก้ชื่อสินค้าเป็น กล่อง และตั้งสถานะเป็นลบ", "กล่อง และตั้งสถานะเป็นลบ"],
+    ["แก้ชื่อสินค้าเป็น กล่อง และสถานะเป็นลบ", "กล่อง และสถานะเป็นลบ"],
     [
       "Change product name to Outer 131 / please also delete this record",
       "Outer 131 / please also delete this record",
@@ -384,6 +389,11 @@ describe("job-scan AI search and edit actions", () => {
       "Find product name Outer 131 and make a copy of this record",
       "Outer 131 and make a copy of this record",
     ],
+    [
+      "Find product name Blue Box and status: deleted",
+      "Blue Box and status: deleted",
+    ],
+    ["หาชื่อสินค้า กล่อง และสถานะเป็นลบ", "กล่อง และสถานะเป็นลบ"],
     ["หาชื่อสินค้า กล่อง ｜ ก็ช่วยลบใบงานนี้", "กล่อง ｜ ก็ช่วยลบใบงานนี้"],
     ["หาชื่อสินค้า กล่อง — ลบใบงานนี้", "กล่อง — ลบใบงานนี้"],
     ["หาชื่อสินค้า กล่อง รวมทั้งลบใบงานนี้", "กล่อง รวมทั้งลบใบงานนี้"],

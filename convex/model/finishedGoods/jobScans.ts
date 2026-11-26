@@ -322,6 +322,13 @@ const RECORD_FOLLOW_UP = String.raw`(?:${EXPLICIT_FOLLOW_UP}|\s+(?:and|plus)\s+|
 // sentence breaks. Validate the action that follows, not its politeness.
 const FOLLOW_UP_MODIFIERS = String.raw`(?:(?:and|also|additionally|furthermore|then|next|finally|moreover|subsequently|afterwards|now|please|kindly|(?:can|could|would|will)\s+you|go\s+ahead\s+and|be\s+sure\s+to)\s+|(?:และ|ก็|จึง|ยัง|ให้|กรุณา|โปรด|ช่วย|รบกวน)\s*)*`;
 const QUALIFIED_FOLLOW_UP = String.raw`(?:(?:do\s+not|don['’]t|instead|rather\s+than)\s+|(?:อย่า|ห้าม|ไม่ต้อง|แทนที่จะ)\s*)`;
+const FOLLOW_UP_FIELD = String.raw`[\p{L}][\p{L}\p{M}\p{N}'’_ -]{0,63}`;
+const BARE_FIELD_ASSIGNMENT = String.raw`(?:${FOLLOW_UP_FIELD}\s*[:=：＝]|(?=\p{Script=Thai})${FOLLOW_UP_FIELD}\s*(?:ให้เป็น|เป็น))`;
+const SEARCH_FACET_ASSIGNMENT = String.raw`(?:\b(?:building|floors?|(?:storage\s+)?format)\s*[:=]|(?:อาคาร|ชั้น|รูปแบบ(?:การจัดเก็บ)?|ประเภทการจัดเก็บ)\s*(?:[:=]|ให้เป็น|เป็น))`;
+const UNSUPPORTED_SEARCH_ASSIGNMENT = new RegExp(
+  String.raw`(?:[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?!${SEARCH_FACET_ASSIGNMENT})${BARE_FIELD_ASSIGNMENT}`,
+  "u",
+);
 const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b`,
   String.raw`(?:make|take|generate|save)\s+(?:(?:a|an|another)\s+)?(?:copy|duplicate|backup|printout|snapshot)\b`,
@@ -799,6 +806,8 @@ export function parseJobScanSearchIntent(
     statuses.size > 1 ||
     UNSUPPORTED_SEARCH_ACTION.test(instructions) ||
     UNSUPPORTED_SEARCH_ACTION.test(unquotedText) ||
+    UNSUPPORTED_SEARCH_ASSIGNMENT.test(instructions) ||
+    UNSUPPORTED_SEARCH_ASSIGNMENT.test(unquotedText) ||
     UNSUPPORTED_SEARCH_CRITERIA.some(
       (pattern) =>
         pattern.test(instructions) ||
@@ -809,7 +818,8 @@ export function parseJobScanSearchIntent(
       (name) =>
         AMBIGUOUS_SEARCH_TEXT.test(name) ||
         UNSUPPORTED_SEARCH_OPERATOR.test(name) ||
-        UNSUPPORTED_SEARCH_ACTION.test(name),
+        UNSUPPORTED_SEARCH_ACTION.test(name) ||
+        UNSUPPORTED_SEARCH_ASSIGNMENT.test(name),
     ) ||
     AMBIGUOUS_SEARCH_TEXT.test(unquotedText) ||
     TRAILING_SEARCH_STATUS.test(unquotedText) ||
@@ -1002,7 +1012,7 @@ const EDIT_TYPED_LABELS = EDIT_TYPED_FIELDS.map((field) =>
 const EDIT_ASSIGNMENT = /^(?:\s+(?:to|as)\s+|\s*(?:[:=]|ให้เป็น|เป็น)\s*)/iu;
 // Identify assignments before checking the field allowlist. An unsupported
 // assignment after a valid clause must not become part of its literal value.
-const EXPLICIT_EDIT_ASSIGNMENT = String.raw`(?:${ENGLISH_EDIT_VERB}|${THAI_EDIT_VERB})[\p{L}\p{M}\p{N}'’_ -]{1,64}(?=${EDIT_ASSIGNMENT.source.slice(1)})`;
+const EXPLICIT_EDIT_ASSIGNMENT = String.raw`(?:${ENGLISH_EDIT_VERB}|${THAI_EDIT_VERB})${FOLLOW_UP_FIELD}(?=${EDIT_ASSIGNMENT.source.slice(1)})`;
 const EDIT_CLAUSE_START = [
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=${EDIT_ASSIGNMENT.source.slice(1)})`,
   String.raw`${EDIT_VERB.source.slice(1)}(?:${EDIT_LABELS})(?=\s|[:=]|เป็น|ให้เป็น|[\d๐-๙])`,
@@ -1011,6 +1021,7 @@ const EDIT_CLAUSE_START = [
   String.raw`${ENGLISH_EDIT_VERB}(?:${OWNED_EDIT_FIELD}|the\s+)(?=\S)`,
   String.raw`${ENGLISH_EDIT_VERB}(?:status|state|priority|warehouse|owner)\b|${THAI_EDIT_VERB}(?:สถานะ|คลังสินค้า|ผู้รับผิดชอบ)`,
   EXPLICIT_EDIT_ASSIGNMENT,
+  BARE_FIELD_ASSIGNMENT,
   MOVE_VERB.source.slice(1),
   UNSUPPORTED_RECORD_ACTION,
   QUALIFIED_FOLLOW_UP,
