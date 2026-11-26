@@ -193,6 +193,42 @@ describe("job-scan AI search and edit actions", () => {
     });
   });
 
+  it("refuses a provider response that reverses an explicit status negation", async () => {
+    const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
+    const client = world.t.withIdentity(PUBLIC_API_ACTOR);
+    const args = {
+      warehouseId: world.warehouses.alphaA,
+      prompt: "Find jobs that are not mapped",
+    };
+    transport
+      .mockResolvedValueOnce(
+        openRouterOk(JSON.stringify(searchPayload({ filter: "MAPPED" }))),
+      )
+      .mockResolvedValueOnce(
+        openRouterOk(JSON.stringify(searchPayload({ filter: "UNMAPPED" })), {
+          id: "gen-not-mapped",
+        }),
+      );
+    expect(
+      await client.action(
+        api.finishedGoods.jobScans.interpretJobScanSearch,
+        args,
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: { ok: false, error: { code: "AI_UNREADABLE" } },
+    });
+    expect(
+      await client.action(
+        api.finishedGoods.jobScans.interpretJobScanSearch,
+        args,
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: { ok: true, value: { filter: "UNMAPPED", search: "" } },
+    });
+  });
+
   it("enforces warehouse READ vs MANAGE scoping and tenant isolation before provider calls", async () => {
     const readOnlyWorld = await createPublicApiWorld(MODULES, "SUPERVISOR");
     transport.mockResolvedValueOnce(

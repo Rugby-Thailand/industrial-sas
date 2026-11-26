@@ -424,6 +424,8 @@ describe("parseJobScanSearchIntent", () => {
   it("derives an explicit field from the requested label without letting the provider choose it", () => {
     for (const [prompt, searchField] of [
       ["find tickets at location F2-L12-1", "location"],
+      ["Find jobs by location F2-L12-1", "location"],
+      ["หาใบงานที่ตำแหน่ง F2-L12-1", "location"],
       ["find Job No. F2-L12-1", "factoryOrder"],
       ["find barcode F2-L12-1", "productBarcodeText"],
       ["หาชื่อลูกค้า F2-L12-1", "customer"],
@@ -441,6 +443,55 @@ describe("parseJobScanSearchIntent", () => {
         ),
       ).toEqual({ kind: "UNREADABLE" });
     }
+  });
+
+  it("keeps Thai digits and internal spacing in literal search values", () => {
+    for (const [prompt, search, changed, searchField] of [
+      ["หาบาร์โค้ด FBN-๒", "FBN-๒", "FBN-2", "productBarcodeText"],
+      [
+        "Find records for part name Gear  Box",
+        "Gear  Box",
+        "Gear Box",
+        "partName",
+      ],
+    ] as const) {
+      expect(
+        parseJobScanSearchIntent({ ...base, search: changed }, prompt),
+      ).toEqual({ kind: "UNREADABLE" });
+      expect(parseJobScanSearchIntent({ ...base, search }, prompt)).toEqual({
+        kind: "OK",
+        value: { filter: "ALL", search, searchField },
+      });
+    }
+  });
+
+  it("treats negated statuses as unmapped and refuses conflicting statuses", () => {
+    for (const prompt of [
+      "Find jobs that are not mapped",
+      "Find jobs that aren’t yet assigned",
+      "Show jobs that have not been mapped",
+      "หางานที่ไม่ได้ระบุตำแหน่งแล้ว",
+      "หาใบงานที่ไม่ใช่งานที่ระบุตำแหน่งแล้ว",
+    ]) {
+      expect(
+        parseJobScanSearchIntent({ ...base, filter: "MAPPED" }, prompt),
+      ).toEqual({ kind: "UNREADABLE" });
+      expect(
+        parseJobScanSearchIntent({ ...base, filter: "UNMAPPED" }, prompt),
+      ).toEqual({ kind: "OK", value: { filter: "UNMAPPED", search: "" } });
+    }
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, filter: "MAPPED" },
+        "Find jobs that are not unassigned",
+      ),
+    ).toEqual({ kind: "OK", value: { filter: "MAPPED", search: "" } });
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, filter: "UNMAPPED" },
+        "Find mapped or not mapped jobs",
+      ),
+    ).toEqual({ kind: "UNSUPPORTED" });
   });
 
   it("rejects untrusted, ungrounded, extra-key, ID or truncated responses", () => {
