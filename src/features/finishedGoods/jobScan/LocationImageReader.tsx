@@ -520,6 +520,7 @@ export function LocationImageReader({
           {cameraOpen && photo !== undefined && (
             <LocationPhotoCamera
               ref={photoCamera}
+              stopAfterCapture={false}
               onPhoto={(file) => void select(file)}
               errorAction={deviceCameraAction}
               dock={cameraDock}

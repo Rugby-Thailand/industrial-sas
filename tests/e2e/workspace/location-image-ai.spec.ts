@@ -408,3 +408,41 @@ test("a corrupt JPEG retake preserves the reviewed location and returns focus to
   await expect(retake).toBeFocused();
   expect(await page.evaluate(() => window.locationAiRequests.length)).toBe(1);
 });
+
+test("a failed live retake can be captured again before its stream is released", async ({
+  page,
+}) => {
+  await page.goto(`${url}/?camera=portrait`);
+  await page.getByRole("button", { name: "Photo AI", exact: true }).click();
+  const shutter = page.getByRole("button", {
+    name: "Take location photo",
+    exact: true,
+  });
+  await shutter.click();
+  const code = page.getByRole("textbox", { name: "Review location code" });
+  await expect(code).toHaveValue("F1-L3-11");
+  await page.getByRole("button", { name: "Take another photo" }).click();
+  await page.evaluate(() => {
+    const decode = window.createImageBitmap;
+    window.createImageBitmap = () => {
+      window.createImageBitmap = decode;
+      return Promise.reject(
+        new DOMException("Cannot decode photo", "InvalidStateError"),
+      );
+    };
+  });
+  await shutter.click();
+  await expect(page.getByText(/This image could not be opened/)).toBeVisible();
+  const liveTracks = () =>
+    page.evaluate(
+      () =>
+        window.barcodeFixtureStreams
+          .flatMap((stream) => stream.getTracks())
+          .filter((track) => track.readyState === "live").length,
+    );
+  await expect.poll(liveTracks).toBe(1);
+  await shutter.click();
+  await expect(code).toHaveValue("F1-L3-11");
+  await expect.poll(liveTracks).toBe(0);
+  expect(await page.evaluate(() => window.locationAiRequests.length)).toBe(2);
+});
