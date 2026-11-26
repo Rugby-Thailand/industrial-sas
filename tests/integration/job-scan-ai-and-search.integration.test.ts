@@ -128,28 +128,74 @@ describe("job-scan AI search and edit actions", () => {
     vi.unstubAllEnvs();
   });
 
-  it("returns the manual edit fallback for a conditional change even when the model copies it verbatim", async () => {
-    const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
-    transport.mockResolvedValueOnce(
-      openRouterOk(
-        JSON.stringify(
-          editPayload({
-            partName: "Gear only if the quantity is 40",
-          }),
-        ),
-      ),
-    );
-    const result = await world.t
-      .withIdentity(PUBLIC_API_ACTOR)
-      .action(api.finishedGoods.jobScans.proposeJobScanEdit, {
-        warehouseId: world.warehouses.alphaA,
-        prompt: "Change part name to Gear only if the quantity is 40",
+  it.each([
+    [
+      "Change part name to Gear only if the quantity is 40",
+      "Gear only if the quantity is 40",
+    ],
+    [
+      "Set part name to Widget once this record is mapped",
+      "Widget once this record is mapped",
+    ],
+    [
+      "แก้ชื่อสินค้าเป็น กล่อง Outer 131 เฉพาะงานพาเลท",
+      "กล่อง Outer 131 เฉพาะงานพาเลท",
+    ],
+  ])(
+    "returns manual edit when the model copies the condition in %s",
+    async (prompt, partName) => {
+      const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
+      transport.mockResolvedValueOnce(
+        openRouterOk(JSON.stringify(editPayload({ partName }))),
+      );
+      const result = await world.t
+        .withIdentity(PUBLIC_API_ACTOR)
+        .action(api.finishedGoods.jobScans.proposeJobScanEdit, {
+          warehouseId: world.warehouses.alphaA,
+          prompt,
+        });
+      expect(result).toMatchObject({
+        ok: true,
+        value: {
+          ok: false,
+          error: { code: "UNSUPPORTED", fallback: "MANUAL_EDIT" },
+        },
       });
-    expect(result).toMatchObject({
+    },
+  );
+
+  it("keeps a barcode and its floor separate in a scoped search proposal", async () => {
+    const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
+    const client = world.t.withIdentity(PUBLIC_API_ACTOR);
+    const args = {
+      warehouseId: world.warehouses.alphaA,
+      prompt: "Find barcode ABC-123 from floor 2",
+    };
+    transport
+      .mockResolvedValueOnce(
+        openRouterOk(
+          JSON.stringify(searchPayload({ search: "ABC-123 from floor 2" })),
+        ),
+      )
+      .mockResolvedValueOnce(
+        openRouterOk(
+          JSON.stringify(searchPayload({ search: "ABC-123", floor: 2 })),
+        ),
+      );
+    const action = api.finishedGoods.jobScans.interpretJobScanSearch;
+    await expect(client.action(action, args)).resolves.toMatchObject({
+      ok: true,
+      value: { ok: false, error: { code: "AI_UNREADABLE" } },
+    });
+    await expect(client.action(action, args)).resolves.toMatchObject({
       ok: true,
       value: {
-        ok: false,
-        error: { code: "UNSUPPORTED", fallback: "MANUAL_EDIT" },
+        ok: true,
+        value: {
+          search: "ABC-123",
+          searchField: "productBarcodeText",
+          facets: { floor: 2 },
+        },
       },
     });
   });

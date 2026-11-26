@@ -560,6 +560,36 @@ describe("parseJobScanSearchIntent", () => {
     });
   });
 
+  it.each([
+    ["Find barcode ABC-123 from floor 2", "ABC-123", "ABC-123 from floor 2"],
+    ['Find barcode "ABC 123" from floor 2', "ABC 123", "ABC 123 from floor 2"],
+    ["หาใบงานบาร์โค้ด FBN-๒ จากชั้น 2", "FBN-๒", "FBN-๒ จากชั้น 2"],
+    ["Find barcode ABC-123 floor 2", "ABC-123", "ABC-123 floor 2"],
+  ])(
+    "keeps floor criteria outside the code in %s",
+    (prompt, search, overlong) => {
+      expect(
+        parseJobScanSearchIntent({ ...base, search, floor: 2 }, prompt),
+      ).toEqual({
+        kind: "OK",
+        value: {
+          filter: "ALL",
+          search,
+          searchField: "productBarcodeText",
+          facets: { floor: 2 },
+        },
+      });
+      expect(
+        parseJobScanSearchIntent({ ...base, search: overlong }, prompt),
+      ).not.toMatchObject({ kind: "OK" });
+      expect(
+        parseJobScanSearchIntent({ ...base, search }, prompt),
+      ).not.toMatchObject({
+        kind: "OK",
+      });
+    },
+  );
+
   it("refuses exclusions and alternatives that the records query cannot express", () => {
     for (const [prompt, proposal] of [
       ["หางานที่ไม่ได้อยู่ชั้น 2", { floor: 2 }],
@@ -924,6 +954,15 @@ describe("parseJobScanEditProposal", () => {
         "Change part name to Gear unless it is already packed",
         "Gear unless it is already packed",
       ],
+      [
+        "Set part name to Widget once this record is mapped",
+        "Widget once this record is mapped",
+      ],
+      ["Set part name to Widget only for pallets", "Widget only for pallets"],
+      [
+        "แก้ชื่อสินค้าเป็น กล่อง Outer 131 เฉพาะงานพาเลท",
+        "กล่อง Outer 131 เฉพาะงานพาเลท",
+      ],
       ["แก้ชื่อสินค้าเป็น Gear ถ้าจำนวนเป็น 40", "Gear ถ้าจำนวนเป็น 40"],
     ] as const) {
       expect(
@@ -933,5 +972,38 @@ describe("parseJobScanEditProposal", () => {
         parseJobScanEditProposal({ ...emptyEdit, partName: "Gear" }, prompt),
       ).toEqual({ kind: "UNSUPPORTED" });
     }
+  });
+
+  it("allows a literal code or quoted text containing a conditional word", () => {
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, productBarcodeText: "IF-123" },
+        "Change barcode to IF-123",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { fields: { productBarcodeText: "IF-123" } },
+    });
+    expect(
+      parseJobScanEditProposal(
+        {
+          ...emptyEdit,
+          partName: "After Dark and format to box",
+          quantity: 40,
+        },
+        'Set part name to "After Dark and format to box" and quantity to 40',
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: {
+        fields: { partName: "After Dark and format to box", quantity: 40 },
+      },
+    });
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, partName: "After Dark" },
+        'Set part name to "After Dark" once it is mapped',
+      ),
+    ).toEqual({ kind: "UNSUPPORTED" });
   });
 });
