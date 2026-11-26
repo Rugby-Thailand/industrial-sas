@@ -1043,6 +1043,33 @@ describe("parseJobScanEditProposal", () => {
     });
   });
 
+  it("accepts a compound edit that names a typed quantity without an assignment word", () => {
+    for (const [prompt, partName] of [
+      ["Change product name to Outer 131 and set quantity 10", "Outer 131"],
+      ["Set product name to Outer 131 as well as quantity 10", "Outer 131"],
+      [
+        "แก้ชื่อสินค้าเป็น กล่อง Outer 131 รวมทั้งแก้จำนวน ๑๐",
+        "กล่อง Outer 131",
+      ],
+    ] as const) {
+      expect(
+        parseJobScanEditProposal(
+          { ...emptyEdit, partName, quantity: 10 },
+          prompt,
+        ),
+      ).toEqual({
+        kind: "OK",
+        value: { fields: { partName, quantity: 10 } },
+      });
+    }
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, partName: "Outer 131 and set quantity 10" },
+        "Change product name to Outer 131 and set quantity 10",
+      ),
+    ).toEqual({ kind: "UNREADABLE" });
+  });
+
   it("accepts a compound edit that names a date without an assignment word", () => {
     expect(
       parseJobScanEditProposal(

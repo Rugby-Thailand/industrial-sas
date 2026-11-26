@@ -312,7 +312,8 @@ const THAI_SEARCH_CLAUSE = String.raw`(?:${THAI_SEARCH_FIELD}|อาคาร|�
 const QUOTED_LITERAL = /"([^"\r\n]+)"|“([^”\r\n]+)”/gu;
 // Compound instructions can include a connective without changing the
 // underlying action. Use the same boundary for search and edit operands.
-const RECORD_FOLLOW_UP = String.raw`(?:\s+(?:and|then)\s+(?:(?:also|additionally|then|next)\s+)*|\s*[&+＆]\s*|\s*(?:พร้อมทั้ง|พร้อมกับ|นอกจากนี้|จากนั้น|และ|แล้ว)\s*(?:(?:ก็|อีกทั้ง|ยัง|ให้)\s*)*)`;
+const EXPLICIT_FOLLOW_UP = String.raw`(?:\s+(?:as\s+well\s+as|in\s+addition(?:\s+to)?|followed\s+by|and\s+also|(?:and\s+)?(?:then|additionally|furthermore))\s+|\s*(?:และ\s*)?(?:รวมทั้ง|รวม(?:ไป)?ถึง|อีกทั้ง|นอกจากนี้|จากนั้น|ต่อด้วย|แล้ว)\s*(?:(?:ก็|จึง|ยัง|ให้)\s*)*)`;
+const RECORD_FOLLOW_UP = String.raw`(?:${EXPLICIT_FOLLOW_UP}|\s+(?:and|plus)\s+(?:(?:also|additionally|then|next)\s+)*|\s*[&+＆]\s*|\s*(?:พร้อมทั้ง|พร้อมกับ|และ)\s*(?:(?:ก็|อีกทั้ง|ยัง|ให้)\s*)*)`;
 const UNSUPPORTED_RECORD_ACTION = String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก)`;
 const UNSUPPORTED_SEARCH_ACTION = new RegExp(
   String.raw`(?:^|[,;.!?]\s*|${RECORD_FOLLOW_UP})(?:${UNSUPPORTED_RECORD_ACTION}|(?:please\s+)?(?:move|set|change|update|edit|assign|remap|transfer)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ย้าย|แก้(?:ไข)?|เปลี่ยน|ระบุ))`,
@@ -352,8 +353,10 @@ const UNSUPPORTED_SEARCH_CRITERIA = [
   /(?:ที่มี|โดยมี|โดย|และ)\s*จำนวน|จำนวน\s*(?:[<>≤≥=]|\d)|มากกว่า|น้อยกว่า|อย่างน้อย|ไม่เกิน|ไม่น้อยกว่า|เท่ากับ|ตั้งแต่\s*\d|ก่อนวันที่|หลังวันที่/u,
 ];
 
-const AMBIGUOUS_SEARCH_TEXT =
-  /\S\s+(?:with|where|whose|having|from|then|and (?:also|additionally)|filter(?:ed)? by)\s+\S|[,;\r\n]|(?:ที่มี|ซึ่งมี|โดยมี|นอกจากนี้|จากนั้น|แล้วก็|และก็)\s*\S/u;
+const AMBIGUOUS_SEARCH_TEXT = new RegExp(
+  String.raw`(?:\S\s+(?:with|where|whose|having|from|filter(?:ed)? by)\s+\S|[,;\r\n]|(?:ที่มี|ซึ่งมี|โดยมี|และก็)\s*\S|${EXPLICIT_FOLLOW_UP}(?=\S))`,
+  "u",
+);
 
 const TRAILING_SEARCH_STATUS = new RegExp(
   String.raw`(?<=\S)\s+(?:(?:currently|already|still|yet)\s+)*(?=${SEARCH_STATUS.source})`,
@@ -961,17 +964,20 @@ const MOVE_VERB =
 const EDIT_LABELS = Object.values(EDIT_FIELD_NAMES)
   .map((field) => field.source.slice(1))
   .join("|");
-const EDIT_DATE_LABELS = [
-  EDIT_FIELD_NAMES.deliveryDate,
-  EDIT_FIELD_NAMES.manufacturingDate,
-]
-  .map((field) => field.source.slice(1))
-  .join("|");
+const EDIT_TYPED_FIELDS: readonly EditableField[] = [
+  "deliveryDate",
+  "manufacturingDate",
+  ...EDIT_NUMBER_FIELDS,
+];
+const EDIT_TYPED_LABELS = EDIT_TYPED_FIELDS.map((field) =>
+  EDIT_FIELD_NAMES[field].source.slice(1),
+).join("|");
 const EDIT_ASSIGNMENT = /^(?:\s+(?:to|as)\s+|\s*(?:[:=]|ให้เป็น|เป็น)\s*)/iu;
 const EDIT_CLAUSE_START = [
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=${EDIT_ASSIGNMENT.source.slice(1)})`,
+  String.raw`${EDIT_VERB.source.slice(1)}(?:${EDIT_LABELS})(?=\s|[:=]|เป็น|ให้เป็น|[\d๐-๙])`,
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=\s+from\b|\s*จาก)`,
-  String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_DATE_LABELS})(?=\s*[\d๐-๙]+[/.-])`,
+  String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_TYPED_LABELS})(?=\s*[\d๐-๙])`,
   MOVE_VERB.source.slice(1),
   UNSUPPORTED_RECORD_ACTION,
   String.raw`(?:please\s+)?(?:move|assign|remap|transfer)\s+(?:(?:this|the|all|another)\s+)?(?:records?|scans?|jobs?|tickets?)\b|ย้าย(?:ใบงาน|งาน|รายการ)`,
@@ -981,7 +987,7 @@ const EDIT_CLAUSE_START = [
 // to distinguish a value from an assignment or an unsupported action.
 const EDIT_QUOTED_VALUE = /"([^"\r\n]+)"|“([^”\r\n]+)”/u;
 const EDIT_CLAUSE_BOUNDARY = new RegExp(
-  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|\s+(?:and\s+)?(?:then|additionally)\s+|\s+and\s+also\s+|\s*(?:และ\s*)?(?:แล้ว|จากนั้น|นอกจากนี้)\s*|(?:${RECORD_FOLLOW_UP}|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))(?=${EDIT_CLAUSE_START}))`,
+  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|${EXPLICIT_FOLLOW_UP}|(?:${RECORD_FOLLOW_UP}|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))(?=${EDIT_CLAUSE_START}))`,
   "giu",
 );
 const EDIT_CONDITION =
@@ -1052,12 +1058,7 @@ function requestedEditValues(
     const assignment = EDIT_ASSIGNMENT.exec(operand);
     // Assignment syntax is required for arbitrary text. Date and quantity
     // fields can also use their typed number directly after the field label.
-    const typedNumber =
-      field === "deliveryDate" ||
-      field === "manufacturingDate" ||
-      field === "quantity" ||
-      field === "factoryQuantity" ||
-      field === "customerQuantity";
+    const typedNumber = EDIT_TYPED_FIELDS.includes(field);
     if (!assignment && !(typedNumber && /^\s*[\d๐-๙]/u.test(operand)))
       return null;
     const value = editOperand(

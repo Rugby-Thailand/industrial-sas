@@ -168,6 +168,15 @@ describe("job-scan AI search and edit actions", () => {
       "Blue Box and also create a new job",
     ],
     [
+      "Change product name to Blue Box as well as delete this record",
+      "Blue Box as well as delete this record",
+    ],
+    [
+      "Change product name to Blue Box plus delete this record",
+      "Blue Box plus delete this record",
+    ],
+    ["แก้ชื่อสินค้าเป็น กล่อง รวมทั้งลบใบงานนี้", "กล่อง รวมทั้งลบใบงานนี้"],
+    [
       "แก้ชื่อสินค้าเป็น กล่อง แล้วก็ช่วยสร้างใบงานใหม่",
       "กล่อง แล้วก็ช่วยสร้างใบงานใหม่",
     ],
@@ -259,6 +268,15 @@ describe("job-scan AI search and edit actions", () => {
       "Find product name Blue Box and also move this job to A01",
       "Blue Box and also move this job to A01",
     ],
+    [
+      "Find product name Blue Box as well as delete this record",
+      "Blue Box as well as delete this record",
+    ],
+    [
+      "Find product name Blue Box plus delete this record",
+      "Blue Box plus delete this record",
+    ],
+    ["หาชื่อสินค้า กล่อง รวมทั้งลบใบงานนี้", "กล่อง รวมทั้งลบใบงานนี้"],
     [
       "หาชื่อสินค้า กล่อง และก็ช่วยย้ายใบงานไป A01",
       "กล่อง และก็ช่วยย้ายใบงานไป A01",
