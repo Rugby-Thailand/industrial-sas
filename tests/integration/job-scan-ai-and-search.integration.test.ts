@@ -208,6 +208,11 @@ describe("job-scan AI search and edit actions", () => {
       "กล่อง Outer 131 และปิดใบงาน",
     ],
     [
+      "แก้ชื่อสินค้าเป็น กล่อง Outer 131 และทำการปิดใบงานนี้",
+      "กล่อง Outer 131 และทำการปิดใบงานนี้",
+    ],
+    ["Set part name to Gear and close job", "Gear and close job"],
+    [
       "Change product name to Blue Box and finish the selected ticket",
       "Blue Box and finish the selected ticket",
     ],
@@ -434,9 +439,12 @@ describe("job-scan AI search and edit actions", () => {
     ["หาชื่อสินค้า กล่อง — ลบใบงานนี้", "กล่อง — ลบใบงานนี้"],
     ["หาชื่อสินค้า กล่อง รวมทั้งลบใบงานนี้", "กล่อง รวมทั้งลบใบงานนี้"],
     ["หาใบงานที่อยู่ ข้างเสา C12 และปิดใบงาน", "ข้างเสา C12 และปิดใบงาน"],
+    ["หาใบงานที่อยู่ A1 และทำการปิดใบงานนี้", "A1 และทำการปิดใบงานนี้"],
     ["Find jobs at F2-L12-1 and F2-L12-3", "F2-L12-1 and F2-L12-3"],
     ["Find jobs at A1 and A2", "A1"],
     ["หาใบงานที่ตำแหน่ง A1 และ A2", "A1 และ A2"],
+    ["หาใบงานที่อยู่ A1 กับ A2", "A1 กับ A2"],
+    ["Find jobs at location A1 and location A2", "A1 and location A2"],
     [
       "หาชื่อสินค้า กล่อง และก็ช่วยย้ายใบงานไป A01",
       "กล่อง และก็ช่วยย้ายใบงานไป A01",
@@ -466,11 +474,15 @@ describe("job-scan AI search and edit actions", () => {
 
   it.each([
     ["หาสินค้า Outer 131", "Outer 131", undefined],
+    ["หาสินค้า กล่อง Outer 131", "กล่อง Outer 131", undefined],
+    ["Find jobs for Blue Box", "Blue Box", undefined],
     ["หาใบงานที่อยู่ ข้างเสา C12", "ข้างเสา C12", "location"],
     ["หาใบงานที่อยู่ F2-L12-1", "F2-L12-1", "location"],
     ["Find jobs at F2-L12-1", "F2-L12-1", "location"],
     ["Find jobs at A1", "A1", "location"],
     ['Find jobs in "A10"', "A10", "location"],
+    ['Find jobs at "Dock North"', "Dock North", "location"],
+    ["Find jobs at A-01_02", "A-01_02", "location"],
   ])(
     "accepts the saved-record search %s",
     async (prompt, search, searchField) => {
@@ -1702,22 +1714,25 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
     }
   });
 
-  it("matches a short location address without barcode or location-prefix collisions", async () => {
-    const fixture = await seedListFixture();
-    const { world, ids } = fixture;
-    await world.t.run(async (ctx) => {
-      await ctx.db.patch(ids.exactFoPalletF2, { locationCode: "A1" });
-      await ctx.db.patch(ids.prefixFoPalletF2, { locationCode: "A10" });
-      await ctx.db.patch(ids.southPalletF2, { productBarcodeText: "A1" });
-    });
-    expect(
-      await listAll(fixture, {
-        filter: "ALL",
-        search: "A1",
-        searchField: "location",
-      }),
-    ).toEqual([ids.exactFoPalletF2]);
-  });
+  it.each(["A1", "A-01_02", "A.01"])(
+    "matches location address %s without barcode or location-prefix collisions",
+    async (code) => {
+      const fixture = await seedListFixture();
+      const { world, ids } = fixture;
+      await world.t.run(async (ctx) => {
+        await ctx.db.patch(ids.exactFoPalletF2, { locationCode: code });
+        await ctx.db.patch(ids.prefixFoPalletF2, { locationCode: code + "0" });
+        await ctx.db.patch(ids.southPalletF2, { productBarcodeText: code });
+      });
+      expect(
+        await listAll(fixture, {
+          filter: "ALL",
+          search: code,
+          searchField: "location",
+        }),
+      ).toEqual([ids.exactFoPalletF2]);
+    },
+  );
 
   it("filters by building, floor, and storageFormat facets across index and bounded fallback", async () => {
     const fixture = await seedListFixture();

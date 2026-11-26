@@ -351,6 +351,27 @@ describe("parseJobScanSearchIntent", () => {
     });
   });
 
+  it("keeps an explicitly requested keyword separate from storage format filters", () => {
+    for (const [prompt, search] of [
+      ["หาสินค้า กล่อง Outer 131", "กล่อง Outer 131"],
+      ["ค้นหาสินค้า ลัง เหลือง", "ลัง เหลือง"],
+      ["Find jobs for Blue Box", "Blue Box"],
+    ] as const) {
+      expect(parseJobScanSearchIntent({ ...base, search }, prompt)).toEqual({
+        kind: "OK",
+        value: { filter: "ALL", search },
+      });
+      for (const proposal of [
+        { ...base, search, storageFormat: "BOX" },
+        { ...base, search: search.slice(0, -1) },
+      ]) {
+        expect(parseJobScanSearchIntent(proposal, prompt)).toEqual({
+          kind: "UNREADABLE",
+        });
+      }
+    }
+  });
+
   it("rejects alternative floors and preserves supported compound floor expressions", () => {
     for (const prompt of [
       "boxes on floor 2 or 3",
@@ -496,7 +517,9 @@ describe("parseJobScanSearchIntent", () => {
       ["Find jobs at A1/A2", "A1", "A1/A2"],
       ["Find jobs by location A1/A2", "A1", "A1/A2"],
       ["Find jobs at location A1 through A4", "A1", "A1 through A4"],
+      ["Find jobs at location A1 and location A2", "A1", "A1 and location A2"],
       ["หาใบงานที่ตำแหน่ง A1 และ A2", "A1", "A1 และ A2"],
+      ["หาใบงานที่อยู่ A1 กับ A2", "A1", "A1 กับ A2"],
     ] as const) {
       for (const search of [firstCode, list]) {
         expect(parseJobScanSearchIntent({ ...base, search }, prompt)).toEqual({
@@ -1436,7 +1459,13 @@ describe("parseJobScanEditProposal", () => {
   });
 
   it("distinguishes Thai record commands from quoted product names", () => {
-    for (const command of ["ปิดใบงาน", "เปิดใหม่ใบงาน", "ล็อกรายการสแกน"]) {
+    for (const command of [
+      "ปิดใบงาน",
+      "เปิดใหม่ใบงาน",
+      "ล็อกรายการสแกน",
+      "ทำการปิดใบงานนี้",
+      "ช่วยดำเนินการเพื่อปิดใบงานนี้",
+    ]) {
       const partName = `กล่อง Outer 131 และ${command}`;
       const proposal = { ...emptyEdit, partName };
       expect(

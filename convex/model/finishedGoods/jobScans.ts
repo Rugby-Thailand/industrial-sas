@@ -308,19 +308,21 @@ const SEARCH_STATUS = new RegExp(
 
 // A storage-style code immediately after "at" or "in" is a location value.
 // Leave ordinary names and codes without a location cue in general search.
-const STORAGE_ADDRESS_CODE = String.raw`(?=[a-z\d๐-๙-]*[a-z])(?=[a-z\d๐-๙-]*[\d๐-๙])[a-z\d๐-๙]+(?:-[a-z\d๐-๙]+)*`;
+const STORAGE_ADDRESS_SEGMENT = String.raw`[\p{L}\p{M}\p{N}]+?`;
+const STORAGE_ADDRESS_CODE = String.raw`(?=[\p{L}\p{M}\p{N}_.-]*[\p{N}_-])${STORAGE_ADDRESS_SEGMENT}(?:[_.-]${STORAGE_ADDRESS_SEGMENT})*`;
 const WHOLE_STORAGE_ADDRESS = new RegExp(`^${STORAGE_ADDRESS_CODE}$`, "iu");
-const STORAGE_ADDRESS_TOKEN = String.raw`${STORAGE_ADDRESS_CODE}(?=$|[\s,;.!?&/、+]|และ|หรือ)`;
+const STORAGE_ADDRESS_TOKEN = String.raw`${STORAGE_ADDRESS_CODE}(?=$|[\s,;!?&/、+–—]|\.(?![\p{L}\p{M}\p{N}])|และ|หรือ|กับ|ถึง)`;
 const STARTING_STORAGE_ADDRESS = new RegExp(`^${STORAGE_ADDRESS_TOKEN}`, "iu");
-const IMPLIED_LOCATION_FIELD = String.raw`(?:at|in)(?=\s+(?:${STORAGE_ADDRESS_TOKEN}|"${STORAGE_ADDRESS_CODE}"|“${STORAGE_ADDRESS_CODE}”))`;
+const IMPLIED_LOCATION_FIELD = String.raw`(?:at|in)(?=\s+(?:${STORAGE_ADDRESS_TOKEN}|["“]))`;
 const MULTIPLE_STORAGE_ADDRESSES = new RegExp(
-  String.raw`^${STORAGE_ADDRESS_CODE}(?:\s+(?:and|or|plus|to|through)\s+|\s*(?:และ|หรือ|ถึง|[&,;、/+–—])\s*)${STORAGE_ADDRESS_TOKEN}`,
+  String.raw`^${STORAGE_ADDRESS_CODE}(?:\s+(?:and|or|plus|to|through)\s+|\s*(?:และ|หรือ|พร้อมกับ|กับ|ถึง|[&,;、/+–—])\s*)(?:(?:storage\s+)?location(?:\s+code)?\s+|(?:ตำแหน่ง|จุดจัดเก็บ)\s*)?${STORAGE_ADDRESS_TOKEN}`,
   "iu",
 );
-const ENGLISH_SEARCH_FIELD = String.raw`\b(?:part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number)|(?:at|in|for|by)\s+(?:storage\s+)?location(?:\s+code)?|(?:storage\s+)?location\s+code|location(?=\s*[:=])|located\s+at|${IMPLIED_LOCATION_FIELD})`;
+const ENGLISH_SEARCH_FIELD = String.raw`\b(?:part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number)|(?:at|in|for|by)\s+(?:storage\s+)?location(?:\s+code)?|(?:storage\s+)?location\s+code|location(?=\s*(?:[:=]|\s+(?:${STORAGE_ADDRESS_TOKEN}|["“])))|located\s+at|${IMPLIED_LOCATION_FIELD})`;
 const THAI_SEARCH_FIELD = String.raw`(?:ชื่อสินค้า|ชื่อชิ้นส่วน|ชื่อลูกค้า|บาร์โค้ด|เลขที่ใบงาน|(?:ใบ)?งาน\s*ที่(?:อยู่\s*(?:ที่|ใน)(?:ตำแหน่ง|จุดจัดเก็บ)|ตำแหน่ง|จุดจัดเก็บ|อยู่)|^ตำแหน่ง)`;
 const ENGLISH_SEARCH_CLAUSE = String.raw`(?:${ENGLISH_SEARCH_FIELD}|\b(?:building|floors?|(?:storage\s+)?format|(?:factory\s+|customer\s+)?(?:quantity|qty|count)|(?:delivery|manufacturing|production)\s+date)\b)`;
 const THAI_SEARCH_CLAUSE = String.raw`(?:${THAI_SEARCH_FIELD}|อาคาร|ชั้น|รูปแบบ|ประเภทการจัดเก็บ|จำนวน|วันที่ส่ง|วันส่ง|วันที่ผลิต|วันผลิต)`;
+const KEYWORD_SEARCH_PREFIX = String.raw`^(?:(?:ค้นหา|หา)\s*สินค้า\s*|(?:find|show|search)\s+(?:(?:saved|scanned)\s+)?(?:jobs?|records?|tickets?|scans?)\s+for\s+)(?!${ENGLISH_SEARCH_CLAUSE}|${THAI_SEARCH_CLAUSE})`;
 const QUOTED_LITERAL = /"([^"\r\n]+)"|“([^”\r\n]+)”/gu;
 // Compound instructions can include a connective without changing the
 // underlying action. Use the same boundary for search and edit operands.
@@ -333,7 +335,7 @@ const WITH_FOLLOW_UP = String.raw`(?:(?:along|together)\s+)?with`;
 const RECORD_FOLLOW_UP = String.raw`(?:${EXPLICIT_FOLLOW_UP}|\s+(?:and|plus)\s+|\s*[&+＆]\s*|\s*${COMPACT_FOLLOW_UP_MARK}\s*|\s+${FOLLOW_UP_MARK}\s*|${FOLLOW_UP_MARK}\s+|\s*(?:พร้อมทั้ง|พร้อมกับ|และ)\s*)`;
 // Apply the same optional lead-in after punctuation, conjunctions, and
 // sentence breaks. Validate the action that follows, not its politeness.
-const FOLLOW_UP_MODIFIERS = String.raw`(?:(?:and|also|additionally|furthermore|then|next|finally|moreover|subsequently|afterwards|now|please|kindly|(?:can|could|would|will)\s+you|go\s+ahead\s+and|be\s+sure\s+to)\s+|(?:และ|ก็|จึง|ยัง|ให้|กรุณา|โปรด|ช่วย|รบกวน)\s*)*`;
+const FOLLOW_UP_MODIFIERS = String.raw`(?:(?:and|also|additionally|furthermore|then|next|finally|moreover|subsequently|afterwards|now|please|kindly|(?:can|could|would|will)\s+you|(?:go\s+ahead|proceed)\s+(?:and|to)|be\s+sure\s+to)\s+|(?:และ|ก็|จึง|ยัง|ให้|กรุณา|โปรด|ช่วย|รบกวน|ขอให้|ทำการ|ดำเนินการ(?:เพื่อ)?)\s*)*`;
 const QUALIFIED_FOLLOW_UP = String.raw`(?:(?:do\s+not|don['’]t|instead|rather\s+than)\s+|(?:อย่า|ห้าม|ไม่ต้อง|แทนที่จะ)\s*)`;
 const FOLLOW_UP_FIELD = String.raw`[\p{L}](?:(?!\s+(?:${WITH_FOLLOW_UP}|and|plus|or|then|as\s+well\s+as)\b|และ|แล้ว|รวมทั้ง|จากนั้น|พร้อมกับ|พร้อมทั้ง)[\p{L}\p{M}\p{N}'’_ -]){0,63}`;
 const WORD_FIELD_ASSIGNMENT = String.raw`\s+(?:to|as|is|are|was|were|becomes?|equals?|should\s+be|must\s+be|needs?\s+to\s+be)\b`;
@@ -349,7 +351,7 @@ const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:make|take|generate|save)\s+(?:(?:a|an|another)\s+)?(?:copy|duplicate|backup|printout|snapshot)\b`,
   String.raw`(?:mark|flag|tag|classify)\s+(?:it|them|this|that|the|as|records?|tickets?|jobs?|scans?)\b`,
   String.raw`(?:mark|flag|tag)\s+(?:for|deleted|void(?:ed)?|archived|cancelled|canceled|closed|complete(?:d)?|done|inactive|active|pending|on\s+hold|ready|approved|rejected|mapped|unmapped)\b`,
-  String.raw`(?:close|reopen|finish|lock|unlock|activate|deactivate|complete|finalize)\s+(?:it|them)\b`,
+  String.raw`(?:close|open|reopen|finish|lock|unlock|activate|deactivate|complete|finalize|reject|resolve|suspend|resume)\s+(?:it|them|(?:an?\s+|the\s+|this\s+|those\s+)?(?:(?:current|selected|scanned|saved)\s+)*(?:records?|tickets?|jobs?|scans?))\b`,
   String.raw`(?:[\p{L}’'-]+\s+){1,6}(?:the|this|that|these|those|another)\s+(?:(?:saved|scanned|current|selected|open|closed)\s+)*(?:records?|tickets?|jobs?|scans?)\b`,
   String.raw`(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก|ทำสำเนา|ถ่ายสำเนา)`,
   String.raw`(?:ปิด|เปิด(?:ใหม่)?|ล็อก|ปลดล็อก|ระงับ|พัก|จบ|สิ้นสุด|ส่งกลับ|คืนค่า|กู้คืน|รับรอง|ปฏิเสธ)\s*(?:(?:ใบ)?งาน|รายการ(?:สแกน)?|การสแกน|ตั๋ว)`,
@@ -372,7 +374,7 @@ const SEARCH_LITERAL = new RegExp(
   [
     String.raw`"[^"]+"|“[^”]+”|`,
     String.raw`(?:(?<english>${ENGLISH_SEARCH_FIELD})(?:\s*[:=]\s*|\s+)`,
-    String.raw`|(?<thai>${THAI_SEARCH_FIELD})\s*[:=]?\s*)`,
+    String.raw`|(?<thai>${THAI_SEARCH_FIELD})\s*[:=]?\s*|(?<keyword>${KEYWORD_SEARCH_PREFIX}))`,
     String.raw`(?:"(?<quoted>[^"]+)"|“(?<thaiQuoted>[^”]+)”|(?<plain>[^"“].*?)`,
     String.raw`(?=$|[.!?]$|[,;\r\n]|\s+(?:(?:and|with)\s+)?(?=${ENGLISH_SEARCH_CLAUSE})|\s*(?:และ|โดยมี|ที่มี)\s*(?=${THAI_SEARCH_CLAUSE})|\s+(?:in|at|on|from|within)\s+(?:the\s+)?(?:building|(?:[\w-]+\s+)?floors?)\b|\s*(?:ที่|จาก)(?:อาคาร|ชั้น)`,
     String.raw`|(?:\s+(?:(?:that|which)\s+(?:(?:are|is|have|has|were|was|remain|stay)\s+)?|and\s+)?|\s*(?:ที่|และ|[,;])\s*)(?:(?:currently|already|still|yet)\s+)*(?=${SEARCH_STATUS.source})))`,
@@ -569,7 +571,7 @@ export const JOB_SCAN_SEARCH_PROMPT = [
   "All criteria are combined with AND. Alternatives, exclusions, comparisons, quantity and date filters are unsupported. Never treat an unsupported clause as part of a name or code. Any recognizable job number must be returned in full, including when combined with a status. Unquoted codes are single tokens. Treat explicitly quoted names as literals.",
   "When combining free text with structured filters, require a named field, a quoted value, or a recognizable job number. A filter or relation must never be returned as free text.",
   "For 'Find jobs at A1', copy only 'A1' as the search value. Multiple locations in one request are unsupported.",
-  "For 'หาสินค้า Outer 131', copy 'Outer 131' as the search value. For 'หาใบงานที่อยู่ ข้างเสา C12', copy the entire saved location label 'ข้างเสา C12' as the search value.",
+  "For 'หาสินค้า กล่อง Outer 131' or 'Find jobs for Blue Box', copy the whole keyword as the search value; a format word inside the keyword is not a storageFormat filter. For 'หาใบงานที่อยู่ ข้างเสา C12', copy the entire saved location label 'ข้างเสา C12' as the search value.",
   "- filter: 'UNMAPPED' for unmapped, not mapped, unassigned, needs location, awaiting location, ยังไม่ระบุตำแหน่ง, รอระบุตำแหน่ง, ยังไม่จัดเก็บ, or ไม่มีตำแหน่ง. 'MAPPED' for mapped, assigned, stored, location set, ระบุตำแหน่งแล้ว, จัดเก็บแล้ว, or มีตำแหน่ง. Otherwise 'ALL'.",
   "- search: the specific code or text to match (factory order like FO69070073, barcode like FBN-..., part name, customer name, or location code), copied verbatim from `prompt`, or '' if filtering only by status/facets. When a field is named, copy only its literal value. Never include field labels, filler words, or words already captured in filter/building/floor/storageFormat.",
   "- building: building name or code copied verbatim from `prompt` (e.g. 'Building A', 'อาคารเหนือ', 'FG1'), or null. Never guess a building.",
@@ -773,7 +775,7 @@ export function parseJobScanSearchIntent(
   const filter = raw.filter as JobScanFilter;
   const source = prompt.trim();
   const literals = [...source.matchAll(SEARCH_LITERAL)].filter(
-    ({ groups }) => groups?.english || groups?.thai,
+    ({ groups }) => groups?.english || groups?.thai || groups?.keyword,
   );
   if (literals.length > 1) return { kind: "UNSUPPORTED" };
   const literal = literals[0];
@@ -812,7 +814,12 @@ export function parseJobScanSearchIntent(
   const jobCodes = factoryOrderTokens(criteriaSource);
   if (jobCodes.size > 1 || ((literal || quotedSearch) && jobCodes.size))
     return { kind: "UNSUPPORTED" };
-  const implicitJobCode = [...jobCodes][0];
+  const keywordIsJobCode =
+    literalGroups?.keyword &&
+    literalValue &&
+    isSavedFactoryOrderCode(literalValue);
+  const implicitJobCode =
+    [...jobCodes][0] ?? (keywordIsJobCode ? literalValue : undefined);
   const searchField =
     explicitField ?? (implicitJobCode ? "factoryOrder" : undefined);
   const instructions = normalizeForGrounding(criteriaSource);
@@ -929,7 +936,7 @@ export function parseJobScanSearchIntent(
   if (
     search &&
     !searchField &&
-    quotedSearch === undefined &&
+    explicitValue === undefined &&
     (filter !== "ALL" || Object.keys(facets).length)
   )
     return { kind: "UNSUPPORTED" };
