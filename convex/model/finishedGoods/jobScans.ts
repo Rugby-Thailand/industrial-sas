@@ -312,14 +312,18 @@ const THAI_SEARCH_CLAUSE = String.raw`(?:${THAI_SEARCH_FIELD}|อาคาร|�
 const QUOTED_LITERAL = /"([^"\r\n]+)"|“([^”\r\n]+)”/gu;
 // Compound instructions can include a connective without changing the
 // underlying action. Use the same boundary for search and edit operands.
-const EXPLICIT_FOLLOW_UP = String.raw`(?:\s+(?:as\s+well\s+as|in\s+addition(?:\s+to)?|followed\s+by|and\s+also|(?:and\s+)?(?:then|additionally|furthermore))\s+|\s*(?:และ\s*)?(?:รวมทั้ง|รวม(?:ไป)?ถึง|อีกทั้ง|นอกจากนี้|จากนั้น|ต่อด้วย|แล้ว)\s*(?:(?:ก็|จึง|ยัง|ให้)\s*)*)`;
+const EXPLICIT_FOLLOW_UP = String.raw`(?:\s+(?:as\s+well\s+as|in\s+addition(?:\s+to)?|followed\s+by|and\s+also|(?:and\s+)?(?:then|additionally|furthermore))\s+|\s*(?:และ\s*)?(?:รวมทั้ง|รวม(?:ไป)?ถึง|อีกทั้ง|นอกจากนี้|จากนั้น|ต่อด้วย|แล้ว)\s*)`;
 // A spaced punctuation mark can separate two instructions. Keep punctuation
 // within codes and literal names when it is not followed by a command.
 const FOLLOW_UP_MARK = String.raw`[\p{Pd}:/|¦·•…→⇒：／｜]`;
-const RECORD_FOLLOW_UP = String.raw`(?:${EXPLICIT_FOLLOW_UP}|\s+(?:and|plus)\s+(?:(?:also|additionally|then|next)\s+)*|\s*[&+＆]\s*|\s+${FOLLOW_UP_MARK}\s*|${FOLLOW_UP_MARK}\s+|\s*(?:พร้อมทั้ง|พร้อมกับ|และ)\s*(?:(?:ก็|อีกทั้ง|ยัง|ให้)\s*)*)`;
+const RECORD_FOLLOW_UP = String.raw`(?:${EXPLICIT_FOLLOW_UP}|\s+(?:and|plus)\s+|\s*[&+＆]\s*|\s+${FOLLOW_UP_MARK}\s*|${FOLLOW_UP_MARK}\s+|\s*(?:พร้อมทั้ง|พร้อมกับ|และ)\s*)`;
+// Apply the same optional lead-in after punctuation, conjunctions, and
+// sentence breaks. Validate the action that follows, not its politeness.
+const FOLLOW_UP_MODIFIERS = String.raw`(?:(?:also|additionally|furthermore|then|next|finally|moreover|subsequently|afterwards|now|please|kindly|(?:can|could|would|will)\s+you|go\s+ahead\s+and|be\s+sure\s+to)\s+|(?:ก็|จึง|ยัง|ให้|กรุณา|โปรด|ช่วย|รบกวน)\s*)*`;
+const QUALIFIED_FOLLOW_UP = String.raw`(?:(?:do\s+not|don['’]t|instead|rather\s+than)\s+|(?:อย่า|ห้าม|ไม่ต้อง|แทนที่จะ)\s*)`;
 const UNSUPPORTED_RECORD_ACTION = String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก)`;
 const UNSUPPORTED_SEARCH_ACTION = new RegExp(
-  String.raw`(?:^|[,;.!?]\s*|${RECORD_FOLLOW_UP})(?:${UNSUPPORTED_RECORD_ACTION}|(?:please\s+)?(?:move|set|change|update|edit|assign|remap|transfer)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ย้าย|แก้(?:ไข)?|เปลี่ยน|ระบุ))`,
+  String.raw`(?:^|[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?:${QUALIFIED_FOLLOW_UP})?(?:${UNSUPPORTED_RECORD_ACTION}|(?:move|set|change|update|edit|assign|remap|transfer)\b|ย้าย|แก้(?:ไข)?|เปลี่ยน|ระบุ)`,
   "u",
 );
 
@@ -983,6 +987,7 @@ const EDIT_CLAUSE_START = [
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_TYPED_LABELS})(?=\s*[\d๐-๙])`,
   MOVE_VERB.source.slice(1),
   UNSUPPORTED_RECORD_ACTION,
+  QUALIFIED_FOLLOW_UP,
   String.raw`(?:please\s+)?(?:move|assign|remap|transfer)\s+(?:(?:this|the|all|another)\s+)?(?:records?|scans?|jobs?|tickets?)\b|ย้าย(?:ใบงาน|งาน|รายการ)`,
 ].join("|");
 // Unquoted sentence breaks, semicolons, and explicit sequencing words start another
@@ -990,7 +995,7 @@ const EDIT_CLAUSE_START = [
 // to distinguish a value from an assignment or an unsupported action.
 const EDIT_QUOTED_VALUE = /"([^"\r\n]+)"|“([^”\r\n]+)”/u;
 const EDIT_CLAUSE_BOUNDARY = new RegExp(
-  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|${EXPLICIT_FOLLOW_UP}|(?:${RECORD_FOLLOW_UP}|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))(?=${EDIT_CLAUSE_START}))`,
+  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>(?:\s*(?:[;；]|\r?\n)\s*|[.!?。！？]\s+(?=\S)|${EXPLICIT_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}|(?:${RECORD_FOLLOW_UP}|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:กรุณา|โปรด|ช่วย|เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))${FOLLOW_UP_MODIFIERS}(?=${EDIT_CLAUSE_START}))`,
   "giu",
 );
 const EDIT_CONDITION =
