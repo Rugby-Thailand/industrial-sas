@@ -55,9 +55,9 @@ type WorkspaceProduct = {
 };
 ```
 
-### `getCustomerWorkspace({ customerId: string, warehouseId?: Id<"warehouses"> })`
+### `getCustomerWorkspace({ customerId: string, warehouseId?: string, includeOverview?: boolean })`
 
-This query returns the shell and the overview. Omit `warehouseId` to mean "all permitted warehouses".
+This query returns the shell and the overview. Other sections pass `includeOverview: false` to skip job, stock and review rollups. A malformed warehouse URL value returns an unavailable scope. Omit `warehouseId` to mean "all permitted warehouses".
 
 ```ts
 null | {

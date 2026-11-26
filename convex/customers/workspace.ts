@@ -199,6 +199,24 @@ async function proposedForCustomer(
   return unmatched;
 }
 
+async function activityInWarehouse(
+  ctx: TenantFunctionContext,
+  customerId: Id<"customers">,
+  warehouse: Doc<"warehouses">,
+) {
+  const row = await ctx.tenantDb
+    .byIndex<Doc<"customerWarehouseActivity">>(
+      "customerWarehouseActivity",
+      "by_orgId_customerId_warehouseId",
+      [
+        { field: "customerId", value: customerId },
+        { field: "warehouseId", value: warehouse._id },
+      ],
+    )
+    .unique();
+  return row ? { row, warehouse } : null;
+}
+
 async function customerWarehouses(
   ctx: TenantFunctionContext,
   customerId: Id<"customers">,
@@ -211,6 +229,25 @@ async function customerWarehouses(
       [{ field: "customerId", value: customerId }],
     )
     .take(MAX_CUSTOMER_WAREHOUSES + 1);
+  // Hidden warehouses can fill the preview. For a small complete scope,
+  // exact indexed reads recover every visible entry without scanning past it.
+  if (
+    rows.length > MAX_CUSTOMER_WAREHOUSES &&
+    allowed.complete &&
+    allowed.warehouses.length <= MAX_CUSTOMER_WAREHOUSES
+  ) {
+    const visible = await Promise.all(
+      allowed.warehouses.map((warehouse) =>
+        activityInWarehouse(ctx, customerId, warehouse),
+      ),
+    );
+    return {
+      entries: visible
+        .filter((entry) => entry !== null)
+        .sort((a, b) => a.warehouse.name.localeCompare(b.warehouse.name)),
+      complete: true,
+    };
+  }
   const visible = await Promise.all(
     rows.slice(0, MAX_CUSTOMER_WAREHOUSES).map(async (row) => {
       const listed = allowed.byId.get(row.warehouseId);
@@ -240,7 +277,8 @@ export const getCustomerWorkspace = queryWithOrg({
   ...readCustomers,
   args: {
     customerId: v.string(),
-    warehouseId: v.optional(v.id("warehouses")),
+    warehouseId: v.optional(v.string()),
+    includeOverview: v.optional(v.boolean()),
   },
   returns: v.union(
     v.null(),
@@ -278,7 +316,7 @@ export const getCustomerWorkspace = queryWithOrg({
       latestJobs: v.array(workspaceJob),
     }),
   ),
-  handler: async (ctx, { customerId, warehouseId }) => {
+  handler: async (ctx, { customerId, warehouseId, includeOverview = true }) => {
     const customer = await ctx.tenantDb.get<Doc<"customers">>(
       "customers",
       customerId,
@@ -311,28 +349,59 @@ export const getCustomerWorkspace = queryWithOrg({
       customer._id,
       allowed,
     );
+    let selected = entries.find(
+      ({ warehouse }) => warehouse._id === warehouseId,
+    );
+    let selectedWarehouse = selected?.warehouse;
+    if (warehouseId !== undefined && !selectedWarehouse) {
+      selectedWarehouse = allowed.warehouses.find(
+        (warehouse) => warehouse._id === warehouseId,
+      );
+      if (!selectedWarehouse && !allowed.complete) {
+        const candidate = await ctx.tenantDb.get<Doc<"warehouses">>(
+          "warehouses",
+          warehouseId,
+        );
+        if (candidate && (await canAccessWarehouse(ctx, candidate._id)))
+          selectedWarehouse = candidate;
+      }
+      if (selectedWarehouse && !complete) {
+        selected =
+          (await activityInWarehouse(ctx, customer._id, selectedWarehouse)) ??
+          undefined;
+      }
+    }
     const warehouses = entries.map(({ warehouse }) => ({
       warehouseId: warehouse._id,
       code: warehouse.code,
       name: warehouse.name,
     }));
-    const scopeAvailable =
-      warehouseId === undefined ||
-      allowed.byId.has(warehouseId) ||
-      (!allowed.complete && (await canAccessWarehouse(ctx, warehouseId)));
-    if (!scopeAvailable) {
-      return {
-        access,
-        warehouses,
-        warehousesComplete: complete,
-        scopeAvailable,
-        latestJobs: [],
-      };
+    // A directly linked scope may be outside the selector window or have
+    // no activity. Keep its name available while that scope is selected.
+    if (
+      selectedWarehouse &&
+      !warehouses.some((w) => w.warehouseId === selectedWarehouse._id)
+    ) {
+      warehouses.push({
+        warehouseId: selectedWarehouse._id,
+        code: selectedWarehouse.code,
+        name: selectedWarehouse.name,
+      });
+      warehouses.sort((a, b) => a.name.localeCompare(b.name));
     }
-    const scoped = entries.filter(
-      ({ warehouse }) =>
-        warehouseId === undefined || warehouse._id === warehouseId,
-    );
+    const scopeAvailable =
+      warehouseId === undefined || selectedWarehouse !== undefined;
+    const shell = {
+      access,
+      warehouses,
+      warehousesComplete: complete,
+      scopeAvailable,
+    };
+    if (!scopeAvailable || !includeOverview)
+      return { ...shell, latestJobs: [] };
+
+    const scoped =
+      warehouseId === undefined ? entries : selected ? [selected] : [];
     const scopeComplete = warehouseId !== undefined || complete;
 
     const linkedJobs = await countRanges(
@@ -353,7 +422,12 @@ export const getCustomerWorkspace = queryWithOrg({
     );
 
     let stored = 0;
-    let storedComplete = scopeComplete;
+    const linkedProductCount = scoped.reduce(
+      (sum, { row }) => sum + row.linkedProductCount,
+      0,
+    );
+    let storedComplete =
+      scopeComplete && linkedProductCount <= STOCK_PRODUCTS_CAP;
     let productBudget = STOCK_PRODUCTS_CAP;
     for (const { warehouse, row } of scoped) {
       if (row.linkedProductCount === 0) continue;
@@ -386,6 +460,9 @@ export const getCustomerWorkspace = queryWithOrg({
       const { scans, hasMore } = await readPendingScansSummary(
         ctx,
         PENDING_REVIEW_SCAN_BUDGET,
+        selectedWarehouse
+          ? { ...allowed, warehouses: [selectedWarehouse], complete: true }
+          : allowed,
       );
       const exactCache = new Map<string, Promise<boolean>>();
       const names = new Set<string>();
@@ -431,21 +508,18 @@ export const getCustomerWorkspace = queryWithOrg({
       .slice(0, LATEST_JOBS);
 
     return {
-      access,
-      warehouses,
-      warehousesComplete: complete,
-      scopeAvailable,
+      ...shell,
       rollup: {
-        linkedJobs,
-        linkedProducts: {
-          count: scoped.reduce(
-            (sum, { row }) => sum + row.linkedProductCount,
-            0,
-          ),
-          complete: scopeComplete,
+        linkedJobs: {
+          ...linkedJobs,
+          complete: scopeComplete && linkedJobs.complete,
         },
+        linkedProducts: { count: linkedProductCount, complete: scopeComplete },
         storedPallets: { count: stored, complete: storedComplete },
-        unmappedJobs,
+        unmappedJobs: {
+          ...unmappedJobs,
+          complete: scopeComplete && unmappedJobs.complete,
+        },
         ...(pendingReview === undefined ? {} : { pendingReview }),
       },
       latestJobs,

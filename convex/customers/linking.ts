@@ -255,8 +255,9 @@ function collectReviewScans(
 export async function readPendingScansSummary(
   ctx: TenantFunctionContext,
   budget: number,
+  scope?: Awaited<ReturnType<typeof allowedCustomerWarehouses>>,
 ) {
-  const allowed = await allowedCustomerWarehouses(ctx);
+  const allowed = scope ?? (await allowedCustomerWarehouses(ctx));
   const scans: Doc<"finishedGoodsJobScans">[] = [];
   if (!allowed.hasWarehouseRead) return { allowed, scans, hasMore: false };
 
