@@ -219,7 +219,7 @@ describe("parseJobScanSearchIntent", () => {
       kind: "UNREADABLE",
     });
     expect(parseJobScanSearchIntent(base, "find pallets on floor 2")).toEqual({
-      kind: "UNSUPPORTED",
+      kind: "UNREADABLE",
     });
     expect(parseJobScanSearchIntent(base, "Show all records")).toEqual({
       kind: "OK",
@@ -240,6 +240,69 @@ describe("parseJobScanSearchIntent", () => {
         "Find boxwood gasket",
       ),
     ).toEqual({ kind: "UNREADABLE" });
+  });
+
+  it("requires the entire set of explicit building, floor, and storage filters", () => {
+    const prompt = "find mapped pallet jobs at building A, floor 2";
+    const complete = {
+      ...base,
+      filter: "MAPPED",
+      building: "A",
+      floor: 2,
+      storageFormat: "PALLET",
+    };
+    for (const facet of ["building", "floor", "storageFormat"] as const) {
+      expect(
+        parseJobScanSearchIntent({ ...complete, [facet]: null }, prompt),
+      ).toEqual({ kind: "UNREADABLE" });
+    }
+    expect(parseJobScanSearchIntent(complete, prompt)).toEqual({
+      kind: "OK",
+      value: {
+        filter: "MAPPED",
+        search: "",
+        facets: { building: "A", floor: 2, storageFormat: "PALLET" },
+      },
+    });
+  });
+
+  it("rejects false format hints inside names and partial decimal floor matches", () => {
+    for (const [prompt, search] of [
+      ["หาใบงานหลังคาแดง", "หลังคาแดง"],
+      ["find Box Industries", "Box Industries"],
+    ] as const) {
+      expect(
+        parseJobScanSearchIntent(
+          { ...base, search, storageFormat: "BOX" },
+          prompt,
+        ),
+      ).toEqual({ kind: "UNREADABLE" });
+      expect(parseJobScanSearchIntent({ ...base, search }, prompt)).toEqual({
+        kind: "OK",
+        value: { filter: "ALL", search },
+      });
+    }
+    for (const floor of [null, 1, 5]) {
+      expect(
+        parseJobScanSearchIntent(
+          { ...base, floor },
+          "find tickets on 1.5 floor",
+        ),
+      ).toEqual({ kind: "UNREADABLE" });
+    }
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, floor: 2, storageFormat: "BOX" },
+        "หาใบงานที่เป็นลังชั้น ๒",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: {
+        filter: "ALL",
+        search: "",
+        facets: { floor: 2, storageFormat: "BOX" },
+      },
+    });
   });
 
   it("rejects untrusted, ungrounded, extra-key, ID or truncated responses", () => {
@@ -467,6 +530,38 @@ describe("parseJobScanEditProposal", () => {
     ).toEqual({
       kind: "OK",
       value: { fields: { customer: "ACME, Inc.", partName: "Bolt and Nut" } },
+    });
+  });
+
+  it("distinguishes a field name inside a literal from an explicit assignment", () => {
+    expect(
+      parseJobScanEditProposal(
+        {
+          ...emptyEdit,
+          customer: "Acme, Location Services",
+          partName: "Nuts and Format Washers",
+          storageFormat: "BOX",
+        },
+        "set customer to Acme, Location Services and set part name to Nuts and Format Washers, format to box",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: {
+        fields: {
+          customer: "Acme, Location Services",
+          partName: "Nuts and Format Washers",
+          storageFormat: "BOX",
+        },
+      },
+    });
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, partName: "Red and Set Screws" },
+        "set part name to Red and Set Screws",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { fields: { partName: "Red and Set Screws" } },
     });
   });
 });
