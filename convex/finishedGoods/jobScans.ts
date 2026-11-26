@@ -1288,8 +1288,7 @@ export const listJobScans = queryWithOrg({
       ? normalizeJobScanSearch(registeredLocation.code)
       : requestedNeedle;
     const exactLocationAddress =
-      searchField === "location" &&
-      (Boolean(registeredLocation) || isSavedLocationAddress(needle));
+      searchField === "location" && isSavedLocationAddress(needle);
     const exact = Boolean(needle) && !searchField && args.exactCode === true;
     const buildingNeedle =
       args.facets?.building !== undefined
@@ -1341,7 +1340,11 @@ export const listJobScans = queryWithOrg({
         ? {
             ...(exact ? { exactCode: true } : {}),
             ...(searchField ? { searchField } : {}),
-            ...(exactLocationAddress ? { exactLocationAddress: true } : {}),
+            ...(registeredLocation
+              ? { registeredLocationId: registeredLocation._id }
+              : exactLocationAddress
+                ? { exactLocationAddress: true }
+                : {}),
             ...(args.locationId !== undefined
               ? { locationId: location?.locationId ?? "invalid" }
               : {}),
@@ -1445,19 +1448,26 @@ export const listJobScans = queryWithOrg({
       if (!needle || exact) return true;
       if (exactFactoryOrder)
         return normalizeJobScanSearch(scan.factoryOrder) === needle;
-      if (exactLocationAddress)
+      if (searchField === "location") {
+        const code = scan.locationCode || scan.locationText;
+        if (registeredLocation) {
+          // Folded text only generates index candidates. Compare the code
+          // just as registration does, and honor any stored location ID.
+          return (
+            (!scan.locationId || scan.locationId === registeredLocation._id) &&
+            normalizeJobLocationCode(code ?? "") === registeredLocation.code
+          );
+        }
+        if (exactLocationAddress)
+          return [code, scan.locationName].some(
+            (value) => value && normalizeJobScanSearch(value) === needle,
+          );
         return (
-          normalizeJobScanSearch(
-            scan.locationCode || scan.locationText || "",
-          ) === needle
+          jobScanNameMatches(code, needle) ||
+          jobScanNameMatches(scan.locationName, needle)
         );
-      if (searchField)
-        return jobScanNameMatches(
-          searchField === "location"
-            ? scan.locationCode || scan.locationText
-            : scan[searchField],
-          needle,
-        );
+      }
+      if (searchField) return jobScanNameMatches(scan[searchField], needle);
       if (jobScanTextMatches(scan, needle)) return true;
       const { building } = await getParents();
       return Boolean(building && jobScanNameMatches(building.name, needle));

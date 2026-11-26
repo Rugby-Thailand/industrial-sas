@@ -1477,14 +1477,17 @@ describe("parseJobScanEditProposal", () => {
     }
   });
 
-  it("requires quotes to treat a bare follow-up command as literal text", () => {
-    const partName = "Gear and close";
-    const proposal = { ...emptyEdit, partName };
-    expect(
-      parseJobScanEditProposal(proposal, `Set part name to ${partName}`),
-    ).toEqual({ kind: "UNSUPPORTED" });
-    expect(
-      parseJobScanEditProposal(proposal, `Set part name to "${partName}"`),
-    ).toEqual({ kind: "OK", value: { fields: { partName } } });
-  });
+  it.each(["close", "close the dialog", "refresh the page", "quit this form"])(
+    "requires quotes to treat follow-up command %s as literal text",
+    (command) => {
+      const partName = `Gear and ${command}`;
+      const proposal = { ...emptyEdit, partName };
+      expect(
+        parseJobScanEditProposal(proposal, `Set part name to ${partName}`),
+      ).toEqual({ kind: "UNSUPPORTED" });
+      expect(
+        parseJobScanEditProposal(proposal, `Set part name to "${partName}"`),
+      ).toEqual({ kind: "OK", value: { fields: { partName } } });
+    },
+  );
 });

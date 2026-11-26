@@ -213,6 +213,17 @@ describe("job-scan AI search and edit actions", () => {
     ],
     ["Set part name to Gear and close job", "Gear and close job"],
     ["Set part name to Gear and close", "Gear and close"],
+    ["Set part name to Gear and close the dialog", "Gear and close the dialog"],
+    ["Set part name to Gear and refresh the page", "Gear and refresh the page"],
+    ["Set part name to Gear and reload page", "Gear and reload page"],
+    [
+      "Set part name to Gear and leave this screen",
+      "Gear and leave this screen",
+    ],
+    ["แก้ชื่อสินค้าเป็น กล่อง และรีเฟรชหน้านี้", "กล่อง และรีเฟรชหน้านี้"],
+    ["Set part name to Gear and go back", "Gear and go back"],
+    ["Set part name to Gear and take a photo", "Gear and take a photo"],
+    ["แก้ชื่อสินค้าเป็น กล่อง และแนบรูป", "กล่อง และแนบรูป"],
     ["Set part name to Gear and reopen now", "Gear and reopen now"],
     ["Set part name to Gear and save", "Gear and save"],
     ["แก้ชื่อสินค้าเป็น กล่อง แล้วปิดเลย", "กล่อง แล้วปิดเลย"],
@@ -445,6 +456,14 @@ describe("job-scan AI search and edit actions", () => {
     ["หาใบงานที่อยู่ ข้างเสา C12 และปิดใบงาน", "ข้างเสา C12 และปิดใบงาน"],
     ["หาใบงานที่อยู่ A1 และทำการปิดใบงานนี้", "A1 และทำการปิดใบงานนี้"],
     ["Find jobs at location A1 and close", "A1 and close"],
+    [
+      "Find jobs at location A1 and refresh the page",
+      "A1 and refresh the page",
+    ],
+    [
+      "Find product name Gear and close the dialog",
+      "Gear and close the dialog",
+    ],
     ["Find jobs at DOCK and RACK", "DOCK and RACK"],
     ["Find jobs at F2-L12-1 and F2-L12-3", "F2-L12-1 and F2-L12-3"],
     ["Find jobs at A1 and A2", "A1"],
@@ -493,6 +512,7 @@ describe("job-scan AI search and edit actions", () => {
     ["Find jobs at RACK#01", "RACK#01", "location"],
     ['Find jobs at "DOCK NORTH"', "DOCK NORTH", "location"],
     ["Find jobs at DOCK NORTH", "DOCK NORTH", "location"],
+    ["Find jobs at Receiving bay", "Receiving bay", "location"],
   ])(
     "accepts the saved-record search %s",
     async (prompt, search, searchField) => {
@@ -1744,9 +1764,14 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
     },
   );
 
-  it.each(["DOCK", "DOCK NORTH", "RACK#01", "maß"])(
+  it.each([
+    ["DOCK", "DOCK 2"],
+    ["DOCK NORTH", "DOCK NORTH 2"],
+    ["RACK#01", "ＲＡＣＫ＃０１"],
+    ["maß", "MASS 2"],
+  ])(
     "uses the registration code for %s across indexed and bounded searches",
-    async (search) => {
+    async (search, secondCode) => {
       const fixture = await seedListFixture();
       const { world, warehouseId, ids } = fixture;
       const buildingId = await world.t.run(async (ctx) => {
@@ -1760,15 +1785,37 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
           warehouseId,
           buildingId,
           code: search,
+          name: "Receiving bay",
           requestId: "registered-search",
         },
       );
       expect(result).toMatchObject({ ok: true, value: { written: true } });
+      await expect(
+        client.mutation(api.finishedGoods.jobScanLocations.create, {
+          warehouseId,
+          buildingId,
+          code: secondCode,
+          name: "Dispatch bay",
+          requestId: "other-registration",
+        }),
+      ).resolves.toMatchObject({ ok: true, value: { written: true } });
       const code = search.toUpperCase();
       await world.t.run(async (ctx) => {
-        await ctx.db.patch(ids.exactFoPalletF2, { locationCode: code });
-        await ctx.db.patch(ids.prefixFoPalletF2, { locationCode: code + " 2" });
-        await ctx.db.patch(ids.southPalletF2, { productBarcodeText: code });
+        await ctx.db.patch(ids.exactFoPalletF2, {
+          locationCode: code,
+          locationName: "Receiving bay",
+        });
+        await ctx.db.patch(ids.prefixFoPalletF2, {
+          locationCode: secondCode,
+          locationName: "Dispatch bay",
+        });
+        await ctx.db.patch(ids.southPalletF2, {
+          productBarcodeText: code,
+          partName: "Receiving bay",
+        });
+        await ctx.db.patch(ids.partMatchesCodeOnly, {
+          productBarcodeText: "Receiving bay",
+        });
       });
       await buildIndex(fixture);
       for (const ready of [true, false]) {
@@ -1780,6 +1827,20 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
             searchField: "location",
           }),
         ).toEqual([ids.exactFoPalletF2]);
+        expect(
+          await listAll(fixture, {
+            filter: "ALL",
+            search: "Receiving bay",
+            searchField: "location",
+          }),
+        ).toEqual([ids.exactFoPalletF2]);
+        expect(
+          await listAll(fixture, {
+            filter: "ALL",
+            search: secondCode,
+            searchField: "location",
+          }),
+        ).toEqual([ids.prefixFoPalletF2]);
       }
     },
   );
