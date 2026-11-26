@@ -11,7 +11,10 @@ import { useBarcodeCamera } from "./useBarcodeCamera";
 import { BarcodeImagePicker } from "./BarcodeImagePicker";
 import {
   CameraFrame,
+  CameraGuide,
   cameraMediaClass,
+  fullscreenCameraLayoutClass,
+  fullscreenCameraDockClass,
   cameraOverlayButtonClass,
   useVideoAspect,
 } from "./CameraFrame";
@@ -34,6 +37,9 @@ export function BarcodeCameraBox({
   onImageCodes,
   onReadWithAi,
   presentation = "default",
+  guide = "barcode",
+  progress,
+  actions,
   children,
 }: {
   mode: "PACKAGES" | "LOCATION";
@@ -53,12 +59,16 @@ export function BarcodeCameraBox({
   onReadWithAi?: (file?: File, crop?: BarcodeCrop) => void;
   /**
    * `expanded` gives the live preview more of the viewport and reduces the
-   * image picker to an icon, for a screen whose main task is this scan.
+   * image picker to an icon. `fullscreen` uses a camera dialog's stage and dock.
    */
-  presentation?: "default" | "expanded";
+  presentation?: "default" | "expanded" | "fullscreen";
+  guide?: "barcode" | "label";
+  progress?: ReactNode;
+  actions?: ReactNode;
   children?: (scan: { stopCamera: () => void }) => ReactNode;
 }) {
   const t = useTranslations("JobScan");
+  const fullscreen = presentation === "fullscreen";
   const [camera, setCamera] = useState(startOnMount);
   const [imageSession, setImageSession] = useState(0);
   const video = useVideoAspect(16 / 9);
@@ -99,13 +109,19 @@ export function BarcodeCameraBox({
     else setCamera(true);
   }
   return (
-    <div className="space-y-3">
+    <div className={fullscreen ? fullscreenCameraLayoutClass : "space-y-3"}>
       <CameraFrame
         hidden={!camera}
         status={retry ? "error" : state === "ACTIVE" ? "active" : "starting"}
         statusLabel={t("startingCamera")}
         aspect={video.aspect}
-        size={presentation === "expanded" ? "large" : "default"}
+        size={
+          fullscreen
+            ? "fullscreen"
+            : presentation === "expanded"
+              ? "large"
+              : "default"
+        }
         onClose={closeControl ? close : undefined}
         closeLabel={t("stopCamera")}
         topStart={
@@ -133,85 +149,92 @@ export function BarcodeCameraBox({
           {...video.videoProps}
           className={cn(cameraMediaClass, retry && "invisible")}
         />
-        {state === "ACTIVE" && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-[10%] top-[37.5%] h-1/4 rounded-xl border-2 border-white/80"
-          />
-        )}
+        {state === "ACTIVE" &&
+          (fullscreen ? (
+            <CameraGuide shape={guide} />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-[10%] top-[37.5%] h-1/4 rounded-xl border-2 border-white/80"
+            />
+          ))}
       </CameraFrame>
-      {camera && error ? (
-        <Notice
-          tone="warning"
-          role="alert"
-          title={t(
-            error === "PERMISSION"
-              ? "cameraPermission"
-              : error === "DECODER"
-                ? "cameraDecoderError"
-                : error === "TORCH"
-                  ? "flashlightError"
-                  : "cameraError",
-          )}
+      <div className={fullscreen ? fullscreenCameraDockClass : "space-y-3"}>
+        {camera && error ? (
+          <Notice
+            tone="warning"
+            role="alert"
+            title={t(
+              error === "PERMISSION"
+                ? "cameraPermission"
+                : error === "DECODER"
+                  ? "cameraDecoderError"
+                  : error === "TORCH"
+                    ? "flashlightError"
+                    : "cameraError",
+            )}
+          />
+        ) : feedback || (camera && state === "ACTIVE") ? (
+          <p role="status" aria-live="polite" className="min-h-5 text-sm">
+            {feedback ?? t("pointCamera")}
+          </p>
+        ) : null}
+        {camera && retry && (
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-12 w-full"
+            onClick={open}
+            disabled={scanDisabled}
+          >
+            {t("retryCamera")}
+          </Button>
+        )}
+        {!camera && (
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-12 w-full"
+            onClick={open}
+            disabled={scanDisabled}
+          >
+            <Camera className="size-4" aria-hidden="true" />
+            {t("startCamera")}
+          </Button>
+        )}
+        <BarcodeImagePicker
+          key={`${imageSession}:${imageTarget}:${disabled}`}
+          target={imageTarget}
+          compact={presentation === "expanded"}
+          onReadWithAi={
+            onReadWithAi
+              ? (file, crop) => {
+                  stop();
+                  setCamera(false);
+                  setImageSession((session) => session + 1);
+                  onReadWithAi(file, crop);
+                }
+              : undefined
+          }
+          disabled={disabled}
+          onSelect={() => {
+            // Switching sources releases the stream without cancelling its owning workflow.
+            stop();
+            setCamera(false);
+          }}
+          onCodes={(codes) => {
+            if (disabled) return;
+            stop();
+            setCamera(false);
+            if (stopAfterScan) close();
+            if (onImageCodes) onImageCodes(codes);
+            else for (const code of codes) onCode(code);
+          }}
         />
-      ) : feedback || (camera && state === "ACTIVE") ? (
-        <p role="status" aria-live="polite" className="min-h-5 text-sm">
-          {feedback ?? t("pointCamera")}
-        </p>
-      ) : null}
-      {camera && retry && (
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-12 w-full"
-          onClick={open}
-          disabled={scanDisabled}
-        >
-          {t("retryCamera")}
-        </Button>
-      )}
-      {!camera && (
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-12 w-full"
-          onClick={open}
-          disabled={scanDisabled}
-        >
-          <Camera className="size-4" aria-hidden="true" />
-          {t("startCamera")}
-        </Button>
-      )}
-      <BarcodeImagePicker
-        key={`${imageSession}:${imageTarget}:${disabled}`}
-        target={imageTarget}
-        compact={presentation === "expanded"}
-        onReadWithAi={
-          onReadWithAi
-            ? (file, crop) => {
-                stop();
-                setCamera(false);
-                setImageSession((session) => session + 1);
-                onReadWithAi(file, crop);
-              }
-            : undefined
-        }
-        disabled={disabled}
-        onSelect={() => {
-          // Switching sources releases the stream without cancelling its owning workflow.
-          stop();
-          setCamera(false);
-        }}
-        onCodes={(codes) => {
-          if (disabled) return;
-          stop();
-          setCamera(false);
-          if (stopAfterScan) close();
-          if (onImageCodes) onImageCodes(codes);
-          else for (const code of codes) onCode(code);
-        }}
-      />
-      {children?.({ stopCamera: close })}
+        {progress}
+        {actions}
+        {children?.({ stopCamera: close })}
+      </div>
     </div>
   );
 }

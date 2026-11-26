@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createShutterSound, type ShutterSound } from "./playShutterSound";
 
-export type StillCameraState = "starting" | "on" | "error";
+export type StillCameraState = "starting" | "on" | "error" | "permission";
 
 const MAX_PIXELS = 40_000_000;
 
@@ -77,12 +77,14 @@ export function useStillPhotoCamera({
         element.srcObject = acquired;
         await element.play();
         if (token === generation.current) setState("on");
-      } catch {
+      } catch (error) {
         if (token !== generation.current) return;
-        media.current?.getTracks().forEach((track) => track.stop());
-        media.current = null;
-        if (element) element.srcObject = null;
-        setState("error");
+        const permissionDenied =
+          !media.current &&
+          error instanceof DOMException &&
+          (error.name === "NotAllowedError" || error.name === "SecurityError");
+        stop();
+        setState(permissionDenied ? "permission" : "error");
       }
     };
     void open();

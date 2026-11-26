@@ -2545,12 +2545,15 @@
     {
       "id": "src/features/finishedGoods/BarcodeCameraBox.tsx#BarcodeCameraBox:camera",
       "policy": "presentation",
-      "expectation": "Hardware camera start/stop only hides the inline CameraFrame and shows start/retry/error controls inside retained source acquisition. All production foreground callers independently own dismissal: PackageAssignment and TicketFieldScanner shared Dialogs, and JobScanWorkflow.panel and LocationPickerSession.camera disclosures, whose pressed acquisition mode is the single close control (closeControl=false). DestinationScanner starts the camera only on request inside its containing verification step; the frame's Start, Stop and Retry are its only camera controls, and unmounting with that step releases the stream. Expanded changes preview size only; repurposing this flag to a whole-view scanner requires another ownership audit.",
+      "expectation": "This flag controls acquisition hardware inside the current scanner. Starting, retrying or stopping replaces the live guide, permission notice or local Start control. The enclosing package, field, ticket, location or verification dialog owns focus and Back while the camera and image picker share its content.",
       "uses": ["branch", "hidden"],
       "render": [
         {
           "shape": "and",
-          "truthy": ["div"],
+          "truthy": [
+            "div",
+            "src/features/finishedGoods/CameraFrame#CameraGuide"
+          ],
           "falsy": []
         },
         {
@@ -2589,6 +2592,64 @@
             "src/features/finishedGoods/CameraFrame#CameraFrame"
           ],
           "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/DestinationScanner.tsx#DestinationScanSession:$overlay:Dialog:cameraOpen",
+      "policy": "overlay",
+      "expectation": "The full-screen verification dialog opens on explicit request. Native Back and Close release the stream, restore the verification form and preserve its manual draft. The active check protects dismissal; successful verification leaves physical confirmation with the caller.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/MoveScreen.test.tsx",
+        "src/features/finishedGoods/PalletScreens.test.tsx",
+        "src/features/finishedGoods/DestinationScanner.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "closes the move camera before leaving, restores it on Forward, and retains the manual draft"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "requires the pallet QR for a camera read while still accepting the QR payload"
+        },
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "requires the current operator to verify even if another operator already scanned"
+        },
+        {
+          "file": "src/features/finishedGoods/DestinationScanner.test.tsx",
+          "name": "blocks dismissal during scan verification and ignores late frames"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/DestinationScanner.tsx#DestinationScanSession:cameraOpen",
+      "policy": "overlay",
+      "expectation": "The full-screen verification dialog opens on explicit request. Native Back and Close release the stream, restore the verification form and preserve its manual draft. The active check protects dismissal; successful verification leaves physical confirmation with the caller.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/MoveScreen.test.tsx",
+        "src/features/finishedGoods/PalletScreens.test.tsx",
+        "src/features/finishedGoods/DestinationScanner.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "closes the move camera before leaving, restores it on Forward, and retains the manual draft"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "requires the pallet QR for a camera read while still accepting the QR payload"
+        },
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "requires the current operator to verify even if another operator already scanned"
+        },
+        {
+          "file": "src/features/finishedGoods/DestinationScanner.test.tsx",
+          "name": "blocks dismissal during scan verification and ignores late frames"
         }
       ]
     },
@@ -3172,12 +3233,16 @@
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:fieldScan",
       "policy": "workflow",
       "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by JobScanWorkflow.fieldScan, preserving route intent and retained drafts; pending writes remain protected.",
+      "expectation": "The ticket field target opens the dedicated shared scanner dialog for the selected ticket and field. Back retains the draft. Forward validates that the ticket and field are still eligible before restoring a camera.",
       "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
           "name": "native Back closes the %s scanner and ignores late acquisition callbacks"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "native Forward restores only a still-valid ticket field camera"
         }
       ]
     },
@@ -3245,10 +3310,34 @@
       ]
     },
     {
+      "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:$overlay:Dialog:panel",
+      "policy": "overlay",
+      "expectation": "The full-screen intake dialog owns one entry across code and photo modes. Switching modes retains the photo collection. Close and Done consume the entry and release acquisition while keeping the ticket draft. The ScanProgress live region and Undo stay inside the barcode dock. Undo restores only the last intake and leaves the dialog open.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "retains unsent photos when switching to Scan code and back to Photo AI"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "native Back closes Photo AI and then the ticket step without discarding unsent photos for the same location choice"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "the fullscreen barcode camera Close consumes its entry before the next Back"
+        }
+      ]
+    },
+    {
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:panel",
-      "policy": "workflow",
-      "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by JobScanWorkflow.panel, preserving route intent and retained drafts; pending writes remain protected. The pressed Scan code or Photo AI mode is the panel's single explicit close, consumes its acquisition entry before the next Back and releases the camera while retaining the photo collection. Manual cross-module presentation audit: JobScanWorkflow:lastWrite passes through ScanProgress:written to src/features/finishedGoods/jobScan/ScanProgress#ScanProgress, an inline div[role=status] above the barcode camera. Waiting/latest text uses p; required-field progress uses p/span and lucide-react#Check or lucide-react#Circle; incomplete count uses p. Beside that status region, outside the live region, the latest branch adds an inline src/components/ui/button#Button with lucide-react#Undo2 that reverts only that one intake in place: the camera, panel and its Back entry stay unchanged, the undone code is ignored until a different code is written, and any later ticket change clears the undo. Both waiting and latest branches keep this same status surface, create no foreground or Back entry, and reset when the panel changes. The static gate does not follow this imported-component prop flow.",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The full-screen intake dialog owns one entry across code and photo modes. Switching modes retains the photo collection. Close and Done consume the entry and release acquisition while keeping the ticket draft. The ScanProgress live region and Undo stay inside the barcode dock. Undo restores only the last intake and leaves the dialog open.",
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
         "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx"
@@ -3260,7 +3349,7 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
-          "name": "the pressed Photo AI mode is the photo panel's only close, retaining photos and rejecting late capture before the next Back"
+          "name": "the fullscreen photo camera Close retains photos and rejects late capture before the next Back"
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
@@ -3272,7 +3361,7 @@
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
-          "name": "shows above the camera which ticket each scan filled, even an older one, and keeps its result visible while the camera is paused"
+          "name": "shows which ticket each scan filled in the fullscreen dock, even while paused"
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
@@ -3380,13 +3469,6 @@
         {
           "shape": "and",
           "truthy": ["src/components/ui/button#Button"],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": [
-            "src/features/finishedGoods/jobScan/TicketFieldScanner#TicketFieldScanner"
-          ],
           "falsy": []
         },
         {
@@ -3797,17 +3879,28 @@
       "id": "src/features/finishedGoods/jobScan/TicketFieldScanner.tsx#TicketFieldScanner:$overlay:Dialog:controlled",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
-      "tests": ["src/components/ui/ForegroundOrdering.test.tsx"],
+      "expectation": "The full-screen field scanner owns one foreground. Validating a read and confirming a replacement happen inside it. Escape discards an unconfirmed replacement and restores the retained ticket field.",
+      "tests": [
+        "tests/e2e/workspace/barcode.spec.ts",
+        "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"
+      ],
       "cases": [
         {
-          "file": "src/components/ui/ForegroundOrdering.test.tsx",
-          "name": "real PageBackButton in foreground dismisses the topmost and next Back dismisses remaining root"
+          "file": "tests/e2e/workspace/barcode.spec.ts",
+          "name": "field image replacement requires confirmation and Escape preserves the prior value"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "applying a field replacement consumes the camera before the next native Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "native Forward restores only a still-valid ticket field camera"
         }
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/TicketFieldScanner.tsx#TicketFieldScanner:candidate",
+      "id": "src/features/finishedGoods/jobScan/TicketFieldScanner.tsx#TicketFieldScanSession:candidate",
       "policy": "presentation",
       "uses": ["branch"],
       "expectation": "A scanned candidate is confirmation data within the existing shared scanner dialog, not a new route.",
@@ -3830,7 +3923,7 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/TicketFieldScanner.tsx#TicketFieldScanner:error",
+      "id": "src/features/finishedGoods/jobScan/TicketFieldScanner.tsx#TicketFieldScanSession:error",
       "policy": "presentation",
       "expectation": "Scanner decode feedback is an inline alert inside the existing owned field-scanner Dialog, not another foreground surface.",
       "uses": ["branch"],
@@ -3907,7 +4000,7 @@
     {
       "id": "src/features/finishedGoods/MoveScreen.tsx#ActiveMove:scanMode",
       "policy": "presentation",
-      "expectation": "The optional inline DestinationScanner changes verification method while the move stays mounted. BarcodeCameraBox owns actual hardware acquisition; changing method resets acknowledgement rather than replacing the move.",
+      "expectation": "The selected verification method controls whether the retained move form renders DestinationScanner. Its separate camera dialog owns acquisition, Close and Back. Changing verification method clears the acknowledgement.",
       "tests": ["src/features/finishedGoods/MoveScreen.test.tsx"],
       "uses": ["branch"],
       "render": [

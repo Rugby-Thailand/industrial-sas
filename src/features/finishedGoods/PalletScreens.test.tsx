@@ -1540,7 +1540,7 @@ describe("read-only pallet access", () => {
 });
 
 describe("operator-specific destination verification", () => {
-  it("requires the current operator to verify even if another operator already scanned", () => {
+  it("requires the current operator to verify even if another operator already scanned", async () => {
     currentDetail = {
       ...reservedPalletDetail,
       destinationVerifiedForCurrentUser: false,
@@ -1553,7 +1553,20 @@ describe("operator-specific destination verification", () => {
     };
     renderPallet();
     expect(screen.getByLabelText("Destination code")).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled();
+    const cameraOpener = screen.getByRole("button", { name: "Start camera" });
+    expect(cameraOpener).toBeEnabled();
+    fireEvent.click(cameraOpener);
+    const camera = screen.getByRole("dialog", {
+      name: "Scan Destination code",
+    });
+    expect(within(camera).getByText(/Expected destination/)).toBeVisible();
+    expect(
+      within(camera).getByRole("button", { name: "Choose image" }),
+    ).toBeEnabled();
+    fireEvent.click(
+      within(camera).getByRole("button", { name: "Close camera" }),
+    );
+    await waitFor(() => expect(camera).not.toBeInTheDocument());
     expect(
       screen.getByRole("button", { name: "Confirm stored" }),
     ).toBeDisabled();

@@ -568,7 +568,13 @@ describe("stored pallet movement", () => {
     renderMove();
     fireEvent.click(screen.getByRole("button", { name: "Scan QR (optional)" }));
     const start = screen.getByRole("button", { name: "Start move" });
+    fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
+    const camera = screen.getByRole("dialog", { name: "Scan Pallet code" });
+    expect(within(camera).getByText(/P-001/)).toBeVisible();
     act(() => mocks.cameraCode!("P-001"));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
     expect(
       await screen.findByText(
         "Scan the QR label on this pallet, or type its code in the field.",
@@ -579,18 +585,20 @@ describe("stored pallet movement", () => {
     expect(start).toBeDisabled();
     expect(callsFor("startMove")).toHaveLength(0);
     // A rejected camera read leaves the field editable; the label QR identifies.
-    fireEvent.change(screen.getByRole("textbox", { name: "Pallet code" }), {
-      target: { value: "ISAS:PALLET:1:pallet-a" },
-    });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Verify entered code" }),
+    expect(screen.getByRole("textbox", { name: "Pallet code" })).toHaveValue(
+      "P-001",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
+    act(() => mocks.cameraCode!("ISAS:PALLET:1:pallet-a"));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
     await screen.findByText("Pallet identified");
     fireEvent.click(start);
     await waitFor(() => expect(callsFor("startMove")).toHaveLength(1));
     expect(callsFor("startMove")[0]?.[1]).toMatchObject({
       code: "ISAS:PALLET:1:pallet-a",
-      method: "MANUAL",
+      method: "SCAN",
     });
   });
   it("resumes transit and requires current operator verification plus placement acknowledgement", async () => {
@@ -642,6 +650,7 @@ describe("stored pallet movement", () => {
   });
   it("offers a verified physical return, never cancel after pickup", async () => {
     currentDetail = active("IN_TRANSIT");
+    stopTracking = trackAppHistory();
     renderMove();
     expect(
       screen.queryByRole("button", { name: "Cancel move" }),
@@ -659,6 +668,22 @@ describe("stored pallet movement", () => {
       within(dialog).getByRole("textbox", { name: "Source code" }),
       { target: { value: finishedGoodDestination.locationQrValue } },
     );
+    const sourceEntry = window.location.search;
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Start camera" }),
+    );
+    const camera = await screen.findByRole("dialog", {
+      name: "Scan Source code",
+    });
+    expect(within(camera).getByText(/Expected source/)).toBeVisible();
+    await waitFor(() => expect(window.location.search).not.toBe(sourceEntry));
+    await traverse("back");
+    await waitFor(() => expect(camera).not.toBeInTheDocument());
+    expect(window.location.search).toBe(sourceEntry);
+    expect(dialog).toBeVisible();
+    expect(
+      within(dialog).getByRole("textbox", { name: "Source code" }),
+    ).toHaveValue(finishedGoodDestination.locationQrValue);
     fireEvent.click(
       within(dialog).getByRole("button", { name: "Verify entered code" }),
     );
@@ -669,6 +694,11 @@ describe("stored pallet movement", () => {
     );
     fireEvent.click(confirm);
     await waitFor(() => expect(callsFor("returnMove")).toHaveLength(1));
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(
+        "/en/finished-goods/pallets/pallet-a",
+      ),
+    );
   });
   it("keeps the prepared move on a failed cancellation and retries the same request", async () => {
     currentDetail = active();
@@ -1057,6 +1087,46 @@ async function traverse(delta: "back" | "forward") {
     await new Promise<void>((resolve) => setTimeout(resolve, 30));
   });
 }
+it("closes the move camera before leaving, restores it on Forward, and retains the manual draft", async () => {
+  currentDetail = active();
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods?origin=yes#list",
+  );
+  stopTracking = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/pallets/pallet-a/move?kept=yes#position",
+  );
+  renderMove();
+  fireEvent.click(screen.getByRole("button", { name: "Scan QR (optional)" }));
+  const manual = screen.getByRole("textbox", { name: "Pallet code" });
+  fireEvent.change(manual, { target: { value: "P-001" } });
+  const opener = screen.getByRole("button", { name: "Start camera" });
+  opener.focus();
+  fireEvent.click(opener);
+  await screen.findByRole("dialog", { name: "Scan Pallet code" });
+  await waitFor(() => expect(window.location.search).toMatch(/overlay/));
+  await traverse("back");
+  await waitFor(() => expect(opener).toHaveFocus());
+  expect(manual).toHaveValue("P-001");
+  expect(window.location.search).toBe("?kept=yes");
+  expect(window.location.hash).toBe("#position");
+  await traverse("forward");
+  const camera = await screen.findByRole("dialog", {
+    name: "Scan Pallet code",
+  });
+  fireEvent.click(within(camera).getByRole("button", { name: "Close camera" }));
+  await waitFor(() => expect(window.location.search).toBe("?kept=yes"));
+  await traverse("back");
+  expect(
+    window.location.pathname + window.location.search + window.location.hash,
+  ).toBe("/en/finished-goods?origin=yes#list");
+  expect(mocks.write).not.toHaveBeenCalled();
+});
+
 it("explicit destination Cancel consumes its step and next Back restores the actual locale query and hash origin", async () => {
   trackedMove(false, true);
   fireEvent.click(screen.getByRole("button", { name: "ยกเลิก" }));

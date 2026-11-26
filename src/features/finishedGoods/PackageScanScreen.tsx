@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { CheckboxControl } from "@/components/ui/CheckboxControl";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -559,7 +560,10 @@ export function PackageAssignment({
           if (!op.busy && !receiptId) scan(open ? lastScanner.current : null);
         }}
       >
-        <DialogContent closeLabel={tr("Close scanner", "ปิดเครื่องสแกน")}>
+        <DialogContent
+          size="camera"
+          closeLabel={tr("Close scanner", "ปิดเครื่องสแกน")}
+        >
           <DialogHeader>
             <DialogTitle>
               {scanner === "LOCATION"
@@ -578,9 +582,35 @@ export function PackageAssignment({
               key={scanner}
               mode={scanner}
               onCode={(raw) => void resolve(raw, scanner, true)}
-              onClose={() => scan(null)}
               disabled={op.busy}
+              presentation="fullscreen"
+              guide={scanner === "LOCATION" ? "barcode" : "label"}
               closeControl={false}
+              progress={
+                <div className="space-y-2">
+                  <ErrorNotice message={op.error} />
+                  <p role="status" className="text-sm break-words">
+                    {scanner === "LOCATION"
+                      ? location && locationMethod === "SCAN"
+                        ? `${location.code} · ${location.name}`
+                        : tr(
+                            "Aim at the storage location label.",
+                            "เล็งกล้องไปที่ฉลากตำแหน่งจัดเก็บ",
+                          )
+                      : tr(
+                          `${units.length} / 50 packages in this group`,
+                          `บรรจุภัณฑ์ในกลุ่มนี้ ${units.length} / 50 ชิ้น`,
+                        )}
+                  </p>
+                </div>
+              }
+              actions={
+                <DialogClose asChild>
+                  <Button type="button" className="w-full">
+                    {tr("Done", "เสร็จ")}
+                  </Button>
+                </DialogClose>
+              }
             />
           )}
         </DialogContent>

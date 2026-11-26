@@ -338,7 +338,7 @@ it("protects a photo-only collection from a cross-tab warehouse switch", () => {
   expect(screen.getByText("1 / 20 photos")).toBeVisible();
 });
 
-it("shows above the camera which ticket each scan filled, even an older one, and keeps its result visible while the camera is paused", async () => {
+it("shows which ticket each scan filled in the fullscreen dock, even while paused", async () => {
   start();
   // Ticket #1 lacks its Job No.; ticket #2 is complete and newer.
   fireEvent.click(screen.getByRole("button", { name: "Manual" }));
@@ -354,7 +354,10 @@ it("shows above the camera which ticket each scan filled, even an older one, and
     { target: { value: "NEW-SKU" } },
   );
   fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
-  const progress = screen.getByText("Waiting for a code").closest("div")!;
+  const dialog = screen.getByRole("dialog", { name: "Scan code" });
+  const progress = within(dialog)
+    .getByText("Waiting for a code")
+    .closest("div")!;
   expect(progress).toHaveAttribute("role", "status");
   expect(progress).toHaveAttribute("aria-live", "polite");
   expect(progress).toHaveTextContent("1 ticket incomplete");
@@ -364,9 +367,9 @@ it("shows above the camera which ticket each scan filled, even an older one, and
   expect(progress).toHaveTextContent("Job No.done");
   expect(progress).toHaveTextContent("Product barcodedone");
   expect(progress).toHaveTextContent("All tickets complete");
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })[0]).toHaveValue(
-    "FOM6909081",
-  );
+  expect(
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true })[0],
+  ).toHaveValue("FOM6909081");
 
   act(() => mocks.camera!("PRODUCT-3"));
   expect(progress).toHaveTextContent(
@@ -381,6 +384,9 @@ it("shows above the camera which ticket each scan filled, even an older one, and
   expect(screen.getByRole("button", { name: "Start camera" })).toBeVisible();
   expect(progress).toHaveTextContent("Latest → ticket #3 · Job No. FO22222222");
   expect(progress).toHaveTextContent("All tickets complete");
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await waitFor(() => expect(window.location.search).not.toContain("overlay"));
   expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(3);
 
   // The pair confirms an existing Job No. and fills only its product code.
@@ -404,12 +410,16 @@ it("undoes the latest scan with the camera still open, skips the undone code unt
   act(() => mocks.camera!("PRODUCT-1"));
   // A neighbouring pallet's Job No. starts an unwanted ticket #2.
   act(() => mocks.camera!("FO99999999"));
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(2);
+  expect(
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
+  ).toHaveLength(2);
 
   fireEvent.click(
     screen.getByRole("button", { name: "Undo last scan (ticket #2)" }),
   );
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(1);
+  expect(
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
+  ).toHaveLength(1);
   expect(
     screen.getByText(
       "Undid the last scan on ticket #2. Move the camera off that code.",
@@ -417,15 +427,14 @@ it("undoes the latest scan with the camera still open, skips the undone code unt
   ).toBeVisible();
   // Undo is one step and leaves the camera running in the same panel.
   expect(screen.queryByRole("button", { name: /Undo last scan/ })).toBeNull();
-  expect(screen.getByRole("button", { name: "Scan code" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  expect(screen.getByRole("dialog", { name: "Scan code" })).toBeVisible();
   expect(screen.queryByRole("button", { name: "Start camera" })).toBeNull();
 
   // The label still in view is not re-added by the continuous camera.
   act(() => mocks.camera!("FO99999999"));
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(1);
+  expect(
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
+  ).toHaveLength(1);
   expect(
     screen.getByText(
       "Skipped the code you just undid. Scan a different code first to add it again.",
@@ -435,19 +444,22 @@ it("undoes the latest scan with the camera still open, skips the undone code unt
   // After a different code, the same Job No. is accepted again.
   act(() => mocks.camera!("PRODUCT-2"));
   act(() => mocks.camera!("FO99999999"));
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })[1]).toHaveValue(
-    "FO99999999",
-  );
+  expect(
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true })[1],
+  ).toHaveValue("FO99999999");
 
   // Undo clears a code written into an existing ticket without removing it.
   fireEvent.click(
     screen.getByRole("button", { name: "Undo last scan (ticket #2)" }),
   );
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })[1]).toHaveValue(
-    "",
-  );
   expect(
-    screen.getAllByRole("textbox", { name: /Product barcode/ })[1],
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true })[1],
+  ).toHaveValue("");
+  expect(
+    screen.getAllByRole("textbox", {
+      name: /Product barcode/,
+      hidden: true,
+    })[1],
   ).toHaveValue("PRODUCT-2");
 
   act(() => window.history.back());
@@ -461,18 +473,22 @@ it("undoes the latest scan with the camera still open, skips the undone code unt
   expect(window.location.pathname).toBe("/th/finished-goods/scan");
 });
 
-it("offers no undo after a ticket is changed by hand, so a typed edit is never reverted", () => {
+it("offers no undo after a ticket is changed by hand, so a typed edit is never reverted", async () => {
   start();
   fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   act(() => mocks.camera!("FO11111111"));
   expect(
     screen.getByRole("button", { name: "Undo last scan (ticket #1)" }),
   ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await waitFor(() => expect(window.location.search).not.toContain("overlay"));
   chooseOption("Unit type", "Package / box");
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   expect(screen.queryByRole("button", { name: /Undo last scan/ })).toBeNull();
-  expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
-    "FO11111111",
-  );
+  expect(
+    screen.getByRole("textbox", { name: /Job No\./, hidden: true }),
+  ).toHaveValue("FO11111111");
 });
 
 it("names the incomplete tickets in the save blocker and jumps to the first one", () => {

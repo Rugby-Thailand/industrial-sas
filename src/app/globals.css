@@ -312,6 +312,22 @@ body {
   }
 }
 
+/* Resolve semantic colors inside the camera’s nested dark theme. */
+[data-camera-dialog] {
+  --token-canvas: var(--background);
+  --token-surface: var(--card);
+  --token-raised: var(--muted);
+  --token-overlay: var(--popover);
+  --token-border: var(--border);
+  --token-text: var(--foreground);
+  --token-muted: var(--muted-foreground);
+  --token-accent: var(--primary);
+  --token-accent-contrast: var(--primary-foreground);
+  --token-accent-surface: var(--accent);
+  --token-disabled: var(--muted-foreground);
+  --token-disabled-surface: var(--muted);
+}
+
 .dark {
   color-scheme: dark;
   --token-border-strong: #858585;

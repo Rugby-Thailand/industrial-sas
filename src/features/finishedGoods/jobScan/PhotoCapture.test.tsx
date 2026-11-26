@@ -204,19 +204,30 @@ it("keeps valid photos when a selection also contains invalid or empty files", a
   expect(URL.createObjectURL).toHaveBeenCalledOnce();
 });
 
-it("offers gallery selection after camera permission is denied", async () => {
-  vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValue(
-    new Error("denied"),
-  );
-  const onSubmit = vi.fn();
-  renderWithIntl(<PhotoCapture onSubmit={onSubmit} onClose={vi.fn()} />, {
-    locale: "en",
-  });
-  await screen.findByRole("button", { name: "Retry camera" });
-  gallery(1);
-  fireEvent.click(screen.getByRole("button", { name: "Read 1 photo with AI" }));
-  expect(onSubmit).toHaveBeenCalledOnce();
-});
+it.each([
+  ["NotAllowedError", "Camera access was denied"],
+  ["SecurityError", "Camera access was denied"],
+  ["NotReadableError", "Camera unavailable"],
+  ["NotFoundError", "Camera unavailable"],
+])(
+  "shows the right camera error for %s and keeps gallery available",
+  async (error, message) => {
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValue(
+      new DOMException("Cannot open the camera", error),
+    );
+    const onSubmit = vi.fn();
+    renderWithIntl(<PhotoCapture onSubmit={onSubmit} onClose={vi.fn()} />, {
+      locale: "en",
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(screen.getByRole("button", { name: "Retry camera" })).toBeVisible();
+    gallery(1);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Read 1 photo with AI" }),
+    );
+    expect(onSubmit).toHaveBeenCalledOnce();
+  },
+);
 
 it.each(["close", "submit", "unmount"])(
   "ignores a late camera encode after %s",
