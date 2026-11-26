@@ -308,12 +308,17 @@ const SEARCH_STATUS = new RegExp(
   "gu",
 );
 
+const ENGLISH_SEARCH_CLAUSE =
+  /\b(?:building|floors?|(?:storage\s+)?format|(?:factory\s+|customer\s+)?(?:quantity|qty|count)|(?:delivery|manufacturing|production)\s+date)\b/u;
+const THAI_SEARCH_CLAUSE =
+  /(?:อาคาร|ชั้น|รูปแบบ|ประเภทการจัดเก็บ|จำนวน|วันที่ส่ง|วันส่ง|วันที่ผลิต|วันผลิต)/u;
+
 const SEARCH_LITERAL = new RegExp(
   [
     String.raw`(?:\b(?<english>part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number)|(?:at|in|for|by)\s+(?:storage\s+)?location(?:\s+code)?|(?:storage\s+)?location\s+code|location(?=\s*[:=])|located\s+at)(?:\s*[:=]\s*|\s+)`,
     String.raw`|(?<thai>ชื่อสินค้า|ชื่อชิ้นส่วน|ชื่อลูกค้า|บาร์โค้ด|เลขที่ใบงาน|(?:ใบ)?งาน\s*ที่(?:อยู่\s*(?:ที่|ใน)(?:ตำแหน่ง|จุดจัดเก็บ)|ตำแหน่ง|จุดจัดเก็บ|อยู่)|^ตำแหน่ง)\s*[:=]?\s*)`,
     String.raw`(?:"(?<quoted>[^"]+)"|“(?<thaiQuoted>[^”]+)”|(?<plain>[^"“].*?)`,
-    String.raw`(?=$|[.!?]$|(?:[,;]\s*|\s+and\s+)(?:building|floors?|format|อาคาร|ชั้น|รูปแบบ)|\s+(?:in|at|on|from|within)\s+(?:the\s+)?(?:building|(?:[\w-]+\s+)?floors?)\b|\s*(?:ที่|จาก)(?:อาคาร|ชั้น)`,
+    String.raw`(?=$|[.!?]$|[,;\r\n]|\s+(?:and|with)\s+(?=${ENGLISH_SEARCH_CLAUSE.source})|\s*(?:และ|โดยมี|ที่มี)\s*(?=${THAI_SEARCH_CLAUSE.source})|\s+(?:in|at|on|from|within)\s+(?:the\s+)?(?:building|(?:[\w-]+\s+)?floors?)\b|\s*(?:ที่|จาก)(?:อาคาร|ชั้น)`,
     String.raw`|(?:\s+(?:(?:that|which)\s+(?:(?:are|is|have|has|were|was|remain|stay)\s+)?|and\s+)|\s*(?:ที่|และ|[,;])\s*)(?:(?:currently|already|still|yet)\s+)*(?=${SEARCH_STATUS.source})))`,
   ].join(""),
   "giu",
@@ -327,11 +332,12 @@ const UNSUPPORTED_SEARCH_OPERATOR =
 const UNSUPPORTED_SEARCH_CRITERIA = [
   /\b(?:greater|less|higher|lower|more|fewer|earlier|later)\s+than\b|\b(?:at least|at most|under|over|before|after)\s+\d|\b(?:between|from)\s+\d+\s+(?:and|to)\s+\d|[<>≤≥]\s*[+-]?\d/u,
   /\b(?:with|where|whose|having|filter(?:ed)?\s+by)\s+(?:(?:a|the|factory|customer|total)\s+)*(?:quantity|qty|count|delivery date|production date|manufacturing date|date range)\b/u,
+  /\b(?:quantity|qty|count|(?:delivery|production|manufacturing) date)\s*[:=]?\s*\d|(?:วันที่ส่ง(?:สินค้า)?|วันส่ง(?:สินค้า)?|วันที่ผลิต|วันผลิต)\s*[:=]?\s*\d/u,
   /(?:ที่มี|โดยมี|โดย|และ)\s*จำนวน|จำนวน\s*(?:[<>≤≥=]|\d)|มากกว่า|น้อยกว่า|อย่างน้อย|ไม่เกิน|ไม่น้อยกว่า|เท่ากับ|ตั้งแต่\s*\d|ก่อนวันที่|หลังวันที่/u,
 ];
 
 const AMBIGUOUS_SEARCH_TEXT =
-  /\S\s+(?:with|where|whose|having|from|filter(?:ed)? by)\s+\S|(?:ที่มี|ซึ่งมี|โดยมี)\s*\S/u;
+  /\S\s+(?:with|where|whose|having|from|then|filter(?:ed)? by)\s+\S|[,;\r\n]|(?:ที่มี|ซึ่งมี|โดยมี)\s*\S/u;
 
 const TRAILING_SEARCH_STATUS = new RegExp(
   String.raw`(?<=\S)\s+(?:(?:currently|already|still|yet)\s+)*(?=${SEARCH_STATUS.source})`,
@@ -372,7 +378,7 @@ function requestedBuildings(prompt: string): Map<string, Set<string>> {
 
 function thaiFormatHint(prompt: string, label: string): boolean {
   const before =
-    "(?:^|[\\s,;:()]|ค้นหา|แสดง|ดู|หา|เฉพาะ|ประเภท|รูปแบบ|ใบงาน|งาน|รายการ|ที่เป็น)";
+    "(?:^|[\\s,;:()]|ค้นหา|แสดง|ดู|หา|เฉพาะ|(?:ประเภท|รูปแบบ)(?:การจัดเก็บ)?|ใบงาน|งาน|รายการ|ที่เป็น)";
   const after = "(?=$|[\\s,;:.!?()]|บน|ใน|ที่|ชั้น|อาคาร|ทั้งหมด|และ)";
   return new RegExp(`${before}(?:${label})${after}`, "u").test(prompt);
 }
@@ -910,7 +916,7 @@ const EDIT_DATE_LABELS = [
   .map((field) => field.source.slice(1))
   .join("|");
 const EDIT_ASSIGNMENT = /^(?:\s+(?:to|as)\s+|\s*(?:[:=]|ให้เป็น|เป็น)\s*)/iu;
-const UNSUPPORTED_EDIT_ACTION = String.raw`(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate)\s+(?:(?:this|that|the|its|all)\s+)?(?:${EDIT_LABELS}|records?|tickets?|jobs?)\b|(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด)\s*(?:${EDIT_LABELS}|ใบงาน|รายการ)`;
+const UNSUPPORTED_EDIT_ACTION = String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve)\b|(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ)`;
 const EDIT_CLAUSE_START = [
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=${EDIT_ASSIGNMENT.source.slice(1)})`,
   String.raw`(?:${EDIT_VERB.source.slice(1)})?(?:${EDIT_LABELS})(?=\s+from\b|\s*จาก)`,
@@ -918,11 +924,12 @@ const EDIT_CLAUSE_START = [
   MOVE_VERB.source.slice(1),
   UNSUPPORTED_EDIT_ACTION,
 ].join("|");
-// Punctuation and conjunctions inside a value only split before a recognizable
-// instruction with its own assignment, such as "and format to box".
+// Unquoted semicolons, newlines, and explicit sequencing words start another
+// clause. Commas and conjunctions also occur in names, so use their next word
+// to distinguish a value from an assignment or an unsupported action.
 const EDIT_QUOTED_VALUE = /"([^"\r\n]+)"|“([^”\r\n]+)”/u;
 const EDIT_CLAUSE_BOUNDARY = new RegExp(
-  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>(?:\s+(?:and(?:\s+then)?|then)\s+|\s*(?:และ|แล้ว)\s*|\s*[,;]\s*(?:(?:and|then)\s+|และ\s*)?|\r?\n\s*|\s+(?=(?:เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))(?=${EDIT_CLAUSE_START}))`,
+  String.raw`${EDIT_QUOTED_VALUE.source}|(?<separator>\s*(?:;|\r?\n)\s*|\s+(?:and\s+)?then\s+|\s*(?:และ\s*)?(?:แล้ว|จากนั้น)\s*|(?:\s+and\s+|\s*(?:และ|พร้อมทั้ง|พร้อมกับ)\s*|\s*,\s*(?:and\s+|และ\s*)?|\s+(?=(?:เปลี่ยน|แก้ไข|แก้|ย้าย|ระบุ|ล้าง|ลบ|ยกเลิก|เคลียร์)))(?=${EDIT_CLAUSE_START}))`,
   "giu",
 );
 const EDIT_CONDITION =

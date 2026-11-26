@@ -652,10 +652,13 @@ describe("parseJobScanSearchIntent", () => {
     for (const [lead, name, qualifier] of [
       ["Find product name ", "Widget", " with quantity greater than 20"],
       ["Find product name ", "Widget", " with quantity = 20"],
+      ["Find product name ", "Widget", ", quantity 20"],
+      ["Find product name ", "Widget", " and factory quantity 20"],
       ["Find product name ", "Widget", " shipped after 2026-11-26"],
       ["Find product name ", "Widget", " with priority high"],
       ["Find ", "Widget", " with priority high"],
       ["หาชื่อสินค้า ", "กล่อง Outer 131", " ที่มีจำนวนมากกว่า 20"],
+      ["หาชื่อสินค้า ", "Widget", ", วันที่ส่ง 12/12/2569"],
     ] as const) {
       const prompt = lead + name + qualifier;
       for (const search of [name, name + qualifier]) {
@@ -677,6 +680,36 @@ describe("parseJobScanSearchIntent", () => {
         searchField: "partName",
       },
     });
+  });
+
+  it("parses labelled storage format separately from the part name", () => {
+    for (const prompt of [
+      "Find product name Widget and storage format BOX",
+      "Find product name Widget, storage format BOX",
+      "Find product name Widget with storage format BOX",
+      "หาชื่อสินค้า Widget และรูปแบบการจัดเก็บกล่อง",
+    ]) {
+      expect(
+        parseJobScanSearchIntent(
+          { ...base, search: "Widget", storageFormat: "BOX" },
+          prompt,
+        ),
+      ).toEqual({
+        kind: "OK",
+        value: {
+          filter: "ALL",
+          search: "Widget",
+          searchField: "partName",
+          facets: { storageFormat: "BOX" },
+        },
+      });
+      expect(
+        parseJobScanSearchIntent(
+          { ...base, search: prompt.slice(prompt.indexOf("Widget")) },
+          prompt,
+        ),
+      ).not.toMatchObject({ kind: "OK" });
+    }
   });
 
   it("rejects untrusted, ungrounded, extra-key, ID or truncated responses", () => {
@@ -1046,6 +1079,15 @@ describe("parseJobScanEditProposal", () => {
         "Widget and clear the barcode",
       ],
       [
+        "Set part name to Widget and delete this scan",
+        "Widget and delete this scan",
+      ],
+      [
+        "Set part name to Widget and please export the shipment",
+        "Widget and please export the shipment",
+      ],
+      ["Set part name to Widget; submit the job", "Widget; submit the job"],
+      [
         "Set part name to Widget then increase the quantity",
         "Widget then increase the quantity",
       ],
@@ -1058,6 +1100,11 @@ describe("parseJobScanEditProposal", () => {
         "แก้ชื่อสินค้าเป็น กล่อง Outer 131 และลบบาร์โค้ด",
         "กล่อง Outer 131 และลบบาร์โค้ด",
       ],
+      [
+        "แก้ชื่อสินค้าเป็น กล่อง แล้วส่งออกใบงานนี้",
+        "กล่อง แล้วส่งออกใบงานนี้",
+      ],
+      ["แก้ชื่อสินค้าเป็น กล่อง และส่งออกใบงานนี้", "กล่อง และส่งออกใบงานนี้"],
     ] as const) {
       for (const value of [partName, "Widget"]) {
         expect(

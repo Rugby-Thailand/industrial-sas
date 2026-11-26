@@ -146,6 +146,11 @@ describe("job-scan AI search and edit actions", () => {
       "Set part name to Widget and clear the barcode",
       "Widget and clear the barcode",
     ],
+    [
+      "Set part name to Widget and delete this scan",
+      "Widget and delete this scan",
+    ],
+    ["แก้ชื่อสินค้าเป็น กล่อง แล้วส่งออกใบงานนี้", "กล่อง แล้วส่งออกใบงานนี้"],
     ["Change product name from Old to New", "from Old to New"],
   ])(
     "returns manual edit when the model copies an unsupported clause in %s",
@@ -206,29 +211,38 @@ describe("job-scan AI search and edit actions", () => {
     });
   });
 
-  it("returns manual search when the model turns a quantity comparison into a name", async () => {
-    const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
-    transport.mockResolvedValueOnce(
-      openRouterOk(
-        JSON.stringify(
-          searchPayload({ search: "Widget with quantity greater than 20" }),
-        ),
-      ),
-    );
-    const result = await world.t
-      .withIdentity(PUBLIC_API_ACTOR)
-      .action(api.finishedGoods.jobScans.interpretJobScanSearch, {
-        warehouseId: world.warehouses.alphaA,
-        prompt: "Find product name Widget with quantity greater than 20",
+  it.each([
+    [
+      "Find product name Widget with quantity greater than 20",
+      "Widget with quantity greater than 20",
+    ],
+    ["Find product name Widget, quantity 20", "Widget, quantity 20"],
+    [
+      "หาชื่อสินค้า Widget, วันที่ส่ง 12/12/2569",
+      "Widget, วันที่ส่ง 12/12/2569",
+    ],
+  ])(
+    "returns manual search when the model absorbs an unsupported filter in %s",
+    async (prompt, search) => {
+      const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
+      transport.mockResolvedValueOnce(
+        openRouterOk(JSON.stringify(searchPayload({ search }))),
+      );
+      const result = await world.t
+        .withIdentity(PUBLIC_API_ACTOR)
+        .action(api.finishedGoods.jobScans.interpretJobScanSearch, {
+          warehouseId: world.warehouses.alphaA,
+          prompt,
+        });
+      expect(result).toMatchObject({
+        ok: true,
+        value: {
+          ok: false,
+          error: { code: "UNSUPPORTED", fallback: "MANUAL_SEARCH" },
+        },
       });
-    expect(result).toMatchObject({
-      ok: true,
-      value: {
-        ok: false,
-        error: { code: "UNSUPPORTED", fallback: "MANUAL_SEARCH" },
-      },
-    });
-  });
+    },
+  );
 
   it("accepts the Thai prototype query and refuses a provider response that omits its pallet filter", async () => {
     const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
