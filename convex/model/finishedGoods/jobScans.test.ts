@@ -162,7 +162,11 @@ describe("parseJobScanSearchIntent", () => {
       ),
     ).toEqual({
       kind: "OK",
-      value: { filter: "ALL", search: "FO69070073" },
+      value: {
+        filter: "ALL",
+        search: "FO69070073",
+        searchField: "factoryOrder",
+      },
     });
 
     expect(
@@ -492,6 +496,77 @@ describe("parseJobScanSearchIntent", () => {
         "Find mapped or not mapped jobs",
       ),
     ).toEqual({ kind: "UNSUPPORTED" });
+  });
+
+  it("keeps a trailing status outside the literal barcode in Thai and English", () => {
+    for (const [prompt, search, overlong] of [
+      [
+        "Find jobs with barcode ABC-123 that are not mapped",
+        "ABC-123",
+        "ABC-123 that are not mapped",
+      ],
+      [
+        "หาใบงานบาร์โค้ด FBN-๒ ที่ยังไม่ระบุตำแหน่ง",
+        "FBN-๒",
+        "FBN-๒ ที่ยังไม่ระบุตำแหน่ง",
+      ],
+    ] as const) {
+      expect(
+        parseJobScanSearchIntent(
+          { ...base, search, filter: "UNMAPPED" },
+          prompt,
+        ),
+      ).toEqual({
+        kind: "OK",
+        value: {
+          filter: "UNMAPPED",
+          search,
+          searchField: "productBarcodeText",
+        },
+      });
+      expect(
+        parseJobScanSearchIntent({ ...base, search: overlong }, prompt),
+      ).toEqual({ kind: "UNREADABLE" });
+    }
+  });
+
+  it("refuses exclusions and alternatives that the records query cannot express", () => {
+    for (const [prompt, proposal] of [
+      ["หางานที่ไม่ได้อยู่ชั้น 2", { floor: 2 }],
+      ["Find jobs not on floor 2", { floor: 2 }],
+      [
+        "Show pallet jobs or unmapped jobs",
+        { filter: "UNMAPPED", storageFormat: "PALLET" },
+      ],
+      [
+        "Show pallets except those in building B",
+        { storageFormat: "PALLET", building: "B" },
+      ],
+    ] as const) {
+      expect(
+        parseJobScanSearchIntent({ ...base, ...proposal }, prompt),
+      ).toEqual({ kind: "UNSUPPORTED" });
+    }
+  });
+
+  it("requires a recognizable unlabelled job number to remain whole alongside another filter", () => {
+    const prompt = "Find unmapped jobs for FO69070073";
+    const mapped = { ...base, filter: "UNMAPPED" };
+    for (const search of ["", "FO6907007"]) {
+      expect(parseJobScanSearchIntent({ ...mapped, search }, prompt)).toEqual({
+        kind: "UNREADABLE",
+      });
+    }
+    expect(
+      parseJobScanSearchIntent({ ...mapped, search: "FO69070073" }, prompt),
+    ).toEqual({
+      kind: "OK",
+      value: {
+        filter: "UNMAPPED",
+        search: "FO69070073",
+        searchField: "factoryOrder",
+      },
+    });
   });
 
   it("rejects untrusted, ungrounded, extra-key, ID or truncated responses", () => {
