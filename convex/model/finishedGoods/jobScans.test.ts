@@ -511,6 +511,12 @@ describe("parseJobScanSearchIntent", () => {
         "ABC-123 that are currently unmapped",
       ],
       [
+        "Find barcode ABC-123 currently unmapped",
+        "ABC-123",
+        "ABC-123 currently unmapped",
+      ],
+      ["Find barcode ABC-123 unmapped", "ABC-123", "ABC-123 unmapped"],
+      [
         "หาใบงานบาร์โค้ด FBN-๒ ที่ยังไม่ระบุตำแหน่ง",
         "FBN-๒",
         "FBN-๒ ที่ยังไม่ระบุตำแหน่ง",
@@ -533,6 +539,25 @@ describe("parseJobScanSearchIntent", () => {
         parseJobScanSearchIntent({ ...base, search: overlong }, prompt),
       ).toEqual({ kind: "UNREADABLE" });
     }
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, search: "ABC 123 currently unmapped" },
+        "Find barcode ABC 123 currently unmapped",
+      ),
+    ).toEqual({ kind: "UNSUPPORTED" });
+    expect(
+      parseJobScanSearchIntent(
+        { ...base, search: "ABC 123", filter: "UNMAPPED" },
+        'Find barcode "ABC 123" that are currently unmapped',
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: {
+        search: "ABC 123",
+        filter: "UNMAPPED",
+        searchField: "productBarcodeText",
+      },
+    });
   });
 
   it("refuses exclusions and alternatives that the records query cannot express", () => {
@@ -543,6 +568,12 @@ describe("parseJobScanSearchIntent", () => {
       ["Find jobs on floors 2, 3", { floor: 2 }],
       ["Find jobs on floors 2/3", { floor: 2 }],
       ["Find jobs near floor 2", { floor: 2 }],
+      ["Find jobs near floor 2", { search: "near", floor: 2 }],
+      [
+        "Find jobs within walking distance of floor 2",
+        { search: "within walking distance", floor: 2 },
+      ],
+      ["หางานใกล้ชั้น 2", { search: "ใกล้", floor: 2 }],
       [
         "Find barcode ABC-123 not on floor 2",
         { search: "ABC-123 not", floor: 2 },
@@ -881,5 +912,26 @@ describe("parseJobScanEditProposal", () => {
       kind: "OK",
       value: { fields: { partName: "กล่อง Outer 131" } },
     });
+  });
+
+  it("refuses conditional edits before comparing proposed values", () => {
+    for (const [prompt, partName] of [
+      [
+        "Change part name to Gear only if the quantity is 40",
+        "Gear only if the quantity is 40",
+      ],
+      [
+        "Change part name to Gear unless it is already packed",
+        "Gear unless it is already packed",
+      ],
+      ["แก้ชื่อสินค้าเป็น Gear ถ้าจำนวนเป็น 40", "Gear ถ้าจำนวนเป็น 40"],
+    ] as const) {
+      expect(
+        parseJobScanEditProposal({ ...emptyEdit, partName }, prompt),
+      ).toEqual({ kind: "UNSUPPORTED" });
+      expect(
+        parseJobScanEditProposal({ ...emptyEdit, partName: "Gear" }, prompt),
+      ).toEqual({ kind: "UNSUPPORTED" });
+    }
   });
 });

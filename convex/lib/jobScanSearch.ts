@@ -109,15 +109,17 @@ export function jobScanTextMatches(
 ) {
   return JOB_SCAN_SEARCH_FIELDS.some((field) => contains(scan[field], needle));
 }
-/** Whole normalized code/location equality (not a prefix) for scanned codes. */
+/** Whole code equality. The current location takes precedence over captured text. */
 export function jobScanExactCodeMatches(
   scan: Pick<Scan, (typeof JOB_SCAN_EXACT_CODE_FIELDS)[number]>,
   needle: string,
 ) {
-  return JOB_SCAN_EXACT_CODE_FIELDS.some(
-    (field) =>
-      scan[field] !== undefined &&
-      normalizeJobScanSearch(scan[field]!) === needle,
+  return [
+    scan.factoryOrder,
+    scan.productBarcodeText,
+    scan.locationCode || scan.locationText,
+  ].some(
+    (value) => value !== undefined && normalizeJobScanSearch(value) === needle,
   );
 }
 export function jobScanNameMatches(name: string | undefined, needle: string) {

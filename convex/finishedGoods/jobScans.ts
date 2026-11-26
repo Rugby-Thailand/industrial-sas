@@ -1191,7 +1191,7 @@ export const listJobScans = queryWithOrg({
     warehouseId: v.id("warehouses"),
     filter: jobScanFilter,
     search: v.optional(v.string()),
-    /** When true, match whole normalized factoryOrder/barcode/location text or code only. */
+    /** Match a whole job number, barcode, or current location (captured text only without a current code). */
     exactCode: v.optional(v.boolean()),
     searchField: v.optional(jobScanSearchField),
     /** A resolved storage QR searches current assignments by identity. */

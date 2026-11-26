@@ -128,6 +128,32 @@ describe("job-scan AI search and edit actions", () => {
     vi.unstubAllEnvs();
   });
 
+  it("returns the manual edit fallback for a conditional change even when the model copies it verbatim", async () => {
+    const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");
+    transport.mockResolvedValueOnce(
+      openRouterOk(
+        JSON.stringify(
+          editPayload({
+            partName: "Gear only if the quantity is 40",
+          }),
+        ),
+      ),
+    );
+    const result = await world.t
+      .withIdentity(PUBLIC_API_ACTOR)
+      .action(api.finishedGoods.jobScans.proposeJobScanEdit, {
+        warehouseId: world.warehouses.alphaA,
+        prompt: "Change part name to Gear only if the quantity is 40",
+      });
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        ok: false,
+        error: { code: "UNSUPPORTED", fallback: "MANUAL_EDIT" },
+      },
+    });
+  });
+
   it("accepts the Thai prototype query and refuses a provider response that omits its pallet filter", async () => {
     const world = await createPublicApiWorld(MODULES, "SUPERVISOR");
     const client = world.t.withIdentity(PUBLIC_API_ACTOR);
@@ -1217,6 +1243,17 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
       expect(
         await listAll(fixture, { ...args, searchField: "location" }),
       ).toEqual([ids.exactFoPalletF2]);
+      expect(await listAll(fixture, { ...args, exactCode: true })).toEqual([
+        ids.southPalletF2,
+        ids.exactFoPalletF2,
+      ]);
+      expect(
+        await listAll(fixture, {
+          ...args,
+          search: "FG1-F02-Z01",
+          exactCode: true,
+        }),
+      ).toEqual([ids.legacyZoneOnlyPalletF2]);
       expect(
         await listAll(fixture, { ...args, searchField: "partName" }),
       ).toEqual([ids.prefixFoPalletF2]);
