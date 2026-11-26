@@ -56,7 +56,7 @@ export function BarcodeImagePicker({
   compact?: boolean;
   liveView?: boolean;
   actions?: ReactNode;
-  onScanAgain?: () => void;
+  onScanAgain: (() => void) | undefined;
   initialReview?: BarcodeImageReview | undefined;
   onReviewChange?:
     ((review: BarcodeImageReview | undefined) => void) | undefined;
@@ -392,11 +392,8 @@ export function BarcodeImagePicker({
             type="button"
             variant="outline"
             className="min-h-12 w-full"
-            disabled={disabled}
-            onClick={() => {
-              clear();
-              onScanAgain?.();
-            }}
+            disabled={!onScanAgain}
+            onClick={onScanAgain}
           >
             {t("scanAgain")}
           </Button>

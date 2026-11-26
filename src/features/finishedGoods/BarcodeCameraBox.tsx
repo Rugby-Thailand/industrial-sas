@@ -222,7 +222,7 @@ export function BarcodeCameraBox({
           compact={presentation === "expanded"}
           liveView={fullscreen && camera && !retry}
           actions={actions}
-          onScanAgain={open}
+          onScanAgain={scanDisabled ? undefined : open}
           onReadWithAi={
             onReadWithAi
               ? (file, crop) => {
