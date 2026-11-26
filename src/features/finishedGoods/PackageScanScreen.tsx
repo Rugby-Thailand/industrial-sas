@@ -2,8 +2,9 @@
 
 import { drafts } from "@/lib/browser/storage";
 import { useDraftKey } from "@/hooks/useDraftKey";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useConvex, useMutation, useQuery } from "convex/react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -135,6 +136,12 @@ export function PackageAssignment({
   );
   const assign = useMutation(fgRefs.confirmScanAssignment);
   const [units, setUnits] = useState<Unit[]>(restored?.units ?? []);
+  const [moveAnnouncement, setMoveAnnouncement] = useState("");
+  const moveFocus = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    moveFocus.current?.focus();
+    moveFocus.current = null;
+  }, [units]);
   const [code, setCode] = useState("");
   const [locationCode, setLocationCode] = useState(
     restored?.location?.code ?? "",
@@ -295,6 +302,38 @@ export function PackageAssignment({
       resolving.current = false;
     }
   }
+  const firstMovableIndex = unitId ? 1 : 0;
+  function movePackage(
+    index: number,
+    offset: -1 | 1,
+    button: HTMLButtonElement,
+  ) {
+    const target = index + offset;
+    if (
+      op.busy ||
+      uncertain ||
+      review ||
+      index < firstMovableIndex ||
+      target < firstMovableIndex ||
+      target >= units.length
+    )
+      return;
+    if (document.activeElement === button) moveFocus.current = button;
+    setUnits((current) => {
+      const next = [...current];
+      [next[index], next[target]] = [next[target]!, next[index]!];
+      return next;
+    });
+    setPhysical(false);
+    const code = units[index]!.code;
+    setMoveAnnouncement(
+      tr(
+        `${code} moved to position ${target + 1}.`,
+        `เลื่อน ${code} ไปอยู่ลำดับที่ ${target + 1} แล้ว`,
+      ),
+    );
+  }
+
   const valid =
     units.length > 0 &&
     Boolean(location) &&
@@ -444,48 +483,96 @@ export function PackageAssignment({
               {units.map((unit, index) => (
                 <li
                   key={unit.id}
-                  className="flex flex-wrap items-end gap-3 py-3"
+                  className="flex flex-wrap items-end gap-x-3 gap-y-2 py-3"
                 >
-                  <p className="min-w-40 flex-1 break-words">
+                  <p className="min-w-0 basis-full break-words sm:flex-1">
                     {index + 1}. {unit.code}
                     <span className="block text-sm text-muted">
                       {unit.productName}
                     </span>
                   </p>
-                  <Field
-                    label={tr("Fullness (%)", "ความเต็ม (%)")}
-                    type="number"
-                    min={1}
-                    max={100}
-                    step="1"
-                    value={unit.fill}
-                    onChange={(fill) =>
-                      setUnits((current) =>
-                        current.map((row) =>
-                          row.id === unit.id ? { ...row, fill } : row,
-                        ),
-                      )
-                    }
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      generation.current++;
-                      setUnits((current) =>
-                        current.filter((row) => row.id !== unit.id),
-                      );
-                    }}
-                  >
-                    {tr("Remove", "ลบ")}
-                  </Button>
+                  <div className="w-24">
+                    <Field
+                      label={tr("Fullness (%)", "ความเต็ม (%)")}
+                      type="number"
+                      min={1}
+                      max={100}
+                      step="1"
+                      value={unit.fill}
+                      onChange={(fill) =>
+                        setUnits((current) =>
+                          current.map((row) =>
+                            row.id === unit.id ? { ...row, fill } : row,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="ml-auto flex flex-wrap items-center gap-1">
+                    {units.length - firstMovableIndex > 1 &&
+                      index >= firstMovableIndex && (
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="size-11 aria-disabled:opacity-50"
+                            aria-disabled={index === firstMovableIndex}
+                            aria-label={tr(
+                              `Move ${unit.code} up`,
+                              `เลื่อน ${unit.code} ขึ้น`,
+                            )}
+                            onClick={(event) =>
+                              movePackage(index, -1, event.currentTarget)
+                            }
+                          >
+                            <ChevronUp aria-hidden="true" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="size-11 aria-disabled:opacity-50"
+                            aria-disabled={index === units.length - 1}
+                            aria-label={tr(
+                              `Move ${unit.code} down`,
+                              `เลื่อน ${unit.code} ลง`,
+                            )}
+                            onClick={(event) =>
+                              movePackage(index, 1, event.currentTarget)
+                            }
+                          >
+                            <ChevronDown aria-hidden="true" />
+                          </Button>
+                        </>
+                      )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11 px-3"
+                      onClick={() => {
+                        generation.current++;
+                        setUnits((current) =>
+                          current.filter((row) => row.id !== unit.id),
+                        );
+                      }}
+                    >
+                      {tr("Remove", "ลบ")}
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ol>
+            <p role="status" className="sr-only">
+              {moveAnnouncement}
+            </p>
             <p className="text-sm text-muted">
-              {tr(
-                "Order is top to bottom. Remove and rescan a package to change its position.",
-                "ลำดับจากบนลงล่าง หากต้องการเปลี่ยนลำดับให้ลบแล้วสแกนใหม่",
-              )}
+              {units.length - firstMovableIndex > 1
+                ? tr(
+                    "Order is top to bottom. Use the arrows to move packages.",
+                    "เรียงจากบนลงล่าง ใช้ลูกศรเพื่อเลื่อนตำแหน่งบรรจุภัณฑ์",
+                  )
+                : tr("Order is top to bottom.", "เรียงจากบนลงล่าง")}
             </p>
             <label className="flex items-center gap-2">
               <CheckboxControl
