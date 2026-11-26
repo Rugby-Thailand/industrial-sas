@@ -11,19 +11,33 @@ import { useState, useSyncExternalStore } from "react";
 // This is an invalidation token only. HR queries and every write still use
 // authoritative server time; the browser cannot choose an attendance date.
 const REFRESH_MS = 60_000;
+const FOREGROUND_BURST_MS = 1_000;
 let snapshot = 0;
+let lastRefreshAt: number | undefined;
 const listeners = new Set<() => void>();
 let timer: ReturnType<typeof setInterval> | undefined;
 
 function refresh() {
   if (document.visibilityState === "hidden") return;
-  snapshot = Math.max(Date.now(), snapshot + 1);
+  // Browsers can dispatch focus and visibility in separate tasks. Keep the
+  // first replacement alive through the return, including an adjacent tick.
+  const now = Date.now();
+  if (
+    lastRefreshAt !== undefined &&
+    now >= lastRefreshAt &&
+    now - lastRefreshAt < FOREGROUND_BURST_MS
+  ) {
+    return;
+  }
+  lastRefreshAt = now;
+  snapshot = Math.max(now, snapshot + 1);
   for (const listener of listeners) listener();
 }
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
   if (listeners.size === 1) {
+    // A later visible tick can retry a replacement that never answered.
     timer = setInterval(refresh, REFRESH_MS);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
@@ -34,6 +48,7 @@ function subscribe(listener: () => void) {
     if (listeners.size === 0) {
       clearInterval(timer);
       timer = undefined;
+      lastRefreshAt = undefined;
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     }

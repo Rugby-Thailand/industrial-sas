@@ -107,10 +107,19 @@ it("keeps the old subscription reactive while the replacement loads, including p
 });
 
 it("does not show the previous record or authenticated result when arguments change or queries skip", () => {
-  transport.read.mockImplementation(({ record }: { record: string }) =>
-    record === "a" ? { status: "Employee A" } : undefined,
+  let settled = Infinity;
+  transport.read.mockImplementation(
+    ({ record, clockRefresh }: { record: string; clockRefresh: number }) =>
+      record === "a" && clockRefresh <= settled
+        ? { status: "Employee A" }
+        : undefined,
   );
   const view = render(<Screen />);
+  expect(screen.getByText("Employee A")).toBeInTheDocument();
+  settled = Math.max(
+    ...transport.read.mock.calls.map(([args]) => args.clockRefresh),
+  );
+  act(() => vi.advanceTimersByTime(60_000));
   expect(screen.getByText("Employee A")).toBeInTheDocument();
   view.rerender(<Screen record="b" />);
   expect(screen.getByText("Loading")).toBeInTheDocument();
@@ -137,6 +146,9 @@ it("pauses hidden-page refresh, resumes on focus/visibility, and releases the ti
   act(() => document.dispatchEvent(new Event("visibilitychange")));
   expect(transport.read).toHaveBeenCalled();
   transport.read.mockClear();
+  act(() => window.dispatchEvent(new Event("focus")));
+  expect(transport.read).not.toHaveBeenCalled();
+  act(() => vi.advanceTimersByTime(30_000));
   act(() => window.dispatchEvent(new Event("focus")));
   expect(transport.read).toHaveBeenCalled();
   view.unmount();
