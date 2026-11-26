@@ -506,6 +506,11 @@ describe("parseJobScanSearchIntent", () => {
         "ABC-123 that are not mapped",
       ],
       [
+        "Find barcode ABC-123 that are currently unmapped",
+        "ABC-123",
+        "ABC-123 that are currently unmapped",
+      ],
+      [
         "หาใบงานบาร์โค้ด FBN-๒ ที่ยังไม่ระบุตำแหน่ง",
         "FBN-๒",
         "FBN-๒ ที่ยังไม่ระบุตำแหน่ง",
@@ -534,6 +539,10 @@ describe("parseJobScanSearchIntent", () => {
     for (const [prompt, proposal] of [
       ["หางานที่ไม่ได้อยู่ชั้น 2", { floor: 2 }],
       ["Find jobs not on floor 2", { floor: 2 }],
+      ["Find jobs outside floor 2", { floor: 2 }],
+      ["Find jobs on floors 2, 3", { floor: 2 }],
+      ["Find jobs on floors 2/3", { floor: 2 }],
+      ["Find jobs near floor 2", { floor: 2 }],
       [
         "Find barcode ABC-123 not on floor 2",
         { search: "ABC-123 not", floor: 2 },
@@ -555,23 +564,27 @@ describe("parseJobScanSearchIntent", () => {
   });
 
   it("requires a recognizable unlabelled job number to remain whole alongside another filter", () => {
-    const prompt = "Find unmapped jobs for FO69070073";
     const mapped = { ...base, filter: "UNMAPPED" };
-    for (const search of ["", "FO6907007"]) {
-      expect(parseJobScanSearchIntent({ ...mapped, search }, prompt)).toEqual({
-        kind: "UNREADABLE",
+    for (const code of ["FO1234", "FOM1234", "FO69070073", "F0M0010043"]) {
+      const prompt = `Find unmapped jobs for ${code}`;
+      for (const search of ["", code.slice(0, -1)]) {
+        expect(parseJobScanSearchIntent({ ...mapped, search }, prompt)).toEqual(
+          {
+            kind: "UNREADABLE",
+          },
+        );
+      }
+      expect(
+        parseJobScanSearchIntent({ ...mapped, search: code }, prompt),
+      ).toEqual({
+        kind: "OK",
+        value: {
+          filter: "UNMAPPED",
+          search: code,
+          searchField: "factoryOrder",
+        },
       });
     }
-    expect(
-      parseJobScanSearchIntent({ ...mapped, search: "FO69070073" }, prompt),
-    ).toEqual({
-      kind: "OK",
-      value: {
-        filter: "UNMAPPED",
-        search: "FO69070073",
-        searchField: "factoryOrder",
-      },
-    });
   });
 
   it("rejects untrusted, ungrounded, extra-key, ID or truncated responses", () => {

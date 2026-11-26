@@ -1148,6 +1148,13 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
         ids.prefixFoPalletF2,
         ids.exactFoPalletF2,
       ]);
+      expect(
+        await listAll(fixture, {
+          filter: "ALL",
+          search: "FO69070073",
+          searchField: "factoryOrder",
+        }),
+      ).toEqual([ids.exactFoPalletF2]);
 
       // Exact productBarcodeText: excludes FBN-BOX-010 prefix collision.
       expect(

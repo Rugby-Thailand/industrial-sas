@@ -252,11 +252,13 @@ const THAI_CARDINAL = new RegExp(
   "u",
 );
 const FLOOR_VALUE = String.raw`(?:\d+(?:st|nd|rd|th)?|\b(?:ground|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\b|${THAI_NUMERAL})`;
-const FLOOR_PAIR = String.raw`${FLOOR_VALUE}\s*(?:\b(?:or|and|to|through)\b|หรือ|และ|ถึง|[-–—])\s*${FLOOR_VALUE}`;
+const FLOOR_PAIR = String.raw`${FLOOR_VALUE}\s*(?:\b(?:or|and|to|through)\b|หรือ|และ|ถึง|[,/&–—-])\s*${FLOOR_VALUE}`;
 const FLOOR_ALTERNATIVE = new RegExp(
   String.raw`(?:\bfloors?\s*|ชั้น\s*)${FLOOR_PAIR}|${FLOOR_PAIR}\s+floors?\b`,
   "u",
 );
+const FLOOR_NUMBER =
+  /(?:\bfloors?\s*|ชั้น\s*)([+-]?\d+(?:[.,]\d+)?)|(?<![\p{L}\p{N}.,+-])([+-]?\d+(?:[.,]\d+)?)(?:st|nd|rd|th)?\s+floors?\b/gu;
 
 function parseThaiFloor(word: string): number {
   const parts = THAI_CARDINAL.exec(word);
@@ -281,10 +283,7 @@ function requestedFloors(prompt: string): Set<number> {
   const numbers = new Set<number>();
   // Consume the entire number, including an unsupported decimal or negative
   // floor, so a trailing digit cannot be interpreted as a separate floor.
-  const found = prompt.matchAll(
-    /(?:\bfloors?\s*|ชั้น\s*)([+-]?\d+(?:[.,]\d+)?)|(?<![\p{L}\p{N}.,+-])([+-]?\d+(?:[.,]\d+)?)(?:st|nd|rd|th)?\s+floors?\b/gu,
-  );
-  for (const match of found) {
+  for (const match of prompt.matchAll(FLOOR_NUMBER)) {
     numbers.add(Number((match[1] ?? match[2])!.replace(",", ".")));
   }
   for (const match of prompt.matchAll(THAI_FLOOR_WORD)) {
@@ -315,15 +314,23 @@ const SEARCH_LITERAL = new RegExp(
     String.raw`|(?<thai>ชื่อสินค้า|ชื่อชิ้นส่วน|ชื่อลูกค้า|บาร์โค้ด|เลขที่ใบงาน|(?:ใบ)?งาน\s*ที่(?:อยู่\s*(?:ที่|ใน)(?:ตำแหน่ง|จุดจัดเก็บ)|ตำแหน่ง|จุดจัดเก็บ|อยู่)|^ตำแหน่ง)\s*[:=]?\s*)`,
     String.raw`(?:"(?<quoted>[^"]+)"|“(?<thaiQuoted>[^”]+)”|(?<plain>.+?))`,
     String.raw`(?=$|[.!?]$|(?:[,;]\s*|\s+and\s+)(?:building|floors?|format|อาคาร|ชั้น|รูปแบบ)|\s+(?:in|at|on)\s+(?:the\s+)?(?:building|(?:[\w-]+\s+)?floors?)\b|\s*ที่(?:อาคาร|ชั้น)`,
-    String.raw`|(?:\s+(?:(?:that|which)\s+(?:(?:are|is|have|has|were|was)\s+)?|and\s+)|\s*(?:ที่|และ|[,;])\s*)(?=${SEARCH_STATUS.source}))`,
+    String.raw`|(?:\s+(?:(?:that|which)\s+(?:(?:are|is|have|has|were|was|remain|stay)\s+)?|and\s+)|\s*(?:ที่|และ|[,;])\s*)(?:(?:currently|already|still|yet)\s+)*(?=${SEARCH_STATUS.source}))`,
   ].join(""),
   "giu",
 );
 
-const FACTORY_ORDER_TOKEN =
-  /(?<![a-z\p{Nd}_-])(?:fo|f0)-?[a-z\p{Nd}]*\p{Nd}{5,}(?![a-z\p{Nd}_-])/giu;
 const UNSUPPORTED_SEARCH_OPERATOR =
-  /\b(?:or|either|except|exclude|excluding|without|not|never|unless|above|below|(?:isn|aren|wasn|weren|haven|hasn)['’]t)\b|หรือ|ยกเว้น|ไม่|มิใช่|นอกเหนือ/u;
+  /\b(?:or|either|except|exclude|excluding|without|not|never|unless|above|below|outside|apart|beyond|(?:isn|aren|wasn|weren|haven|hasn)['’]t)\b|หรือ|ยกเว้น|ไม่|มิใช่|นอกเหนือ|นอกอาคาร|นอกชั้น/u;
+
+/** Older saved tickets can retain the scanner's zero-for-O spelling. */
+export function isSavedFactoryOrderCode(value: string): boolean {
+  return classifyTicketBarcode(value.replace(/^f0/i, "FO")) === "factoryOrder";
+}
+
+function factoryOrderTokens(source: string): Set<string> {
+  const tokens = source.match(/[a-z\p{Nd}_-]+/giu) ?? [];
+  return new Set(tokens.filter(isSavedFactoryOrderCode));
+}
 
 function explicitSearchField(label: string): JobScanSearchField {
   if (/^(?:part|product) name$|^ชื่อ(?:สินค้า|ชิ้นส่วน)$/u.test(label))
@@ -379,6 +386,47 @@ function requestedFormats(prompt: string): JobScanStorageFormat[] {
         );
     }
   });
+}
+
+// A successful search must account for the request's full meaning. A whitelist
+// of connective words prevents an unknown modifier or another value from
+// being silently dropped after the recognized clauses have been consumed.
+function hasRemainingSearchInstructions(
+  source: string,
+  format: JobScanStorageFormat | undefined,
+) {
+  let remaining = normalizeForGrounding(source)
+    .replace(BUILDING_HINT, " ")
+    .replace(SEARCH_STATUS, " ")
+    .replace(FLOOR_NUMBER, " ")
+    .replace(THAI_FLOOR_WORD, " ");
+  for (const word of Object.values(FLOOR_WORDS).flat()) {
+    remaining = remaining.replaceAll(word, " ");
+  }
+  if (format === "PALLET")
+    remaining = remaining.replace(
+      /\b(?:pallets?|skids?)\b|พาเลท|พาเลต|พาเล็ท|พาเล็ต/gu,
+      " ",
+    );
+  if (format === "BOX")
+    remaining = remaining.replace(
+      /\b(?:boxes|box|cartons?|cases?|ctn)\b|กล่อง|ลัง/gu,
+      " ",
+    );
+  if (format === "OTHER")
+    remaining = remaining.replace(/\b(?:other|misc|loose)\b|อื่น\s*ๆ?/gu, " ");
+  return Boolean(
+    remaining
+      .replace(
+        /\b(?:please|find|show|list|search|look|looking|me|jobs?|orders?|tickets?|records?|scans?|items?|saved|scanned|that|which|are|is|were|was|remain|stay|has|have|been|on|at|in|within|from|the|a|an|of|for|with|as|by|and|only|all|currently|already|still|yet|storage|formats?)\b/gu,
+        " ",
+      )
+      .replace(
+        /(?:ค้นหา|แสดง|ดู|หา|ใบงาน|รายการ|งาน|สแกนแล้ว|ทั้งหมด|เฉพาะ|ที่เป็น|ที่|เป็น|บน|ใน|และ|ประเภท|รูปแบบ|การจัดเก็บ|ด้วย)/gu,
+        "",
+      )
+      .replace(/[\s,;:.!?()]+/gu, ""),
+  );
 }
 
 export const JOB_SCAN_SEARCH_JSON_SCHEMA = Object.freeze({
@@ -626,7 +674,7 @@ export function parseJobScanSearchIntent(
   const literalGroups = literal?.groups;
   const label = literalGroups?.english ?? literalGroups?.thai;
   const sourceInstructions = literal ? source.replace(literal[0], " ") : source;
-  const jobCodes = new Set(sourceInstructions.match(FACTORY_ORDER_TOKEN));
+  const jobCodes = factoryOrderTokens(sourceInstructions);
   if (jobCodes.size > 1 || (literal && jobCodes.size))
     return { kind: "UNSUPPORTED" };
   const implicitJobCode = [...jobCodes][0];
@@ -729,6 +777,15 @@ export function parseJobScanSearchIntent(
   const format = formats[0];
   if (raw.storageFormat !== (format ?? null)) return { kind: "UNREADABLE" };
   if (format !== undefined) facets.storageFormat = format;
+  if (
+    hasRemainingSearchInstructions(
+      !literal && search
+        ? sourceInstructions.replace(search, " ")
+        : sourceInstructions,
+      format,
+    )
+  )
+    return { kind: "UNSUPPORTED" };
 
   if (
     filter === "ALL" &&

@@ -36,6 +36,7 @@ import {
   MAX_JOB_SCAN_ITEMS,
   JOB_TICKET_JSON_SCHEMA,
   JOB_TICKET_PROMPT,
+  isSavedFactoryOrderCode,
   jobScanEditRequestBody,
   jobScanSearchRequestBody,
   jobTicketError,
@@ -1261,6 +1262,8 @@ export const listJobScans = queryWithOrg({
         ])
       : [null, null];
     const searchField = needle ? args.searchField : undefined;
+    const exactFactoryOrder =
+      searchField === "factoryOrder" && isSavedFactoryOrderCode(needle);
     const exact = Boolean(needle) && !searchField && args.exactCode === true;
     const buildingNeedle =
       args.facets?.building !== undefined
@@ -1378,6 +1381,8 @@ export const listJobScans = queryWithOrg({
           return false;
       }
       if (!needle || exact) return true;
+      if (exactFactoryOrder)
+        return normalizeJobScanSearch(scan.factoryOrder) === needle;
       if (searchField)
         return jobScanNameMatches(
           searchField === "location"
