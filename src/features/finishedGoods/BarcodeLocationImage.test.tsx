@@ -76,7 +76,7 @@ it("real shared image controls resolve and select a position even with camera pe
     code: "F2-L28-18",
   });
 });
-it("typing while an image is reading cancels it and prevents stale location lookup", async () => {
+it("closing the camera to type cancels an image read and prevents stale location lookup", async () => {
   let finish!: (value: unknown) => void;
   mocks.read.mockReturnValue(new Promise((resolve) => (finish = resolve)));
   const pick = vi.fn();
@@ -86,7 +86,10 @@ it("typing while an image is reading cancels it and prevents stale location look
   });
   upload();
   const signal = mocks.read.mock.calls[0]![2] as AbortSignal;
-  fireEvent.change(screen.getByRole("textbox", { name: "Search location" }), {
+  expect(screen.queryByRole("textbox", { name: "Search location" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
+  const input = await screen.findByRole("textbox", { name: "Search location" });
+  fireEvent.change(input, {
     target: { value: "Dock" },
   });
   expect(signal.aborted).toBe(true);

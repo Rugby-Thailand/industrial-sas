@@ -20,13 +20,13 @@ import { querySuccess, writeSuccess } from "@tests/fixtures/finished-goods-ui";
 import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
 import { PageBackButton } from "@/components/ui/PageBackButton";
 import { trackAppHistory } from "@/lib/browser/appHistory";
+import type * as LocationImagePreparation from "./prepareLocationImage";
 import { LocationPicker } from "./LocationPicker";
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   action: vi.fn(),
-  prepare:
-    vi.fn<typeof import("./prepareLocationImage").prepareLocationImage>(),
+  prepare: vi.fn<typeof LocationImagePreparation.prepareLocationImage>(),
   create: vi.fn(),
   replace: vi.fn(),
 }));

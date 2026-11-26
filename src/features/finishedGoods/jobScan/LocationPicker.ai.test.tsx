@@ -8,6 +8,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess } from "@tests/fixtures/finished-goods-ui";
+import type * as LocationImagePreparation from "./prepareLocationImage";
 import { LocationPicker } from "./LocationPicker";
 import type * as BarcodeImage from "../barcodeImage";
 import { getFunctionName } from "convex/server";
@@ -256,9 +257,9 @@ it.each([
         screen.getByRole("button", { name: "Take another photo" }),
       );
 
-    const actual = await vi.importActual<
-      typeof import("./prepareLocationImage")
-    >("./prepareLocationImage");
+    const actual = await vi.importActual<typeof LocationImagePreparation>(
+      "./prepareLocationImage",
+    );
     const closeBitmap = vi.fn();
     const decode =
       source === "retake"
