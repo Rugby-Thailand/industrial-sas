@@ -5,9 +5,11 @@ import type {
 
 import type { DataModel } from "../schema";
 import {
+  TENANT_INDEX_ID_SUFFIX,
   TENANT_INDEX_MAX_BATCH_SIZE,
   TENANT_INDEX_MAX_CURSOR_LENGTH,
   TENANT_INDEX_MAX_PAGE_SIZE,
+  TENANT_INDEX_TIEBREAKER,
   TenantDbError,
   assertTenantTableName,
   checkedTenantIndexRange,
@@ -147,7 +149,7 @@ function createReads(
   ): readonly { readonly field: string; readonly value: unknown }[] => {
     if (!Array.isArray(supplied)) throw invalidQuery();
     if (supplied.length === 0) throw invalidQuery();
-    if (supplied.length > facts.fields.length) throw invalidQuery();
+    if (supplied.length > facts.fields.length + 1) throw invalidQuery();
 
     const terms: { readonly field: string; readonly value: unknown }[] = [];
 
@@ -159,7 +161,13 @@ function createReads(
       const record = term as Record<string, unknown>;
       const field: unknown = record.field;
       if (typeof field !== "string") throw invalidQuery();
-      if (field !== facts.fields[position]) throw invalidQuery();
+      if (field !== (facts.fields[position] ?? TENANT_INDEX_TIEBREAKER))
+        throw invalidQuery();
+      if (
+        field === TENANT_INDEX_TIEBREAKER &&
+        (typeof record.value !== "number" || !Number.isFinite(record.value))
+      )
+        throw invalidQuery();
       if (record.missing === true) {
         // An explicit "field omitted" term; the tenant field is never optional.
         if (field === TENANT_DISCRIMINATOR || record.value !== undefined)
@@ -189,11 +197,21 @@ function createReads(
   ): TenantIndexRange | undefined => {
     // Terms include orgId here; the shared check counts fields after it.
     const range = checkedTenantIndexRange(
-      facts.fields.slice(1),
+      facts.fieldsAfterOrg,
       terms.length - 1,
       supplied,
     );
     if (range === null) throw invalidQuery();
+    if (range?.field === TENANT_INDEX_ID_SUFFIX) {
+      for (const bound of [range.lower, range.upper]) {
+        if (
+          bound &&
+          (typeof bound.value !== "string" ||
+            normalizedId(facts.table, bound.value) !== bound.value)
+        )
+          throw invalidQuery();
+      }
+    }
     return range;
   };
 

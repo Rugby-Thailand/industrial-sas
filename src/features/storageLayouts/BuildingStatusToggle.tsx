@@ -114,6 +114,9 @@ export function BuildingStatusToggle({
     : result?.ok
       ? result.value
       : undefined;
+  const controlLoading = sharedControl
+    ? !sharedControl.loaded
+    : result === undefined;
   const current = control?.status ?? status;
   const active = current === "ACTIVE";
   const label = t(
@@ -233,8 +236,7 @@ export function BuildingStatusToggle({
           )
         : control?.blocked
           ? t("statusOccupied")
-          : (sharedControl ? sharedControl.loaded : result !== undefined) &&
-              !control
+          : !controlLoading && !control
             ? t("statusUnavailable")
             : undefined;
   return (
@@ -259,7 +261,7 @@ export function BuildingStatusToggle({
       />
       <span className="text-xs font-medium">{label}</span>
       <span className="flex size-12 shrink-0 items-center justify-center">
-        {operation.busy || result === undefined ? (
+        {operation.busy || controlLoading ? (
           <span role="status">
             <Spinner className="size-4 text-muted" aria-hidden="true" />
             <span className="sr-only">

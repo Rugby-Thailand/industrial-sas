@@ -84,7 +84,11 @@ function timer(
     kind: "link",
     href: "/target",
   },
+  matchingControls: (
+    "visible" | "no-layout" | "aria-hidden" | "css-hidden" | "inert"
+  )[] = ["visible"],
 ) {
+  const clicks: string[] = [];
   let now = 0;
   let loaded = false;
   let hidden = false;
@@ -132,15 +136,22 @@ function timer(
               },
             ]
           : []),
-        {
+        ...matchingControls.map((visibility) => ({
           getAttribute: (name: string) =>
             name === "aria-label" ? "Back" : "/target",
-          getClientRects: () => [{}],
-          closest: () => null,
+          getClientRects: () => (visibility === "no-layout" ? [] : [{}]),
+          checkVisibility: () => visibility !== "css-hidden",
+          closest: (selector: string) =>
+            (visibility === "aria-hidden" &&
+              selector.includes("aria-hidden")) ||
+            (visibility === "inert" && selector.includes("[inert]"))
+              ? {}
+              : null,
           click: () => {
+            clicks.push(visibility);
             location.pathname = "/target";
           },
-        },
+        })),
       ],
     },
   };
@@ -149,6 +160,7 @@ function timer(
     window,
   );
   return {
+    clicks,
     result,
     location,
     listeners,
@@ -165,6 +177,39 @@ function timer(
 }
 
 describe("navigation timer termination", () => {
+  it("clicks the visible link when hidden links have the same destination", async () => {
+    const t = timer("goods", { kind: "link", href: "/target" }, [
+      "no-layout",
+      "aria-hidden",
+      "css-hidden",
+      "inert",
+      "visible",
+    ]);
+    t.tick(12, true);
+    expect(t.clicks).toEqual(["visible"]);
+    expect(await t.result).toMatchObject({
+      status: "completed",
+      dataReadyMs: 12,
+    });
+  });
+  it("excludes the sample when every matching link is hidden", async () => {
+    const t = timer("goods", { kind: "link", href: "/target" }, [
+      "no-layout",
+      "aria-hidden",
+      "css-hidden",
+      "inert",
+    ]);
+    const result = await t.result;
+    expect(t.clicks).toEqual([]);
+    expect(t.listeners.size).toBe(0);
+    expect(result).toMatchObject({
+      status: "error",
+      reason: "missing-control",
+    });
+    expect(summarize([{ flow: "scan-to-goods", ...result }])).toMatchObject([
+      { completed: 0, errors: 1, timings: {} },
+    ]);
+  });
   it("observes URL and loaded data independently and removes its listeners", async () => {
     const t = timer();
     t.tick(10);

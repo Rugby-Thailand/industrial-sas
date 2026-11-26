@@ -1,28 +1,15 @@
 "use client";
 import { floorMapDemo } from "@tests/fixtures/storage-floor-demo-data";
-import { BuildingModelWorkspace } from "@/features/storageLayouts/StorageLayoutScreens";
-import type {
-  StorageBuildingRow,
-  StorageFloorRow,
-} from "@/lib/convex/storageLayoutApi";
+import {
+  BuildingModelWorkspace,
+  StorageBuildingCatalogue,
+} from "@/features/storageLayouts/StorageLayoutScreens";
+import type { StorageFloorRow } from "@/lib/convex/storageLayoutApi";
+import { fixtureBuilding } from "./storageFixtureData";
+import { CatalogueWorkspaceContext } from "./storageWorkspaceStub";
 
 const demo = floorMapDemo(false, false);
-const building: StorageBuildingRow = {
-  buildingId: "fixture-building",
-  warehouseId: "fixture-warehouse",
-  code: "FIXTURE",
-  name: "Storage editor fixture",
-  widthMm: demo.widthMm,
-  depthMm: demo.depthMm,
-  defaultFloorHeightMm: demo.heightMm,
-  floorCount: 1,
-  totalHeightMm: demo.heightMm,
-  grossAreaSqMm: demo.widthMm * demo.depthMm,
-  reservedAreaSqMm: 0,
-  usableAreaSqMm: demo.widthMm * demo.depthMm,
-  status: "DRAFT",
-  version: 1,
-};
+const building = fixtureBuilding;
 const floors: StorageFloorRow[] = [
   {
     floorId: "fixture-floor",
@@ -41,4 +28,12 @@ const floors: StorageFloorRow[] = [
 
 export function StorageFixture() {
   return <BuildingModelWorkspace building={building} floors={floors} />;
+}
+
+export function StorageCatalogueFixture() {
+  return (
+    <CatalogueWorkspaceContext.Provider value={true}>
+      <StorageBuildingCatalogue />
+    </CatalogueWorkspaceContext.Provider>
+  );
 }

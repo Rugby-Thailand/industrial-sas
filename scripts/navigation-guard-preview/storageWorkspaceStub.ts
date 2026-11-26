@@ -1,3 +1,4 @@
+import { createContext, useContext } from "react";
 import type { WorkspaceContextValue } from "@/components/providers/WorkspaceProvider";
 
 const workspace: WorkspaceContextValue = {
@@ -19,6 +20,17 @@ const workspace: WorkspaceContextValue = {
   selectWarehouse: () => {},
 };
 
+const catalogueWorkspace: WorkspaceContextValue = {
+  ...workspace,
+  selectedWarehouseId: "fixture-warehouse",
+  navigationPermissions: [
+    ...workspace.navigationPermissions,
+    "masterData.storageLayout.activate",
+  ],
+};
+
+export const CatalogueWorkspaceContext = createContext(false);
+
 export function useWorkspace() {
-  return workspace;
+  return useContext(CatalogueWorkspaceContext) ? catalogueWorkspace : workspace;
 }
