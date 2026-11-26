@@ -1432,7 +1432,7 @@ it("native Forward reopens Location assignment without duplicate entries after B
   }
 });
 
-it("dismissing location remap review returns to the retained location picker Dialog", async () => {
+it("restores location review on Forward and keeps Back ordered through the picker", async () => {
   window.history.replaceState(
     { appNavigationIndex: 0 },
     "",
@@ -1459,6 +1459,8 @@ it("dismissing location remap review returns to the retained location picker Dia
       name: "Review location change for 1 ticket",
     });
     expect(review).toHaveTextContent("Dock → ZONE-A");
+    const reviewSearch = window.location.search;
+    const historyLength = window.history.length;
     act(() => window.history.back());
     await waitFor(() =>
       expect(
@@ -1468,6 +1470,20 @@ it("dismissing location remap review returns to the retained location picker Dia
       ).toBeNull(),
     );
     expect(screen.getByRole("dialog", { name: "Set location" })).toBeVisible();
+    act(() => window.history.forward());
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Review location change for 1 ticket",
+      }),
+    ).toHaveTextContent("Dock → ZONE-A");
+    expect(window.location.search).toBe(reviewSearch);
+    expect(window.history.length).toBe(historyLength);
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("dialog", { name: "Set location" }),
+      ).toBeVisible(),
+    );
     act(() => window.history.back());
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Set location" })).toBeNull(),
@@ -1485,6 +1501,73 @@ it("dismissing location remap review returns to the retained location picker Dia
     stop();
   }
 });
+
+it.each(["Cancel", "Close", "Escape"])(
+  "explicit %s retires location review before Forward and the next Back",
+  async (dismiss) => {
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/en/finished-goods/scan?origin=kept#scanner",
+    );
+    const stop = trackAppHistory();
+    window.history.pushState(
+      {},
+      "",
+      "/en/finished-goods/scan/records?filter=keep#rows",
+    );
+    const user = userEvent.setup();
+    const view = renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+    });
+    try {
+      await user.click(
+        screen.getByRole("button", { name: "Set location for FO001" }),
+      );
+      const picker = screen.getByRole("dialog", { name: "Set location" });
+      const pickerSearch = window.location.search;
+      await user.click(within(picker).getByRole("button", { name: /ZONE-A/ }));
+      const review = within(
+        screen.getByRole("dialog", {
+          name: "Review location change for 1 ticket",
+        }),
+      );
+      if (dismiss === "Escape") await user.keyboard("{Escape}");
+      else await user.click(review.getByRole("button", { name: dismiss }));
+      await waitFor(() => expect(window.location.search).toBe(pickerSearch));
+      await act(async () => {
+        const visited = new Promise<void>((resolve) =>
+          window.addEventListener("popstate", () => resolve(), { once: true }),
+        );
+        window.history.forward();
+        await visited;
+      });
+      await waitFor(() => expect(window.location.search).toBe(pickerSearch));
+      expect(
+        screen.getByRole("dialog", { name: "Set location" }),
+      ).toBeVisible();
+      expect(mocks.assign).not.toHaveBeenCalled();
+      act(() => window.history.back());
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", { name: "Set location" }),
+        ).toBeNull(),
+      );
+      act(() => window.history.back());
+      await waitFor(() =>
+        expect(
+          window.location.pathname +
+            window.location.search +
+            window.location.hash,
+        ).toBe("/en/finished-goods/scan?origin=kept#scanner"),
+      );
+    } finally {
+      view.unmount();
+      stop();
+    }
+  },
+);
 
 it("nested QR and Photo AI Back flows dismiss in order inside the location picker Dialog", async () => {
   window.history.replaceState(

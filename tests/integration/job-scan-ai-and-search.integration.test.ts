@@ -242,6 +242,10 @@ describe("job-scan AI search and edit actions", () => {
       "Set part name to Gear and scan one more ticket",
       "Gear and scan one more ticket",
     ],
+    [
+      "Set part name to Gear and start scanning one more ticket",
+      "Gear and start scanning one more ticket",
+    ],
     ["แก้ชื่อสินค้าเป็น กล่อง และสลับคลัง", "กล่อง และสลับคลัง"],
     ["แก้ชื่อสินค้าเป็น กล่อง และสแกนใบงานถัดไป", "กล่อง และสแกนใบงานถัดไป"],
     ["แก้ชื่อสินค้าเป็น กล่อง และสแกน QR ถัดไป", "กล่อง และสแกน QR ถัดไป"],
@@ -380,7 +384,11 @@ describe("job-scan AI search and edit actions", () => {
     },
   );
 
-  it.each(["DOCK NORTH / DOCK SOUTH", "THE NEAREST AVAILABLE LOCATION"])(
+  it.each([
+    "DOCK NORTH / DOCK SOUTH",
+    "THE NEAREST AVAILABLE LOCATION",
+    "WHICHEVER LOCATION IS AVAILABLE",
+  ])(
     "requires an explicitly quoted literal for ambiguous destination %s",
     async (locationCode) => {
       const world = await createPublicApiWorld(MODULES, "ORG_ADMIN");

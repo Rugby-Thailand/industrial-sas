@@ -9073,7 +9073,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:remapReview",
       "policy": "overlay",
-      "expectation": "Location reassignment review is a real shared Dialog showing exact selected ticket identities and reviewed versions. New writes require current versions; an uncertain response retains the immutable attempted command for explicit replay. Pending writes protect dismissal.",
+      "expectation": "Location reassignment review uses a shared Dialog with exact ticket identities and reviewed versions. Native Back retains its proposal for Forward through the same picker. Explicit dismissal and invalid restoration retire its entry. New writes require current versions, an uncertain response retains the immutable replay command, and pending writes protect dismissal.",
       "integration": "dialog",
       "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
       "cases": [
@@ -9084,13 +9084,17 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
           "name": "retries the immutable reviewed location command after response loss and advanced record versions"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "restores location review on Forward and keeps Back ordered through the picker"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:$overlay:Dialog:remapReview",
       "policy": "overlay",
-      "expectation": "Location reassignment review is a real shared Dialog showing exact selected ticket identities and reviewed versions. New writes require current versions; an uncertain response retains the immutable attempted command for explicit replay. Pending writes protect dismissal.",
+      "expectation": "Location reassignment review uses a shared Dialog with exact ticket identities and reviewed versions. Native Back retains its proposal for Forward through the same picker. Explicit dismissal and invalid restoration retire its entry. New writes require current versions, an uncertain response retains the immutable replay command, and pending writes protect dismissal.",
       "integration": "dialog",
       "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
       "cases": [
@@ -9101,6 +9105,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
           "name": "retries the immutable reviewed location command after response loss and advanced record versions"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "explicit %s retires location review before Forward and the next Back"
         }
       ]
     },

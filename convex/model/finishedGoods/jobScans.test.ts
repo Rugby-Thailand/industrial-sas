@@ -1513,6 +1513,8 @@ describe("parseJobScanEditProposal", () => {
     "scan the next ticket",
     "scan next ticket",
     "scan one more ticket",
+    "start scanning one more ticket",
+    "begin to scan the next QR",
     "rescan both barcodes",
   ])(
     "requires quotes to treat follow-up command %s as literal text",
@@ -1533,6 +1535,8 @@ describe("parseJobScanEditProposal", () => {
       "near the door",
       "an empty spot",
       "the nearest available location",
+      "whichever location is available",
+      "any bay",
       "first free pallet position",
       "DOCK NORTH and DOCK SOUTH",
       "DOCK NORTH / DOCK SOUTH",

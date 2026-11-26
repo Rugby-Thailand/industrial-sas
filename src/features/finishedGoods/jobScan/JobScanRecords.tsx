@@ -172,6 +172,11 @@ function Records({
     records: RecordPage["items"];
     command?: Parameters<typeof assign>[0];
   } | null>(null);
+  const retainedRemap = useRef<{
+    picker: NonNullable<typeof locationSelection>;
+    review: NonNullable<typeof remapReview>;
+  } | null>(null);
+  const [remapEpoch, setRemapEpoch] = useState(0);
   const [deletion, setDeletion] = useState<{
     ids: string[];
     requestId: string;
@@ -345,6 +350,7 @@ function Records({
   function clearSelection() {
     updateSelection(() => []);
     lastLocationSelection.current = null;
+    if (retainedRemap.current) discardRemapReview();
     if (locationSelection) setLocationEpoch((epoch) => epoch + 1);
     setLocationSelection(null);
     operation.setError("");
@@ -352,6 +358,7 @@ function Records({
 
   function openLocationPicker(ids: string[], opener?: HTMLElement | null) {
     if (!actionable || !ids.length) return;
+    if (retainedRemap.current) discardRemapReview();
     locationOpener.current =
       opener ??
       (document.activeElement instanceof HTMLElement
@@ -367,6 +374,7 @@ function Records({
   function dismissLocationPicker() {
     if (operation.busy || !picking) return;
     guardedNavigate(() => {
+      if (retainedRemap.current) discardRemapReview();
       const closed = locationCompletion.current?.completeOwned?.(() => {
         setLocationSelection(null);
       });
@@ -375,6 +383,18 @@ function Records({
         setLocationSelection(null);
       }
     });
+  }
+
+  function discardRemapReview() {
+    retainedRemap.current = null;
+    setRemapReview(null);
+    setRemapEpoch((epoch) => epoch + 1);
+  }
+
+  function dismissRemapReview() {
+    if (operation.busy || !remapReview) return;
+    if (!remapCompletion.current?.completeOwned?.(discardRemapReview))
+      discardRemapReview();
   }
 
   const confirmDelete = (ids: string[]) => {
@@ -797,7 +817,9 @@ function Records({
                         picking.ids.includes(record.id),
                       ) ?? [];
                     if (chosen.length !== picking.ids.length) return;
-                    setRemapReview({ location, records: chosen });
+                    const review = { location, records: chosen };
+                    retainedRemap.current = { picker: picking, review };
+                    setRemapReview(review);
                   }}
                 />
               </fieldset>
@@ -833,17 +855,54 @@ function Records({
         open={remapReview !== null}
         completionRef={remapCompletion}
         backPending={operation.busy}
+        backRevocationEpoch={remapEpoch}
         onOpenChange={(open) => {
-          if (!open && !operation.busy) setRemapReview(null);
+          if (operation.busy) return;
+          const retained = retainedRemap.current;
+          if (!open) {
+            if (retained && remapReview) retained.review = remapReview;
+            setRemapReview(null);
+          } else if (
+            retained &&
+            canManage &&
+            picking === retained.picker &&
+            retained.review.records.every((record) =>
+              visibleIdSet.has(record.id),
+            )
+          ) {
+            setRemapReview(retained.review);
+          } else {
+            discardRemapReview();
+          }
         }}
       >
         {remapReview && (
           <DialogContent
             size="sm"
             closeLabel={appT("close")}
-            showCloseButton={!operation.busy}
+            showCloseButton={false}
             className="gap-4"
+            onEscapeKeyDown={(event) => {
+              event.preventDefault();
+              dismissRemapReview();
+            }}
+            onPointerDownOutside={(event) => {
+              event.preventDefault();
+              dismissRemapReview();
+            }}
           >
+            {!operation.busy && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute top-3 right-3"
+                onClick={dismissRemapReview}
+              >
+                <XIcon aria-hidden="true" className="size-4" />
+                <span className="sr-only">{appT("close")}</span>
+              </Button>
+            )}
             <DialogHeader>
               <DialogTitle>
                 {t("remapReviewTitle", { count: remapReview.records.length })}
@@ -889,7 +948,7 @@ function Records({
               <Button
                 variant="outline"
                 disabled={operation.busy || editing !== null}
-                onClick={() => setRemapReview(null)}
+                onClick={dismissRemapReview}
               >
                 {t("cancel")}
               </Button>

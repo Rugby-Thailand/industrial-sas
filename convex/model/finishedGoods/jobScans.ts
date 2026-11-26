@@ -358,7 +358,7 @@ const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b`,
   // Once a new clause starts with a scanning verb, its object and
   // qualifiers do not make it an editable ticket value.
-  String.raw`(?:re[- ]?)?scan\b|สแกน`,
+  String.raw`(?:re[- ]?)?scan\b|(?:start|begin|continue|resume|stop|finish|keep)\s+(?:to\s+)?(?:re[- ]?)?scan(?:ning)?\b|(?:เริ่ม|หยุด)?สแกน`,
   String.raw`(?:make|take|generate|save)\s+(?:(?:a|an|another)\s+)?(?:copy|duplicate|backup|printout|snapshot)\b`,
   String.raw`(?:go|navigate|switch|return|jump)\s+(?:(?:back\s+)?to\s+\S|back\b)|(?:take|capture|attach|upload)\s+(?:(?:a|an|the)\s+)?(?:photos?|pictures?|images?|screenshots?|attachments?)\b`,
   String.raw`(?:log|sign)(?:[\s-]*|\s+(?:me|us|them)\s+)(?:in|out|off|on)\b|lock\s+(?:me|us|them)\s+out\b|(?:switch|change)\s+(?:(?:the|my|your)\s+)?accounts?\b|(?:เข้า|ออก)\s*(?:สู่)?\s*ระบบ|(?:สลับ|เปลี่ยน)\s*บัญชี|(?:ล็อ[กค]|ลอ[กค])\s*(?:เอา[ตท]์?|อิน)|(?:จบ|สิ้นสุด|ยุติ|ปิด|ตัด)\s*(?:เซสชั่?น|การเข้าสู่ระบบ|การเชื่อมต่อ)`,
@@ -1093,7 +1093,7 @@ const EDIT_REQUEST_SUFFIX =
 const EDIT_RECORD_SCOPE =
   /\b(?:all|any|both|other|every|each|multiple|selected|matching|these|those|remaining)\s+(?:(?:the|saved|scanned|mapped|unmapped)\s+)*(?:records?|tickets?|jobs?|scans?)\b|\b(?:for|on|across|in)\s+(?:the\s+)?(?:records?|tickets?|jobs?|scans?)\b|\b(?:for|on|across)\s+f[o0]m?\d{4,}\b|(?:ทุก|หลาย|ทั้งสอง)(?:ใบงาน|งาน|รายการ)|(?:ใบงาน|งาน|รายการ)\s*(?:ทั้งหมด|อื่น|ที่เลือก)/u;
 const VAGUE_EDIT_LOCATION =
-  /^(?:(?:(?:an?|any|the)\s+)?(?:near|around|anywhere|somewhere|close to|empty|free|available|open|nearest|closest|next|first|suitable|unoccupied)(?=\s|$)|(?:ตำแหน่ง|จุดจัดเก็บ|ช่อง|พื้นที่|ที่)\s*(?:ที่)?\s*(?:ว่าง|ใกล้)|ที่ไหนก็ได้|ใกล้)/u;
+  /^(?:(?:(?:an?|the)\s+)?(?:near|around|any|anywhere|somewhere|wherever|whatever|whichever|close to|empty|free|available|open|nearest|closest|next|first|suitable|unoccupied)(?=\s|$)|(?:ตำแหน่ง|จุดจัดเก็บ|ช่อง|พื้นที่|ที่)\s*(?:ที่)?\s*(?:ว่าง|ใกล้|ไหนก็ได้|ใดก็ได้)|ที่ไหนก็ได้|ใกล้)/u;
 
 function editOperand(field: EditableField, value: string): string | undefined {
   if (!value) return undefined;
