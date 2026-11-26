@@ -184,6 +184,14 @@ describe("job-scan AI search and edit actions", () => {
       "Outer 131 – also delete this record",
     ],
     [
+      "Change product name to Outer 131—also delete this record",
+      "Outer 131—also delete this record",
+    ],
+    [
+      "Change product name to Outer 131 and make a copy of this record",
+      "Outer 131 and make a copy of this record",
+    ],
+    [
       "Change product name to Outer 131 / please also delete this record",
       "Outer 131 / please also delete this record",
     ],
@@ -313,6 +321,14 @@ describe("job-scan AI search and edit actions", () => {
     [
       "Find product name Outer 131 – also delete this record",
       "Outer 131 – also delete this record",
+    ],
+    [
+      "Find product name Outer 131—also delete this record",
+      "Outer 131—also delete this record",
+    ],
+    [
+      "Find product name Outer 131 and make a copy of this record",
+      "Outer 131 and make a copy of this record",
     ],
     ["หาชื่อสินค้า กล่อง ｜ ก็ช่วยลบใบงานนี้", "กล่อง ｜ ก็ช่วยลบใบงานนี้"],
     ["หาชื่อสินค้า กล่อง — ลบใบงานนี้", "กล่อง — ลบใบงานนี้"],

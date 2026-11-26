@@ -313,15 +313,21 @@ const QUOTED_LITERAL = /"([^"\r\n]+)"|“([^”\r\n]+)”/gu;
 // Compound instructions can include a connective without changing the
 // underlying action. Use the same boundary for search and edit operands.
 const EXPLICIT_FOLLOW_UP = String.raw`(?:\s+(?:as\s+well\s+as|in\s+addition(?:\s+to)?|followed\s+by|and\s+also|(?:and\s+)?(?:then|additionally|furthermore))\s+|\s*(?:และ\s*)?(?:รวมทั้ง|รวม(?:ไป)?ถึง|อีกทั้ง|นอกจากนี้|จากนั้น|ต่อด้วย|แล้ว)\s*)`;
-// A spaced punctuation mark can separate two instructions. Keep punctuation
-// within codes and literal names when it is not followed by a command.
+// Typographic separators need no spaces, while ASCII hyphens are common
+// inside codes. In either case, look for a command after the separator.
 const FOLLOW_UP_MARK = String.raw`[\p{Pd}:/|¦·•…→⇒：／｜]`;
-const RECORD_FOLLOW_UP = String.raw`(?:${EXPLICIT_FOLLOW_UP}|\s+(?:and|plus)\s+|\s*[&+＆]\s*|\s+${FOLLOW_UP_MARK}\s*|${FOLLOW_UP_MARK}\s+|\s*(?:พร้อมทั้ง|พร้อมกับ|และ)\s*)`;
+const COMPACT_FOLLOW_UP_MARK = String.raw`(?:(?!-)\p{Pd}|[|¦·•…→⇒：／｜])`;
+const RECORD_FOLLOW_UP = String.raw`(?:${EXPLICIT_FOLLOW_UP}|\s+(?:and|plus)\s+|\s*[&+＆]\s*|\s*${COMPACT_FOLLOW_UP_MARK}\s*|\s+${FOLLOW_UP_MARK}\s*|${FOLLOW_UP_MARK}\s+|\s*(?:พร้อมทั้ง|พร้อมกับ|และ)\s*)`;
 // Apply the same optional lead-in after punctuation, conjunctions, and
 // sentence breaks. Validate the action that follows, not its politeness.
-const FOLLOW_UP_MODIFIERS = String.raw`(?:(?:also|additionally|furthermore|then|next|finally|moreover|subsequently|afterwards|now|please|kindly|(?:can|could|would|will)\s+you|go\s+ahead\s+and|be\s+sure\s+to)\s+|(?:ก็|จึง|ยัง|ให้|กรุณา|โปรด|ช่วย|รบกวน)\s*)*`;
+const FOLLOW_UP_MODIFIERS = String.raw`(?:(?:and|also|additionally|furthermore|then|next|finally|moreover|subsequently|afterwards|now|please|kindly|(?:can|could|would|will)\s+you|go\s+ahead\s+and|be\s+sure\s+to)\s+|(?:และ|ก็|จึง|ยัง|ให้|กรุณา|โปรด|ช่วย|รบกวน)\s*)*`;
 const QUALIFIED_FOLLOW_UP = String.raw`(?:(?:do\s+not|don['’]t|instead|rather\s+than)\s+|(?:อย่า|ห้าม|ไม่ต้อง|แทนที่จะ)\s*)`;
-const UNSUPPORTED_RECORD_ACTION = String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b|(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก)`;
+const UNSUPPORTED_RECORD_ACTION = [
+  String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b`,
+  String.raw`(?:make|take|generate|save)\s+(?:(?:a|an|another)\s+)?(?:copy|duplicate|backup|printout|snapshot)\b`,
+  String.raw`(?:[\p{L}’'-]+\s+){1,6}(?:this|that|these|those|another)\s+(?:(?:saved|scanned)\s+)?(?:records?|tickets?|jobs?|scans?)\b`,
+  String.raw`(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก|ทำสำเนา|ถ่ายสำเนา)`,
+].join("|");
 const UNSUPPORTED_SEARCH_ACTION = new RegExp(
   String.raw`(?:^|[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?:${QUALIFIED_FOLLOW_UP})?(?:${UNSUPPORTED_RECORD_ACTION}|(?:move|set|change|update|edit|assign|remap|transfer)\b|ย้าย|แก้(?:ไข)?|เปลี่ยน|ระบุ)`,
   "u",

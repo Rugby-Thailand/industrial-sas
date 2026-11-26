@@ -1091,6 +1091,47 @@ describe("parseJobScanEditProposal", () => {
     });
   });
 
+  it("keeps supported compounds and rejects record actions across separator styles", () => {
+    for (const separator of [" — ", "—", "–", "•", " | ", " / ", " and "]) {
+      for (const modifier of ["", "also ", "please also ", "and then "]) {
+        for (const action of [
+          "delete this record",
+          "make a copy of this record",
+          "email this record",
+        ]) {
+          const partName = "Outer 131" + separator + modifier + action;
+          expect(
+            parseJobScanEditProposal(
+              { ...emptyEdit, partName },
+              "Change product name to " + partName,
+            ),
+          ).toEqual({ kind: "UNSUPPORTED" });
+        }
+        expect(
+          parseJobScanEditProposal(
+            { ...emptyEdit, partName: "Outer 131", quantity: 10 },
+            "Change product name to Outer 131" +
+              separator +
+              modifier +
+              "set quantity to 10",
+          ),
+        ).toEqual({
+          kind: "OK",
+          value: { fields: { partName: "Outer 131", quantity: 10 } },
+        });
+      }
+    }
+    for (const separator of ["—", "｜", " และ "]) {
+      const partName = "กล่อง" + separator + "ก็ช่วยทำสำเนาใบงานนี้";
+      expect(
+        parseJobScanEditProposal(
+          { ...emptyEdit, partName },
+          "แก้ชื่อสินค้าเป็น " + partName,
+        ),
+      ).toEqual({ kind: "UNSUPPORTED" });
+    }
+  });
+
   it("does not strip negation or replacement from a follow-up edit", () => {
     for (const prompt of [
       "Change product name to Outer 131 – do not set quantity to 10",
