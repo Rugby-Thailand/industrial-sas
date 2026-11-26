@@ -275,7 +275,7 @@ function DestinationScanSession({
       {showManualEntry && showVerificationErrors && rejected ? (
         <Notice tone="warning" title={rejected} role="alert" />
       ) : null}
-      {showManualEntry && verified ? (
+      {verified ? (
         <Notice
           tone="success"
           title={
