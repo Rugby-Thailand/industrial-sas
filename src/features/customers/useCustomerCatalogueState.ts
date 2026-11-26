@@ -1,5 +1,6 @@
 "use client";
 
+import { preferences } from "@/lib/browser/storage";
 import { useCatalogueUrlState } from "@/hooks/useCatalogueUrlState";
 
 export type CustomerStatusFilter = "ACTIVE" | "ARCHIVED" | "ALL";
@@ -51,4 +52,10 @@ const options = {
 /** Search and status live in the URL, so Back to the list restores them; only the status is remembered between visits. */
 export function useCustomerCatalogueState(scope: string) {
   return useCatalogueUrlState(scope, options);
+}
+
+export function readRememberedCustomerStatus(
+  scope: string,
+): CustomerStatusFilter {
+  return preferences.read(scope, options.codec.readPreference, initial).status;
 }

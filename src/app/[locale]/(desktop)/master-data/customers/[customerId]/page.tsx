@@ -1,6 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
 
-import { CustomerDetail } from "@/features/customers/CustomerDetail";
+import { CustomerWorkspace } from "@/features/customers/CustomerWorkspace";
 
 export default async function CustomerPage({
   params,
@@ -9,5 +9,5 @@ export default async function CustomerPage({
 }) {
   const { locale, customerId } = await params;
   setRequestLocale(locale);
-  return <CustomerDetail customerId={customerId} />;
+  return <CustomerWorkspace customerId={customerId} />;
 }

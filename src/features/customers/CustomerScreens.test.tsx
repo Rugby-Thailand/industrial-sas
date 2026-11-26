@@ -11,7 +11,11 @@ import {
   within,
 } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
-import type { ComponentProps, ReactNode } from "react";
+import {
+  useSyncExternalStore,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import {
   afterEach,
   beforeEach,
@@ -33,6 +37,9 @@ const mocks = vi.hoisted(() => ({
   ] as string[],
   push: vi.fn(),
   replace: vi.fn(),
+  linkNavigation: undefined as ((href: string) => void) | undefined,
+  availableWarehouses: [] as { id: string; name: string; code: string }[],
+  selectWarehouse: vi.fn(),
   readiness: { kind: "READY_TO_QUERY" } as {
     kind: string;
     requestId?: string;
@@ -104,17 +111,58 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => ({
     permissionsReady: mocks.readiness.kind === "READY_TO_QUERY",
     navigationPermissions:
       mocks.readiness.kind === "READY_TO_QUERY" ? mocks.permissions : [],
-    warehouses: [],
+    warehouses: mocks.availableWarehouses,
+    selectWarehouse: mocks.selectWarehouse,
   }),
 }));
+function subscribeToTestUrl(listener: () => void) {
+  window.addEventListener("popstate", listener);
+  window.addEventListener("test-url-navigation", listener);
+  return () => {
+    window.removeEventListener("popstate", listener);
+    window.removeEventListener("test-url-navigation", listener);
+  };
+}
 vi.mock("next/navigation", () => ({
+  useSearchParams: () =>
+    new URLSearchParams(
+      useSyncExternalStore(
+        subscribeToTestUrl,
+        () => window.location.search,
+        () => "",
+      ),
+    ),
   usePathname: () => window.location.pathname,
 }));
 vi.mock("@/i18n/navigation", () => ({
-  Link: ({ children, ...props }: ComponentProps<"a">) => (
-    <a {...props}>{children}</a>
+  Link: ({
+    children,
+    onNavigate,
+    prefetch: _prefetch,
+    ...props
+  }: ComponentProps<"a"> & {
+    onNavigate?: () => void;
+    prefetch?: boolean;
+  }) => (
+    <a
+      {...props}
+      onClick={(event) => {
+        props.onClick?.(event);
+        if (mocks.linkNavigation && props.href?.startsWith("/")) {
+          event.preventDefault();
+          onNavigate?.();
+          mocks.linkNavigation(props.href);
+        }
+      }}
+    >
+      {children}
+    </a>
   ),
-  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
+  useRouter: () => ({
+    push: mocks.push,
+    replace: mocks.replace,
+    back: () => window.history.back(),
+  }),
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -123,7 +171,8 @@ import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
 import { WorkspaceAccessBoundary } from "@/components/providers/WorkspaceAccessBoundary";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import { CustomerCatalogue } from "./CustomerList";
-import { CustomerDetail, EditCustomerForm } from "./CustomerDetail";
+import { EditCustomerForm } from "./CustomerDetail";
+import { CustomerWorkspace as CustomerDetail } from "./CustomerWorkspace";
 import { NewCustomerForm } from "./CustomerForm";
 import { CustomerPicker } from "./CustomerPicker";
 import { CustomerReviewQueue } from "./CustomerReviewQueue";
@@ -171,6 +220,83 @@ const mutationFor = (reference: WriteReference) => {
 const LIST_ORIGIN = "/en/master-data/customers?search=thai#list";
 const DETAIL_URL = "/en/master-data/customers/customer-a?tab=1#top";
 
+const SHELL = getFunctionName(api.customers.workspace.getCustomerWorkspace);
+const WORKSPACE_JOBS = getFunctionName(
+  api.customers.workspace.listCustomerWorkspaceJobs,
+);
+const WORKSPACE_PRODUCTS = getFunctionName(
+  api.customers.workspace.listCustomerWorkspaceProducts,
+);
+const WORKSPACE_ALIASES = getFunctionName(
+  api.customers.linking.listCustomerAliasesPage,
+);
+const WAREHOUSE_READ = "masterData.storageLayout.read";
+const job = {
+  jobScanId: "scan-1",
+  factoryOrder: "FO-2511-0423",
+  partName: "กล่องลูกฟูก 5 ชั้น",
+  productCode: "TRR-BX5",
+  warehouseId: "wh-1",
+  warehouseName: "Bang Phli",
+  createdAt: 1_763_380_800_000,
+  source: "AI",
+  mapped: false,
+  locationText: "A12",
+  customerLinkSource: "AUTO",
+};
+const product = {
+  productId: "prod-1",
+  sku: "TRR-BX5",
+  name: "กล่องลูกฟูก 5 ชั้น",
+  unit: "pcs",
+  status: "ACTIVE",
+  warehouseId: "wh-1",
+  warehouseName: "Bang Phli",
+  storedCount: 2,
+  pallets: [
+    {
+      palletId: "pallet-1",
+      code: "PLT-1",
+      quantity: 25,
+      positionCode: "B-02",
+      zoneLabel: "North",
+    },
+  ],
+  zones: ["North"],
+  hasMorePallets: true,
+};
+const bounded = (count: number, complete = true) => ({ count, complete });
+const shell = (override: Record<string, unknown> = {}) => ({
+  ok: true,
+  value: {
+    access: {
+      canManage: mocks.permissions.includes(MANAGE),
+      canViewWarehouseData: mocks.permissions.includes(WAREHOUSE_READ),
+      canReview: false,
+      canScan: false,
+    },
+    warehouses: [{ warehouseId: "wh-1", name: "Bang Phli", code: "BP" }],
+    scopeAvailable: true,
+    warehousesComplete: true,
+    rollup: {
+      linkedJobs: bounded(1),
+      linkedProducts: bounded(1),
+      storedPallets: bounded(2),
+      unmappedJobs: bounded(1),
+    },
+    latestJobs: [job],
+    ...override,
+  },
+});
+const workspacePage = (items: readonly object[], continueCursor = "") => ({
+  ok: true,
+  value: {
+    canViewWarehouseData: true,
+    items,
+    isDone: !continueCursor,
+    continueCursor,
+  },
+});
 const base = {
   _id: "customer-a",
   _creationTime: 1,
@@ -229,6 +355,10 @@ beforeEach(() => {
   mocks.queries.clear();
   mocks.queryArgs.clear();
   mocks.permissions = [READ, MANAGE];
+  mocks.linkNavigation = undefined;
+  mocks.availableWarehouses = [];
+  mocks.selectWarehouse.mockReset();
+  mocks.queries.set(SHELL, shell());
   mocks.push.mockReset();
   mocks.replace.mockReset();
   mocks.queries.set(SUGGEST, { ok: true, value: "C-0031" });
@@ -282,6 +412,37 @@ async function chooseExisting(expectedPath: string) {
     within(prompt).getByRole("button", { name: "Discard changes" }),
   );
   await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith(expectedPath));
+}
+function configureWorkspaceTestRouter() {
+  function change(path: string, replace: boolean) {
+    const next = path.startsWith("/en/") ? path : `/en${path}`;
+    if (replace) window.history.replaceState(window.history.state, "", next);
+    else window.history.pushState({}, "", next);
+    window.dispatchEvent(new Event("test-url-navigation"));
+  }
+  mocks.push.mockImplementation((path: string) => change(path, false));
+  mocks.replace.mockImplementation((path: string) => change(path, true));
+  mocks.linkNavigation = (path: string) => change(path, false);
+}
+
+function directSection(section: string) {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    `/en/master-data/customers/customer-a?section=${section}`,
+  );
+}
+function enableWarehouseWorkspace() {
+  mocks.permissions = [READ, MANAGE, WAREHOUSE_READ];
+  mocks.queries.set(SHELL, shell());
+  mocks.queries.set(WORKSPACE_PRODUCTS, workspacePage([product]));
+}
+function chooseWorkspaceSection(name: string) {
+  fireEvent.click(
+    within(
+      screen.getByRole("navigation", { name: "Customer workspace sections" }),
+    ).getByRole("button", { name }),
+  );
 }
 const type = (name: RegExp | string, value: string) =>
   fireEvent.change(screen.getByRole("textbox", { name }), {
@@ -1182,18 +1343,22 @@ describe("new customer", () => {
 
 describe("customer detail", () => {
   it("shows code, status, delivery, contact and tax details, with dashes for empty values", () => {
+    configureWorkspaceTestRouter();
     mocks.queries.set(GET, { ok: true, value: full });
     render(<CustomerDetail customerId="customer-a" />);
     expect(
       screen.getByRole("heading", { level: 1, name: full.name }),
     ).toBeVisible();
     expect(screen.getByText("C-0007")).toBeVisible();
-    expect(screen.getByText("Active")).toBeVisible();
+    expect(
+      within(screen.getByRole("banner")).getByText("Active"),
+    ).toBeVisible();
     expect(screen.getByText("Bang Phli plant")).toBeVisible();
     expect(screen.getByRole("link", { name: "081-234-5678" })).toHaveAttribute(
       "href",
       "tel:0812345678",
     );
+    chooseWorkspaceSection("Details");
     expect(screen.getByText("0105553012341")).toBeVisible();
     expect(screen.getByText("Branch 00001")).toBeVisible();
     expect(screen.getByText("—")).toBeVisible(); // no English registered name
@@ -1313,11 +1478,12 @@ describe("customer detail", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Customer details" }),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "Customers" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Back" })).toBeVisible();
     expect(mocks.queryArgs.has(GET)).toBe(false);
   });
 
   it("flags a stored tax ID that fails the check digit", () => {
+    directSection("details");
     mocks.queries.set(GET, {
       ok: true,
       value: { ...full, taxId: "0105553012340", taxIdChecksumValid: false },
@@ -1327,16 +1493,19 @@ describe("customer detail", () => {
   });
 
   it("a missing or foreign customer keeps a page frame with Back to the list", () => {
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/en/master-data/customers/nope",
+    );
     mocks.queries.set(GET, { ok: true, value: null });
     render(<CustomerDetail customerId="nope" />);
     expect(
       screen.getByRole("heading", { level: 1, name: "Customer not found" }),
     ).toBeVisible();
     expect(screen.getByTestId("customer-not-found")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Customers" })).toHaveAttribute(
-      "href",
-      "/master-data/customers",
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(mocks.replace).toHaveBeenCalledWith("/master-data/customers");
   });
 
   it("view-only members see no edit or archive actions", () => {
@@ -1719,13 +1888,6 @@ describe("customer v2 linking, detail activity and review queue", () => {
   const ACTIVITY_SUMMARIES = getFunctionName(
     api.customers.linking.listCustomerActivitySummaries,
   );
-  const ACTIVITY = getFunctionName(api.customers.linking.getCustomerActivity);
-  const ALIASES_PAGE = getFunctionName(
-    api.customers.linking.listCustomerAliasesPage,
-  );
-  const PRODUCTS_PAGE = getFunctionName(
-    api.customers.linking.listCustomerProductsPage,
-  );
   const UNRESOLVED = getFunctionName(api.customers.linking.listUnresolvedNames);
   const OPTIONS = getFunctionName(api.customers.linking.searchCustomerOptions);
   const ADD_ALIAS = ADD_ALIAS_REF;
@@ -1822,46 +1984,15 @@ describe("customer v2 linking, detail activity and review queue", () => {
   });
 
   it("renders linked jobs, linked products, and manages job-ticket aliases on customer detail", async () => {
+    configureWorkspaceTestRouter();
+    enableWarehouseWorkspace();
     mocks.queries.set(GET, { ok: true, value: full });
-    mocks.queries.set(ACTIVITY, {
-      ok: true,
-      value: {
-        canViewWarehouseData: true,
-        aliases: [
-          {
-            aliasId: "alias-1",
-            alias: "บจก.ไทยรุ่งเรือง",
-            approvedAt: 1_763_300_000_000,
-          },
-        ],
-        hasMoreAliases: false,
-        recentJobs: [
-          {
-            jobScanId: "scan-1",
-            factoryOrder: "FO-2511-0423",
-            partName: "กล่องลูกฟูก 5 ชั้น",
-            warehouseId: "wh-1",
-            warehouseName: "บางพลี",
-            createdAt: 1_763_380_800_000,
-            customerLinkSource: "AUTO",
-          },
-        ],
-        hasMoreJobs: false,
-        linkedProducts: [
-          {
-            productId: "prod-1",
-            sku: "TRR-BX5",
-            name: "กล่องลูกฟูก 5 ชั้น",
-            unit: "ชิ้น",
-            status: "ACTIVE",
-            warehouseId: "wh-1",
-            warehouseName: "บางพลี",
-            totalQuantity: 1240,
-          },
-        ],
-        hasMoreProducts: false,
-      },
-    });
+    mocks.queries.set(
+      WORKSPACE_ALIASES,
+      workspacePage([
+        { aliasId: "alias-1", alias: "บจก.ไทยรุ่งเรือง", approvedAt: 1 },
+      ]),
+    );
     mutationFor(ADD_ALIAS).mockResolvedValue({
       ok: true,
       value: { ok: false, code: "DUPLICATE_KEY", field: "alias" },
@@ -1879,14 +2010,12 @@ describe("customer v2 linking, detail activity and review queue", () => {
       "TRR-BX5",
     );
     expect(
-      screen.getByRole("link", { name: /กล่องลูกฟูก 5 ชั้น/ }),
+      within(screen.getByTestId("customer-linked-products")).getByRole("link"),
     ).toHaveAttribute(
       "href",
       "/finished-goods/products/prod-1?warehouseId=wh-1",
     );
-    expect(
-      screen.queryByRole("button", { name: "Browse linked jobs by warehouse" }),
-    ).toBeNull();
+    chooseWorkspaceSection("Details");
     expect(screen.getByTestId("customer-aliases-list")).toHaveTextContent(
       "บจก.ไทยรุ่งเรือง",
     );
@@ -1919,181 +2048,67 @@ describe("customer v2 linking, detail activity and review queue", () => {
   });
 
   it("loads linked jobs inline across customer-scoped continuation pages", () => {
-    const jobsPage = getFunctionName(
-      api.customers.linking.listCustomerJobsPage,
-    );
+    enableWarehouseWorkspace();
+    directSection("jobs");
     mocks.queries.set(GET, { ok: true, value: full });
-    mocks.queries.set(ACTIVITY, {
-      ok: true,
-      value: {
-        canViewWarehouseData: true,
-        aliases: [],
-        hasMoreAliases: false,
-        recentJobs: [],
-        hasMoreJobs: true,
-        linkedProducts: [],
-        hasMoreProducts: false,
-      },
-    });
-    mocks.queries.set(jobsPage, {
-      ok: true,
-      value: {
-        canViewWarehouseData: true,
-        items: [],
-        isDone: false,
-        continueCursor: "next-warehouse",
-      },
-    });
+    mocks.queries.set(WORKSPACE_JOBS, workspacePage([], "next-warehouse"));
     render(<CustomerDetail customerId="customer-a" />);
-    const more = () =>
-      screen.getByRole("button", { name: "Browse linked jobs by warehouse" });
-    fireEvent.click(more());
-    expect(mocks.queryArgs.get(jobsPage)).toEqual({ customerId: "customer-a" });
-
-    mocks.queries.set(jobsPage, {
-      ok: true,
-      value: {
-        canViewWarehouseData: true,
-        isDone: true,
-        continueCursor: "",
-        items: [
-          {
-            jobScanId: "old-job",
-            factoryOrder: "OLDER-LINKED-JOB",
-            warehouseId: "wh-2",
-            warehouseName: "Chonburi",
-            createdAt: 100,
-          },
-        ],
-      },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(mocks.queryArgs.get(jobsPage)).toEqual({
+    expect(mocks.queryArgs.get(WORKSPACE_JOBS)).toEqual({
       customerId: "customer-a",
+      filter: "all",
+    });
+    mocks.queries.set(
+      WORKSPACE_JOBS,
+      workspacePage([{ ...job, factoryOrder: "OLDER-LINKED-JOB" }]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(mocks.queryArgs.get(WORKSPACE_JOBS)).toEqual({
+      customerId: "customer-a",
+      filter: "all",
       cursor: "next-warehouse",
     });
     expect(screen.getByTestId("customer-recent-jobs")).toHaveTextContent(
       "OLDER-LINKED-JOB",
     );
-    expect(
-      screen.queryByRole("button", { name: "Browse linked jobs by warehouse" }),
-    ).toBeNull();
-    mocks.queries.set(jobsPage, {
-      ok: true,
-      value: {
-        canViewWarehouseData: false,
-        items: [],
-        isDone: true,
-        continueCursor: "",
-      },
-    });
+    mocks.queries.set(WORKSPACE_JOBS, workspacePage([job]));
     fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
-    expect(mocks.queryArgs.get(jobsPage)).toEqual({ customerId: "customer-a" });
-    expect(screen.queryByTestId("customer-recent-jobs")).toBeNull();
+    expect(mocks.queryArgs.get(WORKSPACE_JOBS)).toEqual({
+      customerId: "customer-a",
+      filter: "all",
+    });
+    expect(screen.getByTestId("customer-recent-jobs")).toHaveTextContent(
+      job.factoryOrder,
+    );
   });
 
   it("revisits live product pages after a deletion and clears rows on authorization denial", () => {
+    enableWarehouseWorkspace();
+    directSection("products");
     mocks.queries.set(GET, { ok: true, value: full });
-    mocks.queries.set(ACTIVITY, {
-      ok: true,
-      value: {
-        canViewWarehouseData: true,
-        aliases: [],
-        hasMoreAliases: false,
-        recentJobs: [],
-        hasMoreJobs: true,
-        linkedProducts: [],
-        hasMoreProducts: true,
-      },
-    });
+    mocks.queries.set(WORKSPACE_PRODUCTS, workspacePage([product], "cursor-1"));
     render(<CustomerDetail customerId="customer-a" />);
-    expect(screen.queryByText("No linked job tickets yet")).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Browse linked jobs by warehouse" }),
-    ).toBeVisible();
-    // Out-of-scope rows filled the first slice: not "no products".
-    expect(screen.queryByText("No linked products yet")).toBeNull();
-
-    mocks.queries.set(PRODUCTS_PAGE, {
-      ok: true,
-      value: {
-        canViewWarehouseData: true,
-        items: [
-          {
-            productId: "prod-a",
-            sku: "A",
-            name: "Product A",
-            unit: "pcs",
-            status: "ACTIVE",
-            warehouseId: "wh-2",
-            warehouseName: "Chonburi",
-          },
-        ],
-        isDone: false,
-        continueCursor: "cursor-1",
-      },
-    });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Browse linked products" }),
-    );
     expect(screen.getByTestId("customer-linked-products")).toHaveTextContent(
-      "Product A",
+      product.sku,
     );
-
-    mocks.queries.set(PRODUCTS_PAGE, {
-      ok: true,
-      value: {
-        canViewWarehouseData: true,
-        items: [
-          {
-            productId: "prod-b",
-            sku: "B",
-            name: "Product B",
-            unit: "pcs",
-            status: "ACTIVE",
-            warehouseId: "wh-2",
-            warehouseName: "Chonburi",
-          },
-        ],
-        isDone: true,
-        continueCursor: "",
-      },
-    });
+    mocks.queries.set(
+      WORKSPACE_PRODUCTS,
+      workspacePage([{ ...product, sku: "SKU-2" }]),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(mocks.queryArgs.get(PRODUCTS_PAGE)).toEqual({
+    expect(mocks.queryArgs.get(WORKSPACE_PRODUCTS)).toEqual({
       customerId: "customer-a",
-      pageSize: 100,
       cursor: "cursor-1",
     });
-    const list = screen.getByTestId("customer-linked-products");
-    expect(list).not.toHaveTextContent("Product A");
-    expect(list).toHaveTextContent("Product B");
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Products (1)" }),
-    ).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
-
-    // The first page lost Product A while the second page was open.
-    mocks.queries.set(PRODUCTS_PAGE, {
-      ok: true,
-      value: {
-        canViewWarehouseData: true,
-        items: [],
-        isDone: false,
-        continueCursor: "cursor-1",
-      },
-    });
+    expect(screen.getByTestId("customer-linked-products")).toHaveTextContent(
+      "SKU-2",
+    );
+    mocks.queries.set(WORKSPACE_PRODUCTS, workspacePage([], "cursor-new"));
     fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
-    expect(mocks.queryArgs.get(PRODUCTS_PAGE)).toEqual({
+    expect(mocks.queryArgs.get(WORKSPACE_PRODUCTS)).toEqual({
       customerId: "customer-a",
-      pageSize: 100,
     });
-    expect(screen.queryByTestId("customer-linked-products")).toBeNull();
-    expect(screen.getByTestId("customer-products-empty-page")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Previous page" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Next page" })).toBeVisible();
-
-    mocks.queries.set(PRODUCTS_PAGE, {
+    expect(screen.getByText("No linked products in this scope.")).toBeVisible();
+    mocks.queries.set(WORKSPACE_PRODUCTS, {
       ok: false,
       denial: { code: "AUTHORIZATION_DENIED", requestId: "revoked-products" },
     });
@@ -2103,114 +2118,35 @@ describe("customer v2 linking, detail activity and review queue", () => {
     expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
   });
 
-  it("paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts", async () => {
-    openFrom(LIST_ORIGIN, DETAIL_URL);
+  it("paginates customer detail aliases, shows alias transport errors, and guards dirty alias drafts", async () => {
+    const detailsUrl = DETAIL_URL.replace("?tab=1", "?tab=1&section=details");
+    openFrom(LIST_ORIGIN, detailsUrl);
+    enableWarehouseWorkspace();
     mocks.queries.set(GET, { ok: true, value: full });
-    mocks.queries.set(ACTIVITY, {
-      ok: true,
-      value: {
-        canViewWarehouseData: true,
-        aliases: [
-          {
-            aliasId: "alias-1",
-            alias: "Alias One",
-            approvedAt: 1_763_300_000_000,
-          },
-        ],
-        hasMoreAliases: true,
-        recentJobs: [],
-        hasMoreJobs: false,
-        linkedProducts: [
-          {
-            productId: "prod-1",
-            sku: "SKU-1",
-            name: "Product One",
-            unit: "pcs",
-            status: "ACTIVE",
-            warehouseId: "wh-2",
-            warehouseName: "Chonburi",
-            totalQuantity: 10,
-          },
-        ],
-        hasMoreProducts: true,
-      },
-    });
-    mocks.queries.set(PRODUCTS_PAGE, {
-      ok: true,
-      value: {
-        canViewWarehouseData: true,
-        items: [
-          {
-            productId: "prod-1",
-            sku: "SKU-1",
-            name: "Product One",
-            unit: "pcs",
-            status: "ACTIVE",
-            warehouseId: "wh-2",
-            warehouseName: "Chonburi",
-            totalQuantity: 10,
-          },
-          {
-            productId: "prod-2",
-            sku: "SKU-2",
-            name: "Product Two",
-            unit: "pcs",
-            status: "ACTIVE",
-            warehouseId: "wh-2",
-            warehouseName: "Chonburi",
-            totalQuantity: 20,
-          },
-        ],
-        isDone: true,
-        continueCursor: "",
-      },
-    });
-    mocks.queries.set(ALIASES_PAGE, {
-      ok: true,
-      value: {
-        items: [
-          {
-            aliasId: "alias-1",
-            alias: "Alias One",
-            approvedAt: 1_763_300_000_000,
-          },
-          {
-            aliasId: "alias-2",
-            alias: "Alias Two",
-            approvedAt: 1_763_300_000_100,
-          },
-        ],
-        isDone: true,
-        continueCursor: "",
-      },
-    });
+    mocks.queries.set(
+      WORKSPACE_ALIASES,
+      workspacePage(
+        [{ aliasId: "alias-1", alias: "Alias One", approvedAt: 1 }],
+        "next-alias",
+      ),
+    );
     mutationFor(ADD_ALIAS).mockRejectedValueOnce(new Error("offline"));
-
     render(<CustomerDetail customerId="customer-a" />);
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Products (1+)" }),
-    ).toBeVisible();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Browse linked products" }),
+    mocks.queries.set(
+      WORKSPACE_ALIASES,
+      workspacePage([
+        { aliasId: "alias-2", alias: "Alias Two", approvedAt: 2 },
+      ]),
     );
-    expect(mocks.queryArgs.get(PRODUCTS_PAGE)).toEqual({
+    fireEvent.click(screen.getByTestId("customer-aliases-next"));
+    expect(mocks.queryArgs.get(WORKSPACE_ALIASES)).toEqual({
       customerId: "customer-a",
-      pageSize: 100,
-    });
-    expect(screen.getByTestId("customer-linked-products")).toHaveTextContent(
-      "Product Two",
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Load more names" }));
-    expect(mocks.queryArgs.get(ALIASES_PAGE)).toEqual({
-      customerId: "customer-a",
-      pageSize: 100,
+      cursor: "next-alias",
     });
     expect(screen.getByTestId("customer-aliases-list")).toHaveTextContent(
       "Alias Two",
     );
 
-    // Transport failure shows alert notice and keeps the typed alias draft.
     const aliasInput = screen.getByRole("textbox", {
       name: "Add a name seen on job tickets",
     });
@@ -2222,13 +2158,11 @@ describe("customer v2 linking, detail activity and review queue", () => {
       /Check your connection/,
     );
     expect(aliasInput).toHaveValue("Unsaved Alias");
-
-    // Dirty alias draft asks before native Back leaves customer detail.
     await nativeBack();
     expect(
       await screen.findByRole("dialog", { name: "Discard changes?" }),
     ).toBeVisible();
-    expect(href()).toBe(DETAIL_URL);
+    expect(href()).toBe(detailsUrl);
   });
 
   it("links and skips unresolved names on the review queue with remember-alias off by default", async () => {
@@ -3125,63 +3059,25 @@ describe("customer v2 linking, detail activity and review queue", () => {
   });
 
   it("pages customer aliases forward and backward, handles empty and denied pages, and steps review batches backward", async () => {
+    enableWarehouseWorkspace();
+    directSection("details");
     mocks.queries.set(GET, { ok: true, value: full });
-    mocks.queries.set(ACTIVITY, {
-      ok: true,
-      value: {
-        canViewWarehouseData: true,
-        aliases: [
-          {
-            aliasId: "alias-1",
-            alias: "Alias One",
-            approvedAt: 1_763_300_000_000,
-          },
-        ],
-        hasMoreAliases: true,
-        recentJobs: [],
-        hasMoreJobs: false,
-        linkedProducts: [],
-        hasMoreProducts: true,
-      },
-    });
-    mocks.queries.set(ALIASES_PAGE, {
-      ok: true,
-      value: {
-        items: [
-          {
-            aliasId: "alias-1",
-            alias: "Alias One",
-            approvedAt: 1_763_300_000_000,
-          },
-        ],
-        isDone: false,
-        continueCursor: "alias-cursor-2",
-      },
-    });
+    mocks.queries.set(
+      WORKSPACE_ALIASES,
+      workspacePage(
+        [{ aliasId: "alias-1", alias: "Alias One", approvedAt: 1 }],
+        "alias-cursor-2",
+      ),
+    );
     mutationFor(ADD_ALIAS).mockResolvedValueOnce({
       ok: true,
       value: { ok: false, code: "ALIAS_CAPACITY" },
     });
 
     const detail = render(<CustomerDetail customerId="customer-a" />);
-    expect(
-      screen.getByTestId("customer-products-empty-page"),
-    ).toHaveTextContent("No linked products on this page.");
-
-    // Denied product page shows LedgerPanelStatus with requestId.
-    mocks.queries.set(PRODUCTS_PAGE, {
-      ok: false,
-      denial: { code: "AUTHORIZATION_DENIED", requestId: "req-prod-page" },
-    });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Browse linked products" }),
-    );
-    expect(screen.getByText(/req-prod-page/)).toBeInTheDocument();
-
     // Aliases forward to empty intermediate page, then back, then capacity error.
-    fireEvent.click(screen.getByRole("button", { name: "Load more names" }));
     expect(screen.getByTestId("customer-aliases-next")).toBeVisible();
-    mocks.queries.set(ALIASES_PAGE, {
+    mocks.queries.set(WORKSPACE_ALIASES, {
       ok: true,
       value: {
         items: [],
@@ -3190,22 +3086,20 @@ describe("customer v2 linking, detail activity and review queue", () => {
       },
     });
     fireEvent.click(screen.getByTestId("customer-aliases-next"));
-    expect(mocks.queryArgs.get(ALIASES_PAGE)).toEqual({
+    expect(mocks.queryArgs.get(WORKSPACE_ALIASES)).toEqual({
       customerId: "customer-a",
-      pageSize: 100,
       cursor: "alias-cursor-2",
     });
     expect(screen.getByTestId("customer-aliases-empty-page")).toHaveTextContent(
       "No saved job-ticket names on this page.",
     );
-    mocks.queries.set(ALIASES_PAGE, {
+    mocks.queries.set(WORKSPACE_ALIASES, {
       ok: false,
       denial: { code: "AUTHORIZATION_DENIED", requestId: "req-alias-page" },
     });
     fireEvent.click(screen.getByTestId("customer-aliases-previous"));
-    expect(mocks.queryArgs.get(ALIASES_PAGE)).toEqual({
+    expect(mocks.queryArgs.get(WORKSPACE_ALIASES)).toEqual({
       customerId: "customer-a",
-      pageSize: 100,
     });
     expect(screen.getByText(/req-alias-page/)).toBeInTheDocument();
 
@@ -3267,5 +3161,344 @@ describe("customer v2 linking, detail activity and review queue", () => {
     expect(screen.getByTestId("customer-review-banner")).toHaveTextContent(
       "Names to review",
     );
+  });
+});
+
+describe("customer workspace navigation", () => {
+  const WORKSPACE_URL = "/en/master-data/customers/customer-a";
+  const withWorkspace = (
+    current = WORKSPACE_URL,
+    override?: Record<string, unknown>,
+  ) => {
+    openFrom(LIST_ORIGIN, current);
+    configureWorkspaceTestRouter();
+    enableWarehouseWorkspace();
+    if (override) mocks.queries.set(SHELL, shell(override));
+    mocks.queries.set(GET, { ok: true, value: full });
+    mocks.queries.set(WORKSPACE_JOBS, workspacePage([job]));
+    return render(<CustomerDetail customerId="customer-a" />);
+  };
+  const sectionTab = (name: string) =>
+    within(
+      screen.getByRole("navigation", { name: "Customer workspace sections" }),
+    ).getByRole("button", { name });
+  async function pick(control: HTMLElement, name: string) {
+    fireEvent.click(control);
+    fireEvent.click(await screen.findByRole("option", { name }));
+  }
+  const warehouse = () => screen.getByRole("combobox", { name: "Warehouse" });
+  const filter = () =>
+    screen.getByRole("combobox", { name: "Location status" });
+
+  it("pushes a workspace section, then native Back and Forward restore the section before leaving for the localized origin", async () => {
+    withWorkspace(DETAIL_URL);
+    fireEvent.click(sectionTab("Job tickets"));
+    expect(href()).toBe(`${WORKSPACE_URL}?tab=1&section=jobs#top`);
+    expect(sectionTab("Job tickets")).toHaveAttribute("aria-current", "page");
+    await nativeBack();
+    await waitFor(() => expect(href()).toBe(DETAIL_URL));
+    expect(sectionTab("Overview")).toHaveAttribute("aria-current", "page");
+    await act(async () => {
+      window.history.forward();
+      await new Promise<void>((resolve) => setTimeout(resolve, 30));
+    });
+    expect(sectionTab("Job tickets")).toHaveAttribute("aria-current", "page");
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    await waitFor(() => expect(href()).toBe(DETAIL_URL));
+    await nativeBack();
+    await waitFor(() => expect(href()).toBe(LIST_ORIGIN));
+  });
+
+  it("waits for the section URL commit before opening its scope, filters or destinations", () => {
+    withWorkspace();
+    mocks.push.mockImplementation(() => {});
+    fireEvent.click(sectionTab("Job tickets"));
+    expect(href()).toBe(WORKSPACE_URL);
+    expect(sectionTab("Overview")).toHaveAttribute("aria-current", "page");
+    expect(sectionTab("Job tickets")).not.toHaveAttribute("aria-current");
+    expect(
+      screen.queryByRole("combobox", { name: "Location status" }),
+    ).toBeNull();
+    expect(warehouse().closest("[inert]")).not.toBeNull();
+
+    act(() => {
+      window.history.pushState({}, "", `${WORKSPACE_URL}?section=jobs`);
+      window.dispatchEvent(new Event("test-url-navigation"));
+    });
+    expect(sectionTab("Job tickets")).toHaveAttribute("aria-current", "page");
+    expect(filter()).toBeVisible();
+    expect(warehouse().closest("[inert]")).toBeNull();
+  });
+
+  it("replaces workspace scope without a Back step and pushes the jobs filter with a fresh cursor", async () => {
+    withWorkspace();
+    await pick(warehouse(), "BP · Bang Phli");
+    expect(href()).toBe(`${WORKSPACE_URL}?warehouse=wh-1`);
+    expect(mocks.replace).toHaveBeenCalledTimes(1);
+    mocks.queries.set(WORKSPACE_JOBS, workspacePage([job], "jobs-next"));
+    fireEvent.click(sectionTab("Job tickets"));
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(mocks.queryArgs.get(WORKSPACE_JOBS)).toEqual({
+      customerId: "customer-a",
+      warehouseId: "wh-1",
+      filter: "all",
+      cursor: "jobs-next",
+    });
+    await pick(filter(), "Awaiting location");
+    expect(mocks.queryArgs.get(WORKSPACE_JOBS)).toEqual({
+      customerId: "customer-a",
+      warehouseId: "wh-1",
+      filter: "unmapped",
+    });
+    await nativeBack();
+    expect(filter()).toHaveTextContent("All tickets");
+    await nativeBack();
+    expect(href()).toBe(`${WORKSPACE_URL}?warehouse=wh-1`);
+    await nativeBack();
+    expect(href()).toBe(LIST_ORIGIN);
+  });
+
+  it("opens and remounts a direct jobs deep link with its warehouse and filter", () => {
+    const url = `${WORKSPACE_URL}?section=jobs&warehouse=wh-1&filter=mapped#history`;
+    window.history.replaceState({ appNavigationIndex: 0 }, "", url);
+    enableWarehouseWorkspace();
+    mocks.queries.set(GET, { ok: true, value: full });
+    mocks.queries.set(WORKSPACE_JOBS, workspacePage([job]));
+    const view = render(<CustomerDetail customerId="customer-a" />);
+    expect(filter()).toHaveTextContent("Location mapped");
+    expect(warehouse()).toHaveTextContent("BP · Bang Phli");
+    expect(mocks.queryArgs.get(WORKSPACE_JOBS)).toEqual({
+      customerId: "customer-a",
+      warehouseId: "wh-1",
+      filter: "mapped",
+    });
+    view.unmount();
+    render(<CustomerDetail customerId="customer-a" />);
+    expect(filter()).toHaveTextContent("Location mapped");
+    expect(warehouse()).toHaveTextContent("BP · Bang Phli");
+    expect(href()).toBe(url);
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("normalizes a catalogue-only deep link by replacement and hides the warehouse data without an error", async () => {
+    openFrom(
+      LIST_ORIGIN,
+      `${WORKSPACE_URL}?section=jobs&tab=1&warehouse=wh-1&filter=unmapped#profile`,
+    );
+    configureWorkspaceTestRouter();
+    mocks.permissions = [READ];
+    mocks.queries.set(SHELL, shell());
+    mocks.queries.set(GET, { ok: true, value: full });
+    render(<CustomerDetail customerId="customer-a" />);
+    await waitFor(() => expect(href()).toBe(`${WORKSPACE_URL}?tab=1#profile`));
+    expect(sectionTab("Overview")).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByRole("button", { name: "Job tickets" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Warehouse" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { name: "Needs attention" }),
+    ).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(mocks.queryArgs.has(WORKSPACE_JOBS)).toBe(false);
+    fireEvent.click(sectionTab("Details"));
+    expect(screen.queryByText("0105553012341")).toBeNull();
+    expect(mocks.queryArgs.has(WORKSPACE_ALIASES)).toBe(false);
+    await nativeBack();
+    await nativeBack();
+    expect(href()).toBe(LIST_ORIGIN);
+  });
+
+  it("opens warehouse sections and approved aliases for a warehouse viewer without publishing manager controls", () => {
+    directSection("details");
+    mocks.permissions = [READ, WAREHOUSE_READ];
+    mocks.queries.set(SHELL, shell());
+    mocks.queries.set(GET, { ok: true, value: full });
+    mocks.queries.set(
+      WORKSPACE_ALIASES,
+      workspacePage([
+        { aliasId: "alias-1", alias: "Approved customer name", approvedAt: 1 },
+      ]),
+    );
+    render(<CustomerDetail customerId="customer-a" />);
+    expect(sectionTab("Products")).toBeVisible();
+    expect(warehouse()).toBeVisible();
+    expect(screen.getByText("Approved customer name")).toBeVisible();
+    expect(screen.queryByText("0105553012341")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
+    expect(
+      screen.queryByRole("textbox", { name: "Add a name seen on job tickets" }),
+    ).toBeNull();
+    expect(screen.queryByRole("link", { name: "Scan job ticket" })).toBeNull();
+  });
+
+  it("keeps search and status local and returns from a rail customer to the prior scoped section", async () => {
+    const media = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) => ({
+        matches: query === "(min-width: 64rem)",
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+    try {
+      window.localStorage.setItem(
+        "customers:org-a:user-a",
+        JSON.stringify({ search: "", status: "ARCHIVED" }),
+      );
+      mocks.queries.set(
+        LIST,
+        page([
+          {
+            ...summary,
+            customerId: "customer-b",
+            name: "Other customer",
+            status: "ARCHIVED",
+          },
+        ]),
+      );
+      const scoped = `${WORKSPACE_URL}?section=products&warehouse=wh-1`;
+      withWorkspace(scoped);
+      const rail = screen.getByRole("complementary", { name: "Customers" });
+      const search = within(rail).getByRole("searchbox", {
+        name: "Find a customer",
+      });
+      const status = within(rail).getByRole("combobox", {
+        name: "Status",
+      });
+      expect(status).toHaveTextContent("Archived");
+      await pick(status, "All");
+      expect(mocks.queryArgs.get(LIST)).not.toHaveProperty("status");
+      await pick(status, "Archived");
+      fireEvent.change(search, { target: { value: "other" } });
+      await waitFor(() =>
+        expect(mocks.queryArgs.get(LIST)).toEqual(
+          expect.objectContaining({ search: "other", status: "ARCHIVED" }),
+        ),
+      );
+      expect(href()).toBe(scoped);
+      expect(mocks.push).not.toHaveBeenCalled();
+      expect(mocks.replace).not.toHaveBeenCalled();
+      fireEvent.click(
+        within(rail).getByRole("link", { name: /Other customer/ }),
+      );
+      expect(href()).toBe(
+        "/en/master-data/customers/customer-b?warehouse=wh-1",
+      );
+      await nativeBack();
+      expect(href()).toBe(scoped);
+      expect(sectionTab("Products")).toHaveAttribute("aria-current", "page");
+    } finally {
+      media.mockRestore();
+    }
+  });
+
+  it("opens stock from products and Back from a destination restores the exact stock view, then products", async () => {
+    const scoped = `${WORKSPACE_URL}?section=products&warehouse=wh-1#product`;
+    withWorkspace(scoped);
+    fireEvent.click(
+      screen.getByRole("button", { name: "View pallets and storage zones" }),
+    );
+    expect(href()).toBe(
+      `${WORKSPACE_URL}?section=stock&warehouse=wh-1#product`,
+    );
+    expect(sectionTab("Products")).toHaveAttribute("aria-current", "page");
+    const pallet = screen.getByRole("link", { name: /PLT-1/ });
+    const destination = pallet.getAttribute("href");
+    fireEvent.click(pallet);
+    expect(href()).toBe(`/en${destination}`);
+    await nativeBack();
+    expect(href()).toBe(
+      `${WORKSPACE_URL}?section=stock&warehouse=wh-1#product`,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Stored pallets" }),
+    ).toBeVisible();
+    await nativeBack();
+    expect(href()).toBe(scoped);
+  });
+
+  it("shows a recovery action for an unavailable warehouse without querying its records", async () => {
+    const current = `${WORKSPACE_URL}?section=jobs&warehouse=wrong`;
+    const view = withWorkspace(current, { scopeAvailable: false });
+    expect(screen.getByText("Warehouse unavailable")).toBeVisible();
+    expect(screen.queryByTestId("customer-recent-jobs")).toBeNull();
+    expect(mocks.queryArgs.has(WORKSPACE_JOBS)).toBe(false);
+    mocks.queries.set(SHELL, shell());
+    fireEvent.click(
+      screen.getByRole("button", { name: "All permitted warehouses" }),
+    );
+    expect(href()).toBe(`${WORKSPACE_URL}?section=jobs`);
+    expect(screen.getByTestId("customer-recent-jobs")).toBeVisible();
+    expect(mocks.queryArgs.get(WORKSPACE_JOBS)).not.toHaveProperty(
+      "warehouseId",
+    );
+    await nativeBack();
+    expect(href()).toBe(LIST_ORIGIN);
+    view.unmount();
+  });
+
+  it("shows exact attention actions and selects the in-scope workspace warehouse when starting a scan", () => {
+    const view = withWorkspace(`${WORKSPACE_URL}?warehouse=wh-1`);
+    mocks.availableWarehouses = [{ id: "wh-1", name: "Bang Phli", code: "BP" }];
+    const data = shell().value;
+    mocks.queries.set(
+      SHELL,
+      shell({
+        access: { ...data.access, canReview: true, canScan: true },
+        rollup: {
+          ...data.rollup,
+          pendingReview: { names: 1, scans: 2, complete: false },
+        },
+      }),
+    );
+    view.rerender(
+      <DraftGuardProvider>
+        <CustomerDetail customerId="customer-a" />
+      </DraftGuardProvider>,
+    );
+    expect(
+      screen.getByRole("link", { name: /Review names from job tickets/ }),
+    ).toHaveAttribute("href", "/master-data/customers/review");
+    expect(screen.getByText("At least 1 name · 2 tickets")).toBeVisible();
+    fireEvent.click(
+      screen.getByRole("button", { name: /Map storage locations/ }),
+    );
+    expect(filter()).toHaveTextContent("Awaiting location");
+    fireEvent.click(screen.getByRole("link", { name: "Scan job ticket" }));
+    expect(mocks.selectWarehouse).toHaveBeenCalledWith("wh-1");
+    expect(href()).toBe("/en/finished-goods/scan?customer=customer-a");
+  });
+
+  it("copies a multiline delivery address and reports success and failure in place", async () => {
+    withWorkspace();
+    const clipboard = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("denied"));
+    const property = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: clipboard },
+    });
+    try {
+      const copy = screen.getByRole("button", { name: "Copy address" });
+      fireEvent.click(copy);
+      expect(await screen.findByText("Address copied.")).toBeVisible();
+      expect(clipboard).toHaveBeenCalledWith(
+        "99/1 Moo 5\nBang Phli\nSamut Prakan 10540",
+      );
+      fireEvent.click(copy);
+      expect(
+        await screen.findByText(/Couldn’t copy automatically/),
+      ).toBeVisible();
+      expect(href()).toBe(WORKSPACE_URL);
+    } finally {
+      if (property) Object.defineProperty(navigator, "clipboard", property);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
   });
 });
