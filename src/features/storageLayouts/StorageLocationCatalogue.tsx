@@ -217,7 +217,7 @@ function LocationCatalogueContent({
   return (
     <div className="space-y-4">
       <div
-        className="inline-flex max-w-full gap-1 rounded-lg border border-border bg-surface p-1"
+        className="inline-flex max-w-full flex-wrap gap-1 rounded-lg border border-border bg-surface p-1"
         role="group"
         aria-label={tr("Catalogue view", "มุมมองรายการ")}
       >
@@ -231,13 +231,12 @@ function LocationCatalogueContent({
             <Button
               key={view}
               variant={prefs.view === view ? "active" : "ghost"}
-              size="icon"
-              title={label}
-              aria-label={label}
+              size="sm"
               aria-pressed={prefs.view === view}
               onClick={() => change({ view })}
             >
               <Icon className="size-4" aria-hidden="true" />
+              {label}
             </Button>
           );
         })}
@@ -369,17 +368,23 @@ function LocationCatalogueContent({
                 </div>
               ) : (
                 <div
-                  className="min-w-0 overflow-x-auto rounded-lg border border-border bg-surface focus-visible:outline-ring"
+                  className="@container min-w-0 rounded-lg border border-border bg-surface"
                   role="region"
                   aria-label={tr("Location results", "ผลการค้นหาจุดจัดเก็บ")}
-                  tabIndex={0}
                 >
-                  <table className="w-full text-left text-sm">
+                  {/* Explicit roles preserve table semantics when CSS stacks each row. */}
+                  <table
+                    role="table"
+                    className="block w-full text-left text-sm @3xl:table"
+                  >
                     <caption className="sr-only">
                       {tr("All storage locations", "จุดจัดเก็บทั้งหมด")}
                     </caption>
-                    <thead className="bg-raised">
-                      <tr>
+                    <thead
+                      role="rowgroup"
+                      className="sr-only bg-raised @3xl:not-sr-only @3xl:table-header-group"
+                    >
+                      <tr role="row">
                         {[
                           tr("Location / code", "จุดจัดเก็บ / รหัส"),
                           tr("Building / floor", "อาคาร / ชั้น"),
@@ -387,13 +392,21 @@ function LocationCatalogueContent({
                           t("layoutActions.buildingStatusColumn"),
                           tr("Actions", "จัดการ"),
                         ].map((label) => (
-                          <th key={label} className="p-3 font-medium">
+                          <th
+                            key={label}
+                            role="columnheader"
+                            scope="col"
+                            className="p-3 font-medium"
+                          >
                             {label}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody
+                      role="rowgroup"
+                      className="block @3xl:table-row-group"
+                    >
                       {shown.map((row) => {
                         // Open inspects the floor; only Edit carries edit intent (F07).
                         const viewPath = `${storageBuildingPath(row.buildingId)}?floor=${row.floorNumber}#storage-zone-${row.zoneId}`;
@@ -404,11 +417,15 @@ function LocationCatalogueContent({
                         return (
                           <tr
                             key={row.zoneId}
-                            className="border-t border-border align-top hover:bg-raised/50"
+                            role="row"
+                            className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border p-4 align-top first:border-t-0 @3xl:table-row @3xl:p-0 @3xl:first:border-t @3xl:hover:bg-raised/50"
                           >
-                            <td className="min-w-44 p-3">
+                            <td
+                              role="cell"
+                              className="col-span-2 block min-w-0 wrap-anywhere @3xl:table-cell @3xl:min-w-44 @3xl:p-3"
+                            >
                               <Link
-                                className="font-medium text-link"
+                                className="text-base font-semibold text-link underline-offset-4 hover:underline @3xl:text-sm @3xl:font-medium"
                                 href={viewPath}
                               >
                                 {row.label}
@@ -421,20 +438,38 @@ function LocationCatalogueContent({
                               )}
                               <LocationDetails source={row} />
                             </td>
-                            <td className="p-3">
+                            <td
+                              role="cell"
+                              className="block min-w-0 wrap-anywhere @3xl:table-cell @3xl:p-3"
+                            >
+                              <LocationFieldLabel>
+                                {tr("Building / floor", "อาคาร / ชั้น")}
+                              </LocationFieldLabel>
                               {row.buildingName}
                               <p className="mt-1 text-xs text-muted">
                                 {row.buildingCode} · {tr("Floor", "ชั้น")}{" "}
                                 {row.floorNumber}
                               </p>
                             </td>
-                            <td className="p-3 whitespace-nowrap tabular-nums">
+                            <td
+                              role="cell"
+                              className="block min-w-0 tabular-nums @3xl:table-cell @3xl:p-3 @3xl:whitespace-nowrap"
+                            >
+                              <LocationFieldLabel>
+                                {tr("Dimensions", "ขนาด")}
+                              </LocationFieldLabel>
                               {row.widthMm / 1000} × {row.depthMm / 1000} ×{" "}
                               {row.heightMm / 1000} m
                             </td>
-                            <td className="p-3">
+                            <td
+                              role="cell"
+                              className="col-span-2 block min-w-0 @3xl:table-cell @3xl:p-3 [&>span]:max-w-full [&>span]:wrap-anywhere [&>span]:whitespace-normal"
+                            >
                               {/* Status belongs to the whole building; it is
                                   changed from the building, never per row (F14). */}
+                              <LocationFieldLabel>
+                                {t("layoutActions.buildingStatusColumn")}
+                              </LocationFieldLabel>
                               <StatusBadge
                                 tone={
                                   row.status === "ACTIVE"
@@ -449,12 +484,16 @@ function LocationCatalogueContent({
                                 {t("layoutActions.buildingStatusRowHint")}
                               </p>
                             </td>
-                            <td className="p-3">
-                              <div className="flex gap-1">
+                            <td
+                              role="cell"
+                              className="col-span-2 block @3xl:table-cell @3xl:p-3"
+                            >
+                              <div className="flex flex-wrap gap-1 border-t border-border pt-2 @3xl:flex-nowrap @3xl:border-0 @3xl:pt-0">
                                 <Button
                                   asChild
                                   variant="ghost"
                                   size="icon"
+                                  className="gap-1.5 px-2 @3xl:px-0 dense:min-h-touch @3xl:dense:min-h-control"
                                   title={t("layoutActions.openLocation", {
                                     label: row.label,
                                   })}
@@ -469,6 +508,9 @@ function LocationCatalogueContent({
                                     href={viewPath}
                                   >
                                     <ExternalLink className="size-4" />
+                                    <span className="@3xl:hidden">
+                                      {tr("View", "ดู")}
+                                    </span>
                                   </Link>
                                 </Button>
                                 {canEdit && row.status !== "ARCHIVED" && (
@@ -476,6 +518,7 @@ function LocationCatalogueContent({
                                     asChild
                                     variant="ghost"
                                     size="icon"
+                                    className="gap-1.5 px-2 @3xl:px-0 dense:min-h-touch @3xl:dense:min-h-control"
                                     title={tr(
                                       "Edit location",
                                       "แก้ไขจุดจัดเก็บ",
@@ -491,17 +534,22 @@ function LocationCatalogueContent({
                                       href={`${path}&editZone=${encodeURIComponent(row.zoneId)}#storage-zone-${row.zoneId}`}
                                     >
                                       <Pencil className="size-4" />
+                                      <span className="@3xl:hidden">
+                                        {tr("Edit", "แก้ไข")}
+                                      </span>
                                     </Link>
                                   </Button>
                                 )}
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  className="gap-1.5 px-2 @3xl:px-0 dense:min-h-touch @3xl:dense:min-h-control"
                                   title="QR"
                                   aria-label={`QR ${row.label}`}
                                   onClick={() => setQr(row)}
                                 >
                                   <QrCode className="size-4" />
+                                  <span className="@3xl:hidden">QR</span>
                                 </Button>
                               </div>
                             </td>
@@ -565,6 +613,17 @@ function LocationCatalogueContent({
   );
 }
 
+function LocationFieldLabel({ children }: { children: ReactNode }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="mb-1 block text-xs font-medium text-muted @3xl:hidden"
+    >
+      {children}
+    </span>
+  );
+}
+
 function LocationDetails({ source }: { source: Row }) {
   const th = useLocale() === "th";
   const tr = (en: string, thai: string) => (th ? thai : en);
@@ -588,10 +647,10 @@ function LocationDetails({ source }: { source: Row }) {
         : tr("Archived", "เก็บถาวร");
   return (
     <details
-      className="mt-2"
+      className="mt-1 @3xl:mt-2"
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
-      <summary className="cursor-pointer text-xs">
+      <summary className="min-h-touch cursor-pointer rounded-sm py-3 text-sm focus-ring @3xl:min-h-0 @3xl:py-0 @3xl:text-xs">
         {tr("Sublocations / occupancy", "ตำแหน่งย่อย / การจัดเก็บ")} (
         {detail ? row.positions.length : "—"} / {row.palletCount ?? "—"})
       </summary>
