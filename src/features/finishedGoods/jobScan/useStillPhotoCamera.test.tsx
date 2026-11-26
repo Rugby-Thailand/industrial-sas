@@ -120,7 +120,7 @@ it("stays silent and reports a failed encode without delivering a photo", async 
   expect(sound.play).not.toHaveBeenCalled();
   expect(onPhoto).not.toHaveBeenCalled();
   expect(trackStop).toHaveBeenCalledOnce();
-  expect(screen.getByRole("alert")).toHaveTextContent("Camera access");
+  expect(screen.getByRole("alert")).toHaveTextContent("Camera unavailable");
   expect(screen.getByRole("button", { name: "Retry camera" })).toBeVisible();
 });
 

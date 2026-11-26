@@ -36,15 +36,20 @@ vi.mock("@/features/finishedGoods/BarcodeCameraBox", () => ({
     onImageCodes,
     onCode,
     feedback,
+    actions,
   }: {
     onImageCodes: (codes: string[]) => void;
     onCode: (code: string) => void;
     feedback?: string;
+    actions?: ReactNode;
   }) => {
     mocks.imageCodes = onImageCodes;
     mocks.decode = onCode;
     return (
-      <div>Inventory scanner{feedback && <p role="status">{feedback}</p>}</div>
+      <div>
+        Inventory scanner{feedback && <p role="status">{feedback}</p>}
+        {actions}
+      </div>
     );
   },
 }));
@@ -82,13 +87,19 @@ vi.mock("./PhotoCapture", () => ({
   PhotoCapture: ({
     onSubmit,
     selection,
+    feedback,
   }: {
+    feedback?: string;
     onSubmit: (files: File[]) => boolean | void;
     selection: { limit: number };
   }) => {
     mocks.photos = onSubmit;
     mocks.maxPhotos = selection.limit;
-    return <div>Inventory photo panel</div>;
+    return (
+      <div>
+        Inventory photo panel{feedback && <p role="status">{feedback}</p>}
+      </div>
+    );
   },
 }));
 vi.mock("./prepareJobTicketPhoto", async (original) => ({
@@ -113,6 +124,11 @@ afterEach(() => vi.restoreAllMocks());
 function start() {
   renderWithIntl(<JobScanScreen />, { locale: "en" });
   fireEvent.click(screen.getByRole("button", { name: "Pick Dock" }));
+}
+function ticketRows() {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>("[data-ticket-key]"),
+  );
 }
 // Limit role-name work to the three acquisition controls, not 50 ticket forms.
 function modeButton(name: string) {
@@ -148,13 +164,11 @@ it("INV-09 rejects the 51st ticket before save and persists the accepted 50 thro
   );
   start();
   scanPairs(51);
-  expect(
-    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
-  ).toHaveLength(50);
+  expect(ticketRows()).toHaveLength(50);
   expect(
     screen.queryByText("Save 51 tickets", { selector: "button" }),
   ).not.toBeInTheDocument();
-  fireEvent.click(modeButton("Scan code"));
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
   expect(
     screen.getByText("Save 50 tickets", { selector: "button" }),
   ).toBeEnabled();
@@ -185,20 +199,16 @@ it("caps manual additions and permits completing an existing 50th ticket with a 
     mocks.decode?.("LAST-PRODUCT");
     mocks.decode?.("FO88888");
   });
+  expect(ticketRows()).toHaveLength(50);
   expect(
-    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
-  ).toHaveLength(50);
-  expect(
-    screen
-      .getAllByRole("textbox", { name: /Product barcode/, hidden: true })
-      .at(-1),
+    within(ticketRows().at(-1)!).getByLabelText(/Product barcode/, {
+      selector: "input",
+    }),
   ).toHaveValue("LAST-PRODUCT");
   expect(screen.getByText(/This group holds up to 50 tickets/)).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
   expect(modeButton("Manual")).toBeDisabled();
-  fireEvent.click(modeButton("Scan code"));
-  expect(
-    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
-  ).toHaveLength(50);
+  expect(ticketRows()).toHaveLength(50);
   expect(
     screen.getByText("Save 50 tickets", { selector: "button" }),
   ).toBeEnabled();
@@ -208,9 +218,7 @@ it("rejects an oversized multi-code image atomically without keeping only part o
   start();
   scanPairs(49);
   act(() => mocks.imageCodes?.(["FO60000", "FO60001", "NEW-A", "NEW-B"]));
-  expect(
-    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
-  ).toHaveLength(49);
+  expect(ticketRows()).toHaveLength(49);
   expect(screen.queryByDisplayValue("FO60000")).not.toBeInTheDocument();
   expect(screen.queryByDisplayValue("FO60001")).not.toBeInTheDocument();
 }, 20000);
@@ -228,11 +236,7 @@ it("caps repeated photo groups and leaves an oversized group in its panel for co
       expect(mocks.photos?.(files(20))).toBe(true);
     });
   }
-  await waitFor(() =>
-    expect(
-      screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
-    ).toHaveLength(40),
-  );
+  await waitFor(() => expect(ticketRows()).toHaveLength(40));
   fireEvent.click(modeButton("Photo AI"));
   expect(mocks.maxPhotos).toBe(10);
   act(() => {
@@ -240,9 +244,7 @@ it("caps repeated photo groups and leaves an oversized group in its panel for co
   });
   expect(screen.getByText("Inventory photo panel")).toBeVisible();
   expect(screen.getByText(/This group holds up to 50 tickets/)).toBeVisible();
-  expect(
-    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
-  ).toHaveLength(40);
+  expect(ticketRows()).toHaveLength(40);
   expect(mocks.save).not.toHaveBeenCalled();
 }, 20000);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Crop, ImagePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -19,6 +19,14 @@ import {
   type BarcodeImageTarget,
 } from "./barcodeImage";
 
+export type BarcodeImageReview = {
+  file: File | undefined;
+  result: BarcodeImageResult | undefined;
+  error: string | undefined;
+  cropping: boolean;
+  crop: BarcodeCrop;
+};
+
 export function BarcodeImagePicker({
   target,
   disabled,
@@ -26,6 +34,8 @@ export function BarcodeImagePicker({
   onCodes,
   onReadWithAi,
   compact = false,
+  initialReview,
+  onReviewChange,
 }: {
   target: BarcodeImageTarget;
   disabled: boolean;
@@ -34,6 +44,9 @@ export function BarcodeImagePicker({
   onReadWithAi?: ((file?: File, crop?: BarcodeCrop) => void) | undefined;
   /** Offer the picker as a left-aligned icon action instead of a full-width button. */
   compact?: boolean;
+  initialReview?: BarcodeImageReview | undefined;
+  onReviewChange?:
+    ((review: BarcodeImageReview | undefined) => void) | undefined;
 }) {
   const t = useTranslations("JobScan");
   const input = useRef<HTMLInputElement>(null),
@@ -41,18 +54,20 @@ export function BarcodeImagePicker({
     version = useRef(0);
   const [image, setImage] = useState<string>(),
     [reading, setReading] = useState(false),
-    [result, setResult] = useState<BarcodeImageResult>(),
-    [error, setError] = useState<string>();
+    [result, setResult] = useState(initialReview?.result),
+    [error, setError] = useState(initialReview?.error);
   const preview = useRef<string | undefined>(undefined);
-  const selected = useRef<File | undefined>(undefined);
-  const [cropping, setCropping] = useState(false);
+  const selected = useRef(initialReview?.file);
+  const [cropping, setCropping] = useState(initialReview?.cropping ?? false);
   const [fullPreview, setFullPreview] = useState(false);
-  const [crop, setCrop] = useState<BarcodeCrop>({
-    x: 0.1,
-    y: 0.25,
-    width: 0.8,
-    height: 0.5,
-  });
+  const [crop, setCrop] = useState<BarcodeCrop>(
+    initialReview?.crop ?? {
+      x: 0.1,
+      y: 0.25,
+      width: 0.8,
+      height: 0.5,
+    },
+  );
   function clear() {
     version.current++;
     pending.current?.abort();
@@ -66,14 +81,26 @@ export function BarcodeImagePicker({
     setFullPreview(false);
     selected.current = undefined;
   }
-  useEffect(
-    () => () => {
-      version.current++;
+  useLayoutEffect(() => {
+    onReviewChange?.(
+      selected.current || error
+        ? { file: selected.current, result, error, cropping, crop }
+        : undefined,
+    );
+  }, [onReviewChange, image, result, error, cropping, crop]);
+  useEffect(() => {
+    if (selected.current && !preview.current) {
+      preview.current = URL.createObjectURL(selected.current);
+      setImage(preview.current);
+    }
+    const requestVersion = version;
+    return () => {
+      requestVersion.current++;
       pending.current?.abort();
       if (preview.current) URL.revokeObjectURL(preview.current);
-    },
-    [],
-  );
+      preview.current = undefined;
+    };
+  }, []);
   useEffect(() => {
     if (disabled) pending.current?.abort();
   }, [disabled]);
@@ -359,7 +386,7 @@ export function BarcodeImagePicker({
           onClick={() => {
             const file = selected.current,
               selectedCrop = cropping ? crop : undefined;
-            clear();
+            if (!onReviewChange) clear();
             onReadWithAi(file, selectedCrop);
           }}
         >

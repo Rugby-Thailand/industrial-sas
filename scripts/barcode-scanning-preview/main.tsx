@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { IconButton } from "@/components/ui/IconButton";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
 import { Camera } from "lucide-react";
@@ -236,45 +243,66 @@ function App() {
           onScan={() => setAi(undefined)}
         />
         {ai ? (
-          <LocationImageReader
-            retryOverPhoto={
-              new URLSearchParams(location.search).get("presentation") ===
-              "jobScan"
-            }
-            {...(ai.photo ? { initialPhoto: ai.photo } : {})}
-            extract={async (imageDataUrl) => {
-              const bitmap = await createImageBitmap(
-                await (await fetch(imageDataUrl)).blob(),
-              );
-              window.locationAiRequests.push({
-                length: imageDataUrl.length,
-                prefix: imageDataUrl.slice(0, 23),
-                width: bitmap.width,
-                height: bitmap.height,
-                sha256: Array.from(
-                  new Uint8Array(
-                    await crypto.subtle.digest(
-                      "SHA-256",
-                      new TextEncoder().encode(imageDataUrl),
-                    ),
-                  ),
-                  (byte) => byte.toString(16).padStart(2, "0"),
-                ).join(""),
-              });
-              bitmap.close();
-              const result = window.locationAiResponse;
-              await new Promise((resolve) =>
-                setTimeout(resolve, window.locationAiDelay),
-              );
-              window.locationAiCompleted++;
-              return result;
+          <Dialog
+            open
+            onOpenChange={(open) => {
+              if (!open) setAi(undefined);
             }}
-            onConfirm={(code) => {
-              setCodes((items) => [...items, code]);
-              setAi(undefined);
-            }}
-            onClose={() => setAi(undefined)}
-          />
+          >
+            <DialogContent
+              size="camera"
+              closeLabel={messagesFor(locale).JobScan.closePhotoAi}
+            >
+              <DialogHeader>
+                <DialogTitle>
+                  {messagesFor(locale).JobScan.locationAiTitle}
+                </DialogTitle>
+                <DialogDescription>
+                  {messagesFor(locale).JobScan.photoAi}
+                </DialogDescription>
+              </DialogHeader>
+              <LocationImageReader
+                closeControl={false}
+                retryOverPhoto={
+                  new URLSearchParams(location.search).get("presentation") ===
+                  "jobScan"
+                }
+                {...(ai.photo ? { initialPhoto: ai.photo } : {})}
+                extract={async (imageDataUrl) => {
+                  const bitmap = await createImageBitmap(
+                    await (await fetch(imageDataUrl)).blob(),
+                  );
+                  window.locationAiRequests.push({
+                    length: imageDataUrl.length,
+                    prefix: imageDataUrl.slice(0, 23),
+                    width: bitmap.width,
+                    height: bitmap.height,
+                    sha256: Array.from(
+                      new Uint8Array(
+                        await crypto.subtle.digest(
+                          "SHA-256",
+                          new TextEncoder().encode(imageDataUrl),
+                        ),
+                      ),
+                      (byte) => byte.toString(16).padStart(2, "0"),
+                    ).join(""),
+                  });
+                  bitmap.close();
+                  const result = window.locationAiResponse;
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, window.locationAiDelay),
+                  );
+                  window.locationAiCompleted++;
+                  return result;
+                }}
+                onConfirm={(code) => {
+                  setCodes((items) => [...items, code]);
+                  setAi(undefined);
+                }}
+                onClose={() => setAi(undefined)}
+              />
+            </DialogContent>
+          </Dialog>
         ) : (
           <BarcodeCameraBox
             mode="LOCATION"

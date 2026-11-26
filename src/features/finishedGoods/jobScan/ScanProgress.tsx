@@ -12,9 +12,8 @@ import {
 } from "./ticketDraft";
 
 /**
- * Shows which ticket the last scan actually filled; the ticket list sits below
- * the camera. Every row is one fixed-height line, and Undo sits beside the
- * rows, so the camera never moves.
+ * Identifies the ticket updated by the latest scan and reports required-field
+ * progress in the dock. Fixed-height rows keep the viewfinder steady.
  */
 export function ScanProgress({
   tickets,

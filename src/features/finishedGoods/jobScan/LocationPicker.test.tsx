@@ -525,6 +525,7 @@ it("ignores a pending lookup when the user types a replacement", async () => {
   );
   const { onPick } = start();
   act(() => mocks.decode!("ZONE-A"));
+  fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
   fireEvent.change(search(), { target: { value: "Dock" } });
   await act(async () => finish(location()));
   expect(onPick).not.toHaveBeenCalled();
@@ -539,6 +540,7 @@ it("ignores a pending scan when the building filter changes", async () => {
   );
   const { onPick } = start();
   act(() => mocks.decode!("ZONE-A"));
+  fireEvent.click(screen.getByRole("button", { name: "Close camera" }));
   fireEvent.click(within(openFilter()).getByRole("button", { name: /BLDG-B/ }));
   await act(async () => finish(location()));
   expect(onPick).not.toHaveBeenCalled();

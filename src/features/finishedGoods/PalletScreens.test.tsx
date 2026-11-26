@@ -16,8 +16,10 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PalletDetail } from "@/lib/convex/finishedGoodsApi";
 import type { writeSuccess } from "@tests/fixtures/finished-goods-ui";
+import type * as BarcodeCameraModule from "./useBarcodeCamera";
 
 const mocks = vi.hoisted(() => ({
+  cameraCode: undefined as ((code: string) => void) | undefined,
   canManage: true,
   authLoaded: true,
   actorId: "user-a",
@@ -57,6 +59,18 @@ vi.mock("convex/react", () => ({
       ? undefined
       : recommendationTestResponse(getFunctionName(ref), args, mocks.query),
 }));
+vi.mock("./useBarcodeCamera", async (importOriginal) => {
+  const actual = await importOriginal<typeof BarcodeCameraModule>();
+  return {
+    ...actual,
+    useBarcodeCamera: (
+      options: Parameters<typeof actual.useBarcodeCamera>[0],
+    ) => {
+      mocks.cameraCode = options.onCode;
+      return actual.useBarcodeCamera(options);
+    },
+  };
+});
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (warehouseId: string) => ReactNode }) =>
     children("warehouse-a"),
@@ -1540,7 +1554,7 @@ describe("read-only pallet access", () => {
 });
 
 describe("operator-specific destination verification", () => {
-  it("requires the current operator to verify even if another operator already scanned", () => {
+  it("requires the current operator to verify even if another operator already scanned", async () => {
     currentDetail = {
       ...reservedPalletDetail,
       destinationVerifiedForCurrentUser: false,
@@ -1553,7 +1567,20 @@ describe("operator-specific destination verification", () => {
     };
     renderPallet();
     expect(screen.getByLabelText("Destination code")).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled();
+    const cameraOpener = screen.getByRole("button", { name: "Start camera" });
+    expect(cameraOpener).toBeEnabled();
+    fireEvent.click(cameraOpener);
+    const camera = screen.getByRole("dialog", {
+      name: "Scan Destination code",
+    });
+    expect(within(camera).getByText(/Expected destination/)).toBeVisible();
+    expect(
+      within(camera).getByRole("button", { name: "Choose image" }),
+    ).toBeEnabled();
+    fireEvent.click(
+      within(camera).getByRole("button", { name: "Close camera" }),
+    );
+    await waitFor(() => expect(camera).not.toBeInTheDocument());
     expect(
       screen.getByRole("button", { name: "Confirm stored" }),
     ).toBeDisabled();
@@ -1620,7 +1647,7 @@ it("can save measurements when storage is blocked", async () => {
   }
 });
 
-it("guides stacked reservations to verify both pallet identities", () => {
+it("guides stacked reservations to verify both pallet identities", async () => {
   currentDetail = {
     ...reservedPalletDetail,
     placement: { ...reservedPalletDetail.placement!, supportPalletId: "lower" },
@@ -1631,6 +1658,7 @@ it("guides stacked reservations to verify both pallet identities", () => {
       status: "STORED",
     },
   };
+  mocks.write.mockResolvedValue(writeFailure("DESTINATION_MISMATCH"));
   renderPallet("detail");
   expect(
     screen.getByRole("textbox", { name: "Supporting pallet code" }),
@@ -1638,7 +1666,32 @@ it("guides stacked reservations to verify both pallet identities", () => {
   expect(
     screen.getByRole("textbox", { name: "Upper pallet code or QR" }),
   ).toBeVisible();
-  expect(screen.getByRole("button", { name: "Confirm stored" })).toBeDisabled();
+  const confirmStored = screen.getByRole("button", { name: "Confirm stored" });
+  expect(confirmStored).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
+  const camera = screen.getByRole("dialog", {
+    name: "Scan Supporting pallet code",
+  });
+  expect(camera).toHaveAccessibleDescription("Supporting pallet: P-LOWER");
+  act(() => mocks.cameraCode!("wrong-lower-pallet"));
+  const warning = await within(camera).findByRole("alert");
+  expect(warning).toHaveTextContent(
+    "This code does not match the reserved destination.",
+  );
+  expect(warning).toHaveTextContent("wrong-lower-pallet");
+  expect(
+    within(camera).getByRole("button", { name: "Scan again" }),
+  ).toBeVisible();
+  fireEvent.click(within(camera).getByRole("button", { name: "Close camera" }));
+  await waitFor(() => expect(camera).not.toBeInTheDocument());
+  expect(
+    screen.getByRole("textbox", { name: "Supporting pallet code" }),
+  ).toHaveValue("wrong-lower-pallet");
+  expect(confirmStored).toBeDisabled();
+  expect(callsFor("verifyDestination")[0]?.[1]).toMatchObject({
+    code: "wrong-lower-pallet",
+    method: "SCAN",
+  });
 });
 it("does not offer pallet stacking for a stored box", () => {
   currentDetail = {

@@ -4,6 +4,7 @@ import {
   fireEvent,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getFunctionName } from "convex/server";
@@ -58,13 +59,20 @@ vi.mock("convex/react", () => ({
 vi.mock("./BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
     onCode,
-    onClose,
+    progress,
+    actions,
   }: {
     onCode: (code: string) => void;
-    onClose: () => void;
+    progress?: ReactNode;
+    actions?: ReactNode;
   }) => {
     mocks.decode = onCode;
-    return <button onClick={onClose}>Stop package camera</button>;
+    return (
+      <>
+        {progress}
+        {actions}
+      </>
+    );
   },
 }));
 const unit = {
@@ -250,10 +258,38 @@ it("retains review on conflict and retries the same uncertain assignment request
   await waitFor(() => expect(mocks.assign).toHaveBeenCalledTimes(2));
   expect(mocks.assign.mock.calls[0]).toEqual(mocks.assign.mock.calls[1]);
 });
+it("reports package lookup errors and queued package count inside the fullscreen scanner", async () => {
+  show();
+  fireEvent.click(screen.getByRole("button", { name: "Scan packages" }));
+  const dialog = screen.getByRole("dialog", { name: "Scan packages" });
+  expect(within(dialog).getByRole("status")).toHaveTextContent(
+    "0 / 50 packages",
+  );
+  mocks.query.mockRejectedValueOnce(new Error("unreadable"));
+  await act(async () => mocks.decode!("WRONG-LABEL"));
+  expect(within(dialog).getByRole("alert")).toHaveTextContent(
+    "This label cannot be assigned",
+  );
+  await act(async () => mocks.decode!("P-A"));
+  expect(within(dialog).getByRole("status")).toHaveTextContent(
+    "1 / 50 packages",
+  );
+  expect(within(dialog).queryByRole("alert")).toBeNull();
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(screen.getByRole("spinbutton", { name: "Fullness (%)" })).toHaveValue(
+    100,
+  );
+});
+
 it("native Back closes the package scanner and retains the group and query hash", async () => {
   show();
   await add();
-  fireEvent.click(screen.getByRole("button", { name: "Scan location" }));
+  const input = screen.getByRole("textbox", { name: "Storage location code" });
+  const opener = screen.getByRole("button", { name: "Scan location" });
+  input.focus();
+  fireEvent.click(opener);
   await waitFor(() =>
     expect(screen.getByRole("dialog", { name: "Scan location" })).toBeVisible(),
   );
@@ -264,16 +300,20 @@ it("native Back closes the package scanner and retains the group and query hash"
   expect(screen.getByRole("spinbutton", { name: "Fullness (%)" })).toHaveValue(
     100,
   );
+  await waitFor(() => expect(opener).toHaveFocus());
   expect(window.location.search).toContain("batchId=batch-a");
   expect(window.location.hash).toBe("#queue");
 });
 it("explicit scanner Close consumes its entry before the next Back and rejects late delivery", async () => {
   show();
-  fireEvent.click(screen.getByRole("button", { name: "Scan packages" }));
+  screen.getByRole("textbox", { name: "Package code" }).focus();
+  const opener = screen.getByRole("button", { name: "Scan packages" });
+  fireEvent.click(opener);
   await waitFor(() => expect(screen.getByRole("dialog")).toBeVisible());
   const late = mocks.decode!;
-  fireEvent.click(screen.getByRole("button", { name: "Stop package camera" }));
+  fireEvent.click(screen.getByRole("button", { name: "Close scanner" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await waitFor(() => expect(opener).toHaveFocus());
   await act(async () => late("P-A"));
   expect(mocks.query).not.toHaveBeenCalled();
   await waitFor(() =>
@@ -384,11 +424,9 @@ it("recovers the same scanned-location assignment identity after selective reque
   await add();
   fireEvent.click(screen.getByRole("button", { name: "Scan location" }));
   await act(async () => mocks.decode!("ZONE-A"));
-  fireEvent.click(screen.getByRole("button", { name: "Stop package camera" }));
+  fireEvent.click(screen.getByRole("button", { name: "Close scanner" }));
   await waitFor(() =>
-    expect(
-      screen.queryByRole("button", { name: "Stop package camera" }),
-    ).toBeNull(),
+    expect(screen.queryByRole("button", { name: "Close scanner" })).toBeNull(),
   );
   fireEvent.click(
     screen.getByRole("button", { name: "Review storage assignment" }),
@@ -472,7 +510,7 @@ it("a pending scanner Close cannot rewrite a new same-path owner after unmount",
   fireEvent.click(screen.getByRole("button", { name: "Scan packages" }));
   await waitFor(() => expect(screen.getByRole("dialog")).toBeVisible());
   const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
-  fireEvent.click(screen.getByRole("button", { name: "Stop package camera" }));
+  fireEvent.click(screen.getByRole("button", { name: "Close scanner" }));
   expect(back).toHaveBeenCalled();
   view.unmount();
   window.history.replaceState(
