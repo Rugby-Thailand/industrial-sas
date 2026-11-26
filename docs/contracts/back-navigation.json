@@ -3523,7 +3523,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:$overlay:Dialog:cameraOpen+photo",
       "policy": "overlay",
-      "expectation": "A retake over a reviewed photo owns a full-screen dialog. A rejected replacement photo stays in the retake with recovery actions. Dismissing the retake restores the existing photo, AI candidates, and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
+      "expectation": "A retake over a reviewed photo owns a full-screen dialog. A replacement is locally prepared before it replaces the review. Invalid photos stay in the retake with recovery actions; Back cancels pending preparation. Dismissing the retake restores the existing photo, AI candidates, and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
       "integration": "dialog",
       "tests": [
         "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
@@ -3533,6 +3533,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
           "name": "native Back returns Location retake camera to its retained AI photo and corrected code"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back cancels pending retake preparation and keeps the corrected photo review"
         },
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
@@ -3547,7 +3551,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:cameraOpen",
       "policy": "overlay",
-      "expectation": "A retake over a reviewed photo owns a full-screen dialog. A rejected replacement photo stays in the retake with recovery actions. Dismissing the retake restores the existing photo, AI candidates, and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
+      "expectation": "A retake over a reviewed photo owns a full-screen dialog. A replacement is locally prepared before it replaces the review. Invalid photos stay in the retake with recovery actions; Back cancels pending preparation. Dismissing the retake restores the existing photo, AI candidates, and edited code. The initial capture belongs to the outer acquisition dialog; confirming a read consumes the active owners.",
       "integration": "dialog",
       "tests": [
         "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
@@ -3557,6 +3561,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
           "name": "native Back returns Location retake camera to its retained AI photo and corrected code"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back cancels pending retake preparation and keeps the corrected photo review"
         },
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
@@ -3634,12 +3642,17 @@
       "uses": ["branch"],
       "expectation": "An invalid photo shows one inline validation alert in the active camera or photo review. Selecting it does not replace the photo, reset the reviewed code, or create another foreground entry.",
       "tests": [
-        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx"
       ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
           "name": "native Back returns Location retake camera to its retained AI photo and corrected code"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx",
+          "name": "keeps the existing review when %s preparation fails and reuses the next prepared photo"
         }
       ],
       "render": [

@@ -99,6 +99,13 @@ export function LocationImageReader({
   const version = useRef(0);
   const pending = useRef(false);
   const abort = useRef<AbortController | null>(null);
+  const replacement = useRef<AbortController | null>(null);
+  const prepared = useRef<{ photo: LocationPhoto; data: string }>(null);
+  const cancelReplacement = useCallback(() => {
+    replacement.current?.abort();
+    replacement.current = null;
+  }, []);
+  useEffect(() => cancelReplacement, [cancelReplacement]);
   const cancelPending = useCallback(() => {
     version.current++;
     abort.current?.abort();
@@ -106,6 +113,7 @@ export function LocationImageReader({
 
   function invalidate() {
     cancelPending();
+    cancelReplacement();
     pending.current = false;
     setBusy(false);
     setCandidates([]);
@@ -127,17 +135,44 @@ export function LocationImageReader({
       action();
     }
   });
-  function select(file: File) {
+  function commitPhoto(next: LocationPhoto, data?: string) {
+    invalidate();
+    photoCamera.current?.stop();
+    prepared.current = data === undefined ? null : { photo: next, data };
+    setCameraOpen(false);
+    setPhoto(next);
+  }
+
+  async function select(file: File) {
+    cancelReplacement();
     const problem = barcodeImageProblem(file);
     if (problem) {
-      // A rejected source leaves both the current camera and any reviewed photo in place.
       setFileError(problem);
       return;
     }
-    invalidate();
-    photoCamera.current?.stop();
-    setCameraOpen(false);
-    setPhoto(locationPhoto(file));
+    const next = locationPhoto(file);
+    if (!photo) {
+      commitPhoto(next);
+      return;
+    }
+
+    // A replacement cannot take over the review until local preparation succeeds.
+    setFileError(undefined);
+    const controller = new AbortController();
+    replacement.current = controller;
+    try {
+      const data = await prepareLocationImage(file, {
+        signal: controller.signal,
+      });
+      if (!controller.signal.aborted) commitPhoto(next, data);
+    } catch (cause) {
+      if (!controller.signal.aborted) {
+        const message = cause instanceof Error ? cause.message : "";
+        setFileError(message === "imageSize" ? "imageSize" : "imageUnreadable");
+      }
+    } finally {
+      if (replacement.current === controller) replacement.current = null;
+    }
   }
   function close() {
     invalidate();
@@ -157,10 +192,13 @@ export function LocationImageReader({
     setCode("");
     setError(undefined);
     try {
-      const data = await prepareLocationImage(photo.file, {
-        signal: controller.signal,
-        ...(photo.crop ? { crop: photo.crop } : {}),
-      });
+      const data =
+        prepared.current?.photo === photo
+          ? prepared.current.data
+          : await prepareLocationImage(photo.file, {
+              signal: controller.signal,
+              ...(photo.crop ? { crop: photo.crop } : {}),
+            });
       if (!current()) return;
       const result = await extract(data);
       if (!current()) return;
@@ -216,11 +254,14 @@ export function LocationImageReader({
   const canRetry = Boolean(photo) && !busy && candidates.length === 0;
   // Re-runs the read effect with the same file and crop, once per press.
   const retry = () => {
+    cancelReplacement();
+    prepared.current = null;
     setFileError(undefined);
     setAttempt((value) => value + 1);
   };
 
   function chooseImage() {
+    cancelReplacement();
     setFileError(undefined);
     picker.current?.click();
   }
@@ -228,7 +269,7 @@ export function LocationImageReader({
   const chooseFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (file) select(file);
+    if (file) void select(file);
   };
 
   const deviceCameraAction = (
@@ -238,6 +279,7 @@ export function LocationImageReader({
       variant="outline"
       className="min-h-12 flex-1"
       onClick={() => {
+        cancelReplacement();
         setFileError(undefined);
         photoCamera.current?.stop();
         capture.current?.click();
@@ -275,7 +317,7 @@ export function LocationImageReader({
       {cameraOpen && !photo ? (
         <LocationPhotoCamera
           ref={photoCamera}
-          onPhoto={select}
+          onPhoto={(file) => void select(file)}
           {...(closeControl ? { onClose: close } : {})}
           errorAction={deviceCameraAction}
           dock={cameraDock}
@@ -387,7 +429,10 @@ export function LocationImageReader({
                     type="button"
                     className="shrink-0"
                     disabled={checking || !code.trim()}
-                    onClick={() => onConfirm(code.trim())}
+                    onClick={() => {
+                      cancelReplacement();
+                      onConfirm(code.trim());
+                    }}
                   >
                     {t("useLocationAiCode")}
                   </Button>
@@ -418,6 +463,7 @@ export function LocationImageReader({
                     // Keep the reviewed photo and corrected code until a replacement
                     // is actually captured. Back from retake restores this work.
                     cancelPending();
+                    cancelReplacement();
                     pending.current = false;
                     setBusy(false);
                     setFileError(undefined);
@@ -451,6 +497,7 @@ export function LocationImageReader({
       <Dialog
         open={cameraOpen && photo !== undefined}
         onOpenChange={(open) => {
+          cancelReplacement();
           setFileError(undefined);
           setCameraOpen(open);
         }}
@@ -473,7 +520,7 @@ export function LocationImageReader({
           {cameraOpen && photo !== undefined && (
             <LocationPhotoCamera
               ref={photoCamera}
-              onPhoto={select}
+              onPhoto={(file) => void select(file)}
               errorAction={deviceCameraAction}
               dock={cameraDock}
             />

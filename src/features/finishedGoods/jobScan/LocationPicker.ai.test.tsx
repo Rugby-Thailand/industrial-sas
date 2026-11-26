@@ -236,6 +236,93 @@ it.each([
   },
 );
 
+it.each([
+  [
+    "retake",
+    "This image could not be opened. Choose another image or type the code.",
+  ],
+  ["gallery", "Choose a non-empty image up to 25 MB and 40 megapixels."],
+] as const)(
+  "keeps the existing review when %s preparation fails and reuses the next prepared photo",
+  async (source, warning) => {
+    setup();
+    startReading();
+    const review = await screen.findByRole("textbox", {
+      name: "Review location code",
+    });
+    fireEvent.change(review, { target: { value: "CORRECTED-DOCK" } });
+    if (source === "retake")
+      fireEvent.click(
+        screen.getByRole("button", { name: "Take another photo" }),
+      );
+
+    const actual = await vi.importActual<
+      typeof import("./prepareLocationImage")
+    >("./prepareLocationImage");
+    const closeBitmap = vi.fn();
+    const decode =
+      source === "retake"
+        ? vi
+            .fn()
+            .mockRejectedValue(
+              new DOMException("Cannot decode JPEG", "InvalidStateError"),
+            )
+        : vi.fn().mockResolvedValue({
+            width: 8000,
+            height: 8000,
+            close: closeBitmap,
+          });
+    const rejectedFile = new File(["image payload"], "replacement.jpg", {
+      type: "image/jpeg",
+    });
+    vi.stubGlobal("createImageBitmap", decode);
+    try {
+      mocks.prepare.mockImplementationOnce(actual.prepareLocationImage);
+      fireEvent.change(
+        screen.getByLabelText("Choose photo", { selector: "input" }),
+        {
+          target: { files: [rejectedFile] },
+        },
+      );
+      await screen.findByText(warning);
+      expect(decode).toHaveBeenCalledWith(rejectedFile);
+      if (source === "gallery") expect(closeBitmap).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(mocks.action).toHaveBeenCalledOnce();
+    if (source === "retake") {
+      expect(
+        screen.getByRole("dialog", { name: "Take another photo" }),
+      ).toBeVisible();
+      fireEvent.click(screen.getByRole("button", { name: "Back to photo" }));
+    }
+    expect(
+      screen.getByRole("textbox", { name: "Review location code" }),
+    ).toHaveValue("CORRECTED-DOCK");
+
+    if (source === "retake")
+      fireEvent.click(
+        screen.getByRole("button", { name: "Take another photo" }),
+      );
+    const next = "data:image/jpeg;base64,bmV3";
+    mocks.prepare.mockResolvedValueOnce(next);
+    mocks.action.mockResolvedValueOnce(extracted(["REPLACEMENT"]));
+    select();
+    await waitFor(() => {
+      expect(
+        screen.getByRole("textbox", { name: "Review location code" }),
+      ).toHaveValue("REPLACEMENT");
+    });
+    expect(mocks.prepare).toHaveBeenCalledTimes(3);
+    expect(mocks.action).toHaveBeenCalledTimes(2);
+    expect(mocks.action).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ imageDataUrl: next }),
+    );
+  },
+);
+
 it("preserves a registered building location when the confirmed AI code resolves", async () => {
   const location = {
     code: "F1-L3-11",

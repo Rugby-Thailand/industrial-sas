@@ -25,6 +25,8 @@ import { LocationPicker } from "./LocationPicker";
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   action: vi.fn(),
+  prepare:
+    vi.fn<typeof import("./prepareLocationImage").prepareLocationImage>(),
   create: vi.fn(),
   replace: vi.fn(),
 }));
@@ -40,7 +42,7 @@ vi.mock("@/i18n/navigation", () => ({
   }),
 }));
 vi.mock("./prepareLocationImage", () => ({
-  prepareLocationImage: async () => "data:image/jpeg;base64,YWJj",
+  prepareLocationImage: mocks.prepare,
 }));
 vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
@@ -104,6 +106,7 @@ beforeEach(() => {
   registerTestMutation(fgRefs.createJobScanLocation, mocks.create);
 
   vi.clearAllMocks();
+  mocks.prepare.mockReset().mockResolvedValue("data:image/jpeg;base64,YWJj");
   window.localStorage.clear();
   window.history.replaceState({ appNavigationIndex: 0 }, "", origin);
   stop = trackAppHistory();
@@ -468,6 +471,56 @@ it("native Back returns Location retake camera to its retained AI photo and corr
   await waitFor(() => expect(href()).toBe(page));
   act(() => window.history.back());
   await waitFor(() => expect(href()).toBe(origin));
+});
+
+it("native Back cancels pending retake preparation and keeps the corrected photo review", async () => {
+  show();
+  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
+  const upload = screen.getByLabelText("Choose photo", { selector: "input" });
+  fireEvent.change(upload, {
+    target: {
+      files: [new File(["original"], "label.jpg", { type: "image/jpeg" })],
+    },
+  });
+  const code = await screen.findByRole("textbox", {
+    name: "Review location code",
+  });
+  fireEvent.change(code, { target: { value: "CORRECTED-DOCK" } });
+  const reviewHref = href();
+  fireEvent.click(screen.getByRole("button", { name: "Take another photo" }));
+  const camera = await screen.findByRole("dialog", {
+    name: "Take another photo",
+  });
+  await waitFor(() => expect(href()).not.toBe(reviewHref));
+
+  let finish!: (value: string) => void;
+  mocks.prepare.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  fireEvent.change(upload, {
+    target: {
+      files: [new File(["pending"], "replacement.jpg", { type: "image/jpeg" })],
+    },
+  });
+  expect(mocks.prepare).toHaveBeenCalledTimes(2);
+  const signal = mocks.prepare.mock.calls[1]![1].signal;
+  expect(signal?.aborted).toBe(false);
+  expect(camera).toBeVisible();
+
+  act(() => window.history.back());
+  await waitFor(() => expect(href()).toBe(reviewHref));
+  await waitFor(() => expect(camera).not.toBeInTheDocument());
+  expect(signal?.aborted).toBe(true);
+  await act(async () => finish("data:image/jpeg;base64,bGF0ZQ=="));
+  expect(
+    screen.getByRole("textbox", { name: "Review location code" }),
+  ).toHaveValue("CORRECTED-DOCK");
+  expect(
+    screen.getByRole("img", { name: "Location label photo" }),
+  ).toBeVisible();
+  expect(mocks.action).toHaveBeenCalledOnce();
 });
 
 it("explicit retake Back to photo and outer Close consume their entries before the next Back", async () => {

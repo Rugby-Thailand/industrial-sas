@@ -377,3 +377,34 @@ test("AI opens a live camera, captures once, stops its stream and automatically 
     .click();
   await expect(page.getByLabel("Decoded codes")).toHaveText("F1-L3-11");
 });
+
+test("a corrupt JPEG retake preserves the reviewed location and returns focus to the retake button", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.getByRole("button", { name: "Photo AI", exact: true }).click();
+  const gallery = page
+    .getByLabel("Choose photo", { exact: true })
+    .and(page.locator('input[type="file"]'));
+  await gallery.setInputFiles(
+    resolve("tests/fixtures/barcode-photos/location-3-11.png"),
+  );
+  const code = page.getByRole("textbox", { name: "Review location code" });
+  await expect(code).toHaveValue("F1-L3-11");
+  await code.fill("F1-CORRECTED");
+  const retake = page.getByRole("button", { name: "Take another photo" });
+  await retake.click();
+  const camera = page.getByRole("dialog", { name: "Take another photo" });
+  await gallery.setInputFiles({
+    name: "corrupt.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from("broken jpeg"),
+  });
+  await expect(
+    camera.getByText(/This image could not be opened/),
+  ).toBeVisible();
+  await camera.getByRole("button", { name: "Back to photo" }).click();
+  await expect(code).toHaveValue("F1-CORRECTED");
+  await expect(retake).toBeFocused();
+  expect(await page.evaluate(() => window.locationAiRequests.length)).toBe(1);
+});
