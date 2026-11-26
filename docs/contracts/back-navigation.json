@@ -2615,6 +2615,14 @@
           "name": "requires the pallet QR for a camera read while still accepting the QR payload"
         },
         {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "opens the destination camera on the first tap and still requires physical placement"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "opens the source camera on the first tap and closes back to the physical return"
+        },
+        {
           "file": "src/features/finishedGoods/PalletScreens.test.tsx",
           "name": "requires the current operator to verify even if another operator already scanned"
         },
@@ -2646,6 +2654,14 @@
         {
           "file": "src/features/finishedGoods/MoveScreen.test.tsx",
           "name": "requires the pallet QR for a camera read while still accepting the QR payload"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "opens the destination camera on the first tap and still requires physical placement"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "opens the source camera on the first tap and closes back to the physical return"
         },
         {
           "file": "src/features/finishedGoods/PalletScreens.test.tsx",
@@ -4112,52 +4128,6 @@
           "shape": "conditional",
           "truthy": ["div", "src/components/ui/Notice#Notice"],
           "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/MoveScreen.tsx#ActiveMove:returnScanMode",
-      "policy": "presentation",
-      "expectation": "The optional inline return scanner changes verification method in the retained move. Its shared acquisition owns camera Back; toggling method clears acknowledgement without opening another move view.",
-      "tests": ["src/features/finishedGoods/MoveScreen.test.tsx"],
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "and",
-          "truthy": [
-            "div",
-            "src/features/finishedGoods/DestinationScanner#DestinationScanner"
-          ],
-          "falsy": []
-        }
-      ],
-      "cases": [
-        {
-          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
-          "name": "clears acknowledgement on changing verification method and allows an explicit checkbox fallback"
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/MoveScreen.tsx#ActiveMove:scanMode",
-      "policy": "presentation",
-      "expectation": "The selected verification method controls whether the retained move form renders DestinationScanner. Its separate camera dialog owns acquisition, Close and Back. Changing verification method clears the acknowledgement.",
-      "tests": ["src/features/finishedGoods/MoveScreen.test.tsx"],
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "and",
-          "truthy": [
-            "div",
-            "src/features/finishedGoods/DestinationScanner#DestinationScanner"
-          ],
-          "falsy": []
-        }
-      ],
-      "cases": [
-        {
-          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
-          "name": "clears acknowledgement on changing verification method and allows an explicit checkbox fallback"
         }
       ]
     },

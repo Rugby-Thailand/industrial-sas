@@ -1315,6 +1315,7 @@
       "confirming-releases-the-source-space": "Confirming releases the source space.",
       "tick-after-pickup-both-spaces-stay-reserved": "Tick after pickup. Both spaces stay reserved.",
       "use-checkbox-instead": "Use checkbox instead",
+      "enter-code-optional": "Enter code (optional)",
       "scan-qr-optional": "Scan QR (optional)",
       "issue-saved-both-spaces-remain-held": "Issue saved. Both spaces remain held.",
       "change-destination": "Change destination",

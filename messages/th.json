@@ -1315,6 +1315,7 @@
       "confirming-releases-the-source-space": "ยืนยันแล้วคืนพื้นที่ต้นทาง",
       "tick-after-pickup-both-spaces-stay-reserved": "ติ๊กเมื่อรับแล้ว ทั้งสองพื้นที่ยังกันไว้",
       "use-checkbox-instead": "ใช้ checkbox แทนการสแกน",
+      "enter-code-optional": "กรอกรหัส (ไม่บังคับ)",
       "scan-qr-optional": "สแกน QR (ไม่บังคับ)",
       "issue-saved-both-spaces-remain-held": "บันทึกปัญหาแล้ว ทั้งสองพื้นที่ยังถูกกันไว้",
       "change-destination": "เปลี่ยนปลายทาง",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Camera } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -27,6 +27,10 @@ export interface DestinationScannerProps {
   readonly busy?: boolean;
   readonly verified?: boolean;
   readonly expectedLocation: string;
+  readonly cameraLabel?: string;
+  readonly alternateAction?: ReactNode;
+  readonly onCameraOpen?: () => void;
+  readonly showManualEntry?: boolean;
   readonly expectedCode?: string | undefined;
   readonly verificationError?: string | undefined;
   /** Parent workflows can show their precise business error without a duplicate generic notice. */
@@ -55,6 +59,10 @@ function DestinationScanSession({
   busy = false,
   verified = false,
   expectedLocation,
+  cameraLabel,
+  alternateAction,
+  onCameraOpen,
+  showManualEntry = true,
   expectedCode,
   verificationError,
   showVerificationErrors = true,
@@ -119,6 +127,7 @@ function DestinationScanSession({
     <div className="space-y-4">
       <div
         ref={expected}
+        hidden={!showManualEntry}
         tabIndex={-1}
         className="rounded-lg border border-border bg-surface p-3"
       >
@@ -141,23 +150,29 @@ function DestinationScanSession({
       <Dialog
         open={cameraOpen}
         onOpenChange={(open) => {
-          if (open) verification.setError("");
+          if (open) {
+            onCameraOpen?.();
+            verification.setError("");
+          }
           setCameraOpen(open);
         }}
         backPending={verification.busy || busy}
         completionRef={cameraCompletion}
       >
-        <DialogTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={disabled}
-            className="min-h-12 w-full"
-          >
-            <Camera className="size-4" aria-hidden="true" />
-            {scanText("startCamera")}
-          </Button>
-        </DialogTrigger>
+        <div className={alternateAction ? "grid grid-cols-2 gap-2" : undefined}>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={disabled}
+              className="min-h-12 w-full whitespace-normal"
+            >
+              <Camera className="size-4" aria-hidden="true" />
+              {cameraLabel ?? scanText("startCamera")}
+            </Button>
+          </DialogTrigger>
+          {alternateAction}
+        </div>
         <DialogContent
           size="camera"
           closeLabel={scanText("closeCamera")}
@@ -217,6 +232,7 @@ function DestinationScanSession({
         </DialogContent>
       </Dialog>
       <form
+        hidden={!showManualEntry}
         onSubmit={(event) => {
           event.preventDefault();
           submit(code, "MANUAL");
@@ -256,10 +272,10 @@ function DestinationScanSession({
             : t("copy.verify-entered-code")}
         </Button>
       </form>
-      {showVerificationErrors && rejected ? (
+      {showManualEntry && showVerificationErrors && rejected ? (
         <Notice tone="warning" title={rejected} role="alert" />
       ) : null}
-      {verified ? (
+      {showManualEntry && verified ? (
         <Notice
           tone="success"
           title={
