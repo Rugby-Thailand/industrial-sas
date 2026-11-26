@@ -1,6 +1,6 @@
-# Customer workspace contract (v3, step 1 of 3)
+# Customer workspace contract (v3)
 
-The customer detail route becomes a workspace: a directory rail, an identity bar, section tabs, a warehouse scope, an overview with rollups and a "ต้องจัดการ" (attention) panel, plus jobs, products, stock and details. This document is the contract for steps 2 and 3. The data layer described here is merged with it. Nothing else in this contract is built yet.
+The customer detail route becomes a workspace: a directory rail, an identity bar, section tabs, a warehouse scope, an overview with rollups and a "ต้องจัดการ" (attention) panel, plus jobs, products, stock and details. The workspace uses the registered queries below. Its URL and Back behavior are covered by the customer screen tests and the desktop and mobile customer workspace browser suite.
 
 Visual and behaviour reference: `customer-workspace-preview.html`, which is untracked and kept next to `plan.md` in the main checkout. Ignore its role, state and theme switchers, its research panel, its "ตัวอย่าง/ข้อมูลสมมติ" tags and its fake data. The preview opens job, product, review and scan "destinations" inside the page. Production links to the real routes listed in [Destinations](#destinations) instead.
 
@@ -70,7 +70,7 @@ null | {
   warehouses: { warehouseId; code; name }[]; // scope selector: permitted warehouses with this customer's activity, by name
   warehousesComplete: boolean;     // false past 20 activity warehouses
   scopeAvailable: boolean;         // false when warehouseId is not permitted → no rollup
-  rollup?: {                       // present when canViewWarehouseData && scopeAvailable
+  rollup?: {                       // present when includeOverview && canViewWarehouseData && scopeAvailable
     linkedJobs: BoundedCount;      // live (non-voided) linked jobs, capped at 99
     linkedProducts: BoundedCount;  // exact, from customerWarehouseActivity
     storedPallets: BoundedCount;   // Σ product summary `stored`; incomplete if a summary is building or >99 products
@@ -81,7 +81,7 @@ null | {
 }
 ```
 
-`pendingReview` counts names in "Names to review" that the queue would propose for this customer. A name qualifies when it matches the customer's canonical name or an approved alias exactly. It also qualifies through the queue's compact-stem similarity rule, which applies only when the customer is active and the name has no exact match anywhere. The count reads the same bounded window as `reviewSummary` (300 rows) and is filtered to the scope. `complete: false` means the window was truncated.
+`pendingReview` counts names in "Names to review" that the queue would propose for this customer. A name qualifies when it matches the customer's canonical name or an approved alias exactly. It also qualifies through the queue's compact-stem similarity rule, which applies only when the customer is active and the name has no exact match anywhere. The count uses the review queue’s 300-row budget within the selected warehouse scope. `complete: false` means the window was truncated.
 
 Archived customers keep their history. Show the archived notice and still load the rollup. `canScan` is false for them.
 
@@ -97,13 +97,13 @@ This query returns `null | { canViewWarehouseData, items: WorkspaceProduct[], is
 - **Products tab**: show `storedCount` ("N พาเลท") and `zones`.
 - **Stock view**: list each product's `pallets` (position, zone and code) and link each one to its pallet page.
 
-The stock view is supported cheaply because each product holds at most 10 STORED units in its row. The `storedPallets` rollup carries the exact total.
+The stock view is supported cheaply because each product holds at most 10 STORED units in its row. The `storedPallets` rollup carries the total and marks it incomplete when product summaries are missing or the read reaches its budget.
 
 ### Existing reads
 
 - `customers/catalogue:getCustomer` provides identity and details. **Change in this PR:** `taxId` and `taxIdChecksumValid` are omitted unless the caller holds `masterData.customer.manage`.
-- `customers/linking:getCustomerActivity` still provides aliases (`aliases`, `hasMoreAliases`). `listCustomerAliasesPage` pages them.
-- `getCustomerActivity` jobs and products, `listCustomerJobsPage` and `listCustomerProductsPage` are superseded by the workspace queries. Keep them registered: old tabs still call them (`docs/operations/backend-compatibility.md`). Once the workspace replaces the old cards, step 2 or 3 stops calling them and removes the old card states from the inventory.
+- Details loads aliases from `customers/linking:listCustomerAliasesPage`. Both the paginated query and the legacy activity query return aliases only to members with storage layout read access.
+- `getCustomerActivity` jobs and products, `listCustomerJobsPage` and `listCustomerProductsPage` are superseded by the workspace queries. Keep them registered: old tabs still call them (`docs/operations/backend-compatibility.md`). The workspace no longer subscribes to these legacy reads.
 - The scope selector lists `getCustomerWorkspace().warehouses`. Labels come from `name`, or from `warehouseLabel` when the code helps.
 
 ## Permission matrix
@@ -156,7 +156,7 @@ Back rules:
 
 ### Navigation inventory work (steps 2 and 3)
 
-This PR adds no component, so the inventory has no new state or action to declare yet. Invented owners or evidence fail `pnpm check:navigation`. Each step that adds code must declare, in `docs/contracts/back-navigation.json`:
+The reviewed inventory in `docs/contracts/back-navigation.json` tracks the following workspace changes.
 
 - **Route entry** for `[customerId]/page.tsx`: update `targets` if the rendered screen is no longer `CustomerDetail#CustomerDetail`, and add the workspace caller cases below.
 - **States**: the URL-backed `section` and `filter` states, the scope value, the rail search/status filter as a presentation decision, and conditional renders such as archived, scope unavailable, loading, error and empty, plus any "show more" paging. Use exact semantic targets.
@@ -198,7 +198,7 @@ Job scans store no product ID, so a job row cannot link to a product. The ticket
 
 1. **Warehouse.** The scan page uses the global workspace warehouse (`QueryGate scope="WAREHOUSE"`). When the workspace scope is a single warehouse that appears in `useWorkspace().warehouses`, the Scan button calls `workspace.selectWarehouse(warehouseId)` before it pushes `customerJobScanPath(id)`. With scope `all`, it only pushes, and the scan page keeps its current selection or shows its warehouse choice. The scan URL carries no warehouse parameter.
 2. **Customer.** `JobScanScreen` reads `customer` with `useQueryParams()`. It accepts only a value matching `/^[A-Za-z0-9_-]{1,64}$/` and loads it with `api.customers.catalogue.getCustomer`. The parameter is ignored silently when the member lacks customer read, when the customer is missing, and when it is archived. A loaded customer shows a context line, "สแกนให้ลูกค้า {name} · {code}". New **manual-entry** tickets start with the ticket's `customer` field set to `customer.name`, which stays editable. AI and barcode values replace it as they do today.
-3. **Mismatch.** When a ticket's `normalizeCustomerName(customer)` differs from the selected customer's normalized name, show an inline, non-blocking hint: "ชื่อบนใบต่างจากลูกค้าที่เลือก · จะส่งไปตรวจชื่อ". The save proceeds unchanged.
+3. **Mismatch.** When a nonblank captured name differs from the selected customer’s normalized name, show an inline hint that the name may need review. The existing matcher resolves exact names and aliases when the ticket is saved.
 4. **After save.** The success panel adds a `<Link>` to `customerWorkspacePath(id, { section: "jobs" })`. Native Back from the scan page returns to the workspace.
 5. **Inventory.** Declare the context line and the hint as presentation states with their exact targets, and add the scan caller cases.
 
