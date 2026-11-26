@@ -43,7 +43,7 @@ const operation = "finishedGoods.jobScan.location.create";
 const argsWarehouse = { warehouseId: v.id("warehouses") };
 
 /** Human labels may contain spaces; reserved identities and control characters may not be registered. */
-function normalizeJobLocationCode(raw: string): string | null {
+export function normalizeJobLocationCode(raw: string): string | null {
   const code = raw.trim().normalize("NFC").toUpperCase();
   return !code ||
     code.length > 200 ||

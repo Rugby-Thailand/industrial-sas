@@ -1476,4 +1476,15 @@ describe("parseJobScanEditProposal", () => {
       ).toEqual({ kind: "OK", value: { fields: { partName } } });
     }
   });
+
+  it("requires quotes to treat a bare follow-up command as literal text", () => {
+    const partName = "Gear and close";
+    const proposal = { ...emptyEdit, partName };
+    expect(
+      parseJobScanEditProposal(proposal, `Set part name to ${partName}`),
+    ).toEqual({ kind: "UNSUPPORTED" });
+    expect(
+      parseJobScanEditProposal(proposal, `Set part name to "${partName}"`),
+    ).toEqual({ kind: "OK", value: { fields: { partName } } });
+  });
 });

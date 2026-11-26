@@ -212,6 +212,10 @@ describe("job-scan AI search and edit actions", () => {
       "กล่อง Outer 131 และทำการปิดใบงานนี้",
     ],
     ["Set part name to Gear and close job", "Gear and close job"],
+    ["Set part name to Gear and close", "Gear and close"],
+    ["Set part name to Gear and reopen now", "Gear and reopen now"],
+    ["Set part name to Gear and save", "Gear and save"],
+    ["แก้ชื่อสินค้าเป็น กล่อง แล้วปิดเลย", "กล่อง แล้วปิดเลย"],
     [
       "Change product name to Blue Box and finish the selected ticket",
       "Blue Box and finish the selected ticket",
@@ -440,6 +444,8 @@ describe("job-scan AI search and edit actions", () => {
     ["หาชื่อสินค้า กล่อง รวมทั้งลบใบงานนี้", "กล่อง รวมทั้งลบใบงานนี้"],
     ["หาใบงานที่อยู่ ข้างเสา C12 และปิดใบงาน", "ข้างเสา C12 และปิดใบงาน"],
     ["หาใบงานที่อยู่ A1 และทำการปิดใบงานนี้", "A1 และทำการปิดใบงานนี้"],
+    ["Find jobs at location A1 and close", "A1 and close"],
+    ["Find jobs at DOCK and RACK", "DOCK and RACK"],
     ["Find jobs at F2-L12-1 and F2-L12-3", "F2-L12-1 and F2-L12-3"],
     ["Find jobs at A1 and A2", "A1"],
     ["หาใบงานที่ตำแหน่ง A1 และ A2", "A1 และ A2"],
@@ -483,6 +489,10 @@ describe("job-scan AI search and edit actions", () => {
     ['Find jobs in "A10"', "A10", "location"],
     ['Find jobs at "Dock North"', "Dock North", "location"],
     ["Find jobs at A-01_02", "A-01_02", "location"],
+    ["Find jobs at DOCK", "DOCK", "location"],
+    ["Find jobs at RACK#01", "RACK#01", "location"],
+    ['Find jobs at "DOCK NORTH"', "DOCK NORTH", "location"],
+    ["Find jobs at DOCK NORTH", "DOCK NORTH", "location"],
   ])(
     "accepts the saved-record search %s",
     async (prompt, search, searchField) => {
@@ -1731,6 +1741,46 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
           searchField: "location",
         }),
       ).toEqual([ids.exactFoPalletF2]);
+    },
+  );
+
+  it.each(["DOCK", "DOCK NORTH", "RACK#01", "maß"])(
+    "uses the registration code for %s across indexed and bounded searches",
+    async (search) => {
+      const fixture = await seedListFixture();
+      const { world, warehouseId, ids } = fixture;
+      const buildingId = await world.t.run(async (ctx) => {
+        const row = await ctx.db.get(ids.exactFoPalletF2);
+        return row!.buildingId!;
+      });
+      const client = world.t.withIdentity(IDENTITY);
+      const result = await client.mutation(
+        api.finishedGoods.jobScanLocations.create,
+        {
+          warehouseId,
+          buildingId,
+          code: search,
+          requestId: "registered-search",
+        },
+      );
+      expect(result).toMatchObject({ ok: true, value: { written: true } });
+      const code = search.toUpperCase();
+      await world.t.run(async (ctx) => {
+        await ctx.db.patch(ids.exactFoPalletF2, { locationCode: code });
+        await ctx.db.patch(ids.prefixFoPalletF2, { locationCode: code + " 2" });
+        await ctx.db.patch(ids.southPalletF2, { productBarcodeText: code });
+      });
+      await buildIndex(fixture);
+      for (const ready of [true, false]) {
+        await setReady(world, ready);
+        expect(
+          await listAll(fixture, {
+            filter: "ALL",
+            search,
+            searchField: "location",
+          }),
+        ).toEqual([ids.exactFoPalletF2]);
+      }
     },
   );
 

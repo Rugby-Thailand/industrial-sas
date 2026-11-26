@@ -306,16 +306,17 @@ const SEARCH_STATUS = new RegExp(
   "gu",
 );
 
-// A storage-style code immediately after "at" or "in" is a location value.
-// Leave ordinary names and codes without a location cue in general search.
+// Code-shaped locations include legacy labels that are missing from the ledger.
+// Registered locations can also use ordinary words, spaces, or punctuation.
 const STORAGE_ADDRESS_SEGMENT = String.raw`[\p{L}\p{M}\p{N}]+?`;
 const STORAGE_ADDRESS_CODE = String.raw`(?=[\p{L}\p{M}\p{N}_.-]*[\p{N}_-])${STORAGE_ADDRESS_SEGMENT}(?:[_.-]${STORAGE_ADDRESS_SEGMENT})*`;
 const WHOLE_STORAGE_ADDRESS = new RegExp(`^${STORAGE_ADDRESS_CODE}$`, "iu");
 const STORAGE_ADDRESS_TOKEN = String.raw`${STORAGE_ADDRESS_CODE}(?=$|[\s,;!?&/、+–—]|\.(?![\p{L}\p{M}\p{N}])|และ|หรือ|กับ|ถึง)`;
-const STARTING_STORAGE_ADDRESS = new RegExp(`^${STORAGE_ADDRESS_TOKEN}`, "iu");
-const IMPLIED_LOCATION_FIELD = String.raw`(?:at|in)(?=\s+(?:${STORAGE_ADDRESS_TOKEN}|["“]))`;
+const NON_LOCATION_RELATION = String.raw`(?!(?:least|most|(?:the\s+)?(?:building|(?:\S+\s+)?floors?))\b)`;
+const RECORD_LOCATION_RELATION = String.raw`(?<=\b(?:jobs?|records?|tickets?|scans?)\s+)(?:at|in(?=\s+(?!\b(?:pallets?|boxes|box|cartons?|cases?|skids?)\b)))`;
+const IMPLIED_LOCATION_FIELD = String.raw`(?:${RECORD_LOCATION_RELATION}(?=\s+(?=\S)${NON_LOCATION_RELATION})|(?:at|in)(?=\s+(?:${STORAGE_ADDRESS_TOKEN}|["“])))`;
 const MULTIPLE_STORAGE_ADDRESSES = new RegExp(
-  String.raw`^${STORAGE_ADDRESS_CODE}(?:\s+(?:and|or|plus|to|through)\s+|\s*(?:และ|หรือ|พร้อมกับ|กับ|ถึง|[&,;、/+–—])\s*)(?:(?:storage\s+)?location(?:\s+code)?\s+|(?:ตำแหน่ง|จุดจัดเก็บ)\s*)?${STORAGE_ADDRESS_TOKEN}`,
+  String.raw`\s+(?:at|and|or|plus|to|through|และ|หรือ|พร้อมกับ|กับ|ถึง)\s+|^${STORAGE_ADDRESS_CODE}\s*(?:และ|หรือ|พร้อมกับ|กับ|ถึง|[&,;、/+–—])\s*(?:(?:ตำแหน่ง|จุดจัดเก็บ)\s*)?${STORAGE_ADDRESS_TOKEN}`,
   "iu",
 );
 const ENGLISH_SEARCH_FIELD = String.raw`\b(?:part\s+name|product\s+name|customer\s+name|barcode|job\s+(?:no\.?|number)|(?:at|in|for|by)\s+(?:storage\s+)?location(?:\s+code)?|(?:storage\s+)?location\s+code|location(?=\s*(?:[:=]|\s+(?:${STORAGE_ADDRESS_TOKEN}|["“])))|located\s+at|${IMPLIED_LOCATION_FIELD})`;
@@ -346,15 +347,18 @@ const UNSUPPORTED_SEARCH_ASSIGNMENT = new RegExp(
   String.raw`(?:[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?!${SEARCH_FACET_ASSIGNMENT})(?:${BARE_FIELD_ASSIGNMENT}|${PROTECTED_RECORD_FIELD})`,
   "u",
 );
+const ENGLISH_LIFECYCLE_VERB = String.raw`(?:close|open|reopen|finish|lock|unlock|activate|deactivate|complete|finalize|reject|resolve|suspend|resume|hold|pause|save|commit)`;
+const THAI_LIFECYCLE_VERB = String.raw`(?:ปิด|เปิด(?:ใหม่)?|ล็อก|ปลดล็อก|ระงับ|พัก|จบ|สิ้นสุด|ส่งกลับ|คืนค่า|กู้คืน|รับรอง|ปฏิเสธ)`;
+const RECORD_ACTION_END = String.raw`(?=\s*(?:$|[,;.!?，；。！？\r\n])|${RECORD_FOLLOW_UP})`;
 const UNSUPPORTED_RECORD_ACTION = [
   String.raw`(?:please\s+)?(?:clear|erase|blank|reset|delete|remove|void|cancel|copy|append|prepend|undo|increase|decrease|adjust|double|halve|replace|export|print|duplicate|discard|send|archive|approve|create|add|insert|register|restore|submit|publish)\b`,
   String.raw`(?:make|take|generate|save)\s+(?:(?:a|an|another)\s+)?(?:copy|duplicate|backup|printout|snapshot)\b`,
   String.raw`(?:mark|flag|tag|classify)\s+(?:it|them|this|that|the|as|records?|tickets?|jobs?|scans?)\b`,
   String.raw`(?:mark|flag|tag)\s+(?:for|deleted|void(?:ed)?|archived|cancelled|canceled|closed|complete(?:d)?|done|inactive|active|pending|on\s+hold|ready|approved|rejected|mapped|unmapped)\b`,
-  String.raw`(?:close|open|reopen|finish|lock|unlock|activate|deactivate|complete|finalize|reject|resolve|suspend|resume)\s+(?:it|them|(?:an?\s+|the\s+|this\s+|those\s+)?(?:(?:current|selected|scanned|saved)\s+)*(?:records?|tickets?|jobs?|scans?))\b`,
+  String.raw`${ENGLISH_LIFECYCLE_VERB}\b(?:\s+(?:it|them|(?:an?\s+|the\s+|this\s+|those\s+)?(?:(?:current|selected|scanned|saved)\s+)*(?:records?|tickets?|jobs?|scans?))\b|(?:\s+(?:now|again|please|immediately|too))*${RECORD_ACTION_END})`,
   String.raw`(?:[\p{L}’'-]+\s+){1,6}(?:the|this|that|these|those|another)\s+(?:(?:saved|scanned|current|selected|open|closed)\s+)*(?:records?|tickets?|jobs?|scans?)\b`,
   String.raw`(?:(?:กรุณา|โปรด|ช่วย)\s*)?(?:ล้าง|ลบ|ยกเลิก|เคลียร์|เพิ่ม|ลด|ส่งออก|ส่งต่อ|พิมพ์|คัดลอก|อนุมัติ|สร้าง|ลงทะเบียน|บันทึก|ทำสำเนา|ถ่ายสำเนา)`,
-  String.raw`(?:ปิด|เปิด(?:ใหม่)?|ล็อก|ปลดล็อก|ระงับ|พัก|จบ|สิ้นสุด|ส่งกลับ|คืนค่า|กู้คืน|รับรอง|ปฏิเสธ)\s*(?:(?:ใบ)?งาน|รายการ(?:สแกน)?|การสแกน|ตั๋ว)`,
+  String.raw`${THAI_LIFECYCLE_VERB}\s*(?:(?:ใบ)?งาน|รายการ(?:สแกน)?|การสแกน|(?:เลย|ด้วย|ทันที)?${RECORD_ACTION_END})`,
 ].join("|");
 const UNSUPPORTED_SEARCH_ACTION = new RegExp(
   String.raw`(?:^|[,;.!?]\s*|${RECORD_FOLLOW_UP})${FOLLOW_UP_MODIFIERS}(?:${QUALIFIED_FOLLOW_UP})?(?:${UNSUPPORTED_RECORD_ACTION}|(?:move|make|set|change|update|edit|assign|remap|transfer)\b|ย้าย|แก้(?:ไข)?|เปลี่ยน|ตั้ง|ระบุ)`,
@@ -571,6 +575,7 @@ export const JOB_SCAN_SEARCH_PROMPT = [
   "All criteria are combined with AND. Alternatives, exclusions, comparisons, quantity and date filters are unsupported. Never treat an unsupported clause as part of a name or code. Any recognizable job number must be returned in full, including when combined with a status. Unquoted codes are single tokens. Treat explicitly quoted names as literals.",
   "When combining free text with structured filters, require a named field, a quoted value, or a recognizable job number. A filter or relation must never be returned as free text.",
   "For 'Find jobs at A1', copy only 'A1' as the search value. Multiple locations in one request are unsupported.",
+  "A location label can contain spaces and punctuation, such as 'DOCK NORTH' or 'RACK#01'. Copy it as written. If it is ambiguous whether there is one label or multiple locations, set supported to false.",
   "For 'หาสินค้า กล่อง Outer 131' or 'Find jobs for Blue Box', copy the whole keyword as the search value; a format word inside the keyword is not a storageFormat filter. For 'หาใบงานที่อยู่ ข้างเสา C12', copy the entire saved location label 'ข้างเสา C12' as the search value.",
   "- filter: 'UNMAPPED' for unmapped, not mapped, unassigned, needs location, awaiting location, ยังไม่ระบุตำแหน่ง, รอระบุตำแหน่ง, ยังไม่จัดเก็บ, or ไม่มีตำแหน่ง. 'MAPPED' for mapped, assigned, stored, location set, ระบุตำแหน่งแล้ว, จัดเก็บแล้ว, or มีตำแหน่ง. Otherwise 'ALL'.",
   "- search: the specific code or text to match (factory order like FO69070073, barcode like FBN-..., part name, customer name, or location code), copied verbatim from `prompt`, or '' if filtering only by status/facets. When a field is named, copy only its literal value. Never include field labels, filler words, or words already captured in filter/building/floor/storageFormat.",
@@ -785,13 +790,10 @@ export function parseJobScanSearchIntent(
     ? explicitSearchField(normalizeForGrounding(label))
     : undefined;
   const plain = literalGroups?.plain;
-  const impliedLocation = /^(?:at|in)$/iu.test(label ?? "");
   const codeField =
     explicitField === "productBarcodeText" || explicitField === "factoryOrder";
   // Anything after the code must independently parse as search instructions.
-  const compactCode = (
-    impliedLocation ? STARTING_STORAGE_ADDRESS : codeField ? /^\S+/u : null
-  )?.exec(plain ?? "")?.[0];
+  const compactCode = codeField ? /^\S+/u.exec(plain ?? "")?.[0] : undefined;
   const literalValue = (
     literalGroups?.quoted ??
     literalGroups?.thaiQuoted ??

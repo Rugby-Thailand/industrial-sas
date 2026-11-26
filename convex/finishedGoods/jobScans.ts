@@ -50,7 +50,10 @@ import {
   type JobScanInterpretResult,
 } from "../model/finishedGoods/jobScans";
 
-import { jobLocationReader } from "./jobScanLocations";
+import {
+  jobLocationReader,
+  normalizeJobLocationCode,
+} from "./jobScanLocations";
 import { boundedRecordPage } from "../lib/boundedRecordPage";
 import {
   indexableNeedle,
@@ -1236,7 +1239,7 @@ export const listJobScans = queryWithOrg({
       Math.max(1, Math.floor(args.pageSize ?? 20)),
       100,
     );
-    const needle =
+    const requestedNeedle =
       args.locationId === undefined
         ? normalizeJobScanSearch(args.search ?? "")
         : "";
@@ -1263,11 +1266,30 @@ export const listJobScans = queryWithOrg({
             .first(),
         ])
       : [null, null];
-    const searchField = needle ? args.searchField : undefined;
+    const searchField = requestedNeedle ? args.searchField : undefined;
     const exactFactoryOrder =
-      searchField === "factoryOrder" && isSavedFactoryOrderCode(needle);
+      searchField === "factoryOrder" &&
+      isSavedFactoryOrderCode(requestedNeedle);
+    const locationCode =
+      searchField === "location"
+        ? normalizeJobLocationCode(args.search ?? "")
+        : null;
+    // Registered codes may be any human label. Use the registration index
+    // to distinguish a complete code from a partial location search.
+    const registeredLocation = locationCode
+      ? await ctx.tenantDb
+          .byIndex<Doc<"locations">>("locations", "by_orgId_warehouseId_code", [
+            { field: "warehouseId", value: args.warehouseId },
+            { field: "code", value: locationCode },
+          ])
+          .first()
+      : null;
+    const needle = registeredLocation
+      ? normalizeJobScanSearch(registeredLocation.code)
+      : requestedNeedle;
     const exactLocationAddress =
-      searchField === "location" && isSavedLocationAddress(needle);
+      searchField === "location" &&
+      (Boolean(registeredLocation) || isSavedLocationAddress(needle));
     const exact = Boolean(needle) && !searchField && args.exactCode === true;
     const buildingNeedle =
       args.facets?.building !== undefined
@@ -1319,6 +1341,7 @@ export const listJobScans = queryWithOrg({
         ? {
             ...(exact ? { exactCode: true } : {}),
             ...(searchField ? { searchField } : {}),
+            ...(exactLocationAddress ? { exactLocationAddress: true } : {}),
             ...(args.locationId !== undefined
               ? { locationId: location?.locationId ?? "invalid" }
               : {}),
