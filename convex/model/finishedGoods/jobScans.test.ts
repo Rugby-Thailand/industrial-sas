@@ -214,6 +214,19 @@ describe("parseJobScanSearchIntent", () => {
     ).toEqual({ kind: "UNSUPPORTED" });
   });
 
+  it("refuses to drop an explicit status or turn an unrecognized search into all records", () => {
+    expect(parseJobScanSearchIntent(base, "Show unmapped records")).toEqual({
+      kind: "UNREADABLE",
+    });
+    expect(parseJobScanSearchIntent(base, "find pallets on floor 2")).toEqual({
+      kind: "UNSUPPORTED",
+    });
+    expect(parseJobScanSearchIntent(base, "Show all records")).toEqual({
+      kind: "OK",
+      value: { filter: "ALL", search: "" },
+    });
+  });
+
   it("rejects untrusted, ungrounded, extra-key, ID or truncated responses", () => {
     expect(
       parseJobScanSearchIntent({ ...base, jobScanId: "scan_123" }, "unmapped"),
@@ -285,7 +298,7 @@ describe("parseJobScanEditProposal", () => {
           quantity: 1000,
           storageFormat: "BOX",
         },
-        "ย้ายไป FG1-F02-Z01 เปลี่ยนจำนวนเป็น 1,000 กล่อง",
+        "ย้ายไป FG1-F02-Z01 เปลี่ยนจำนวนเป็น 1,000 และเปลี่ยนรูปแบบเป็นกล่อง",
       ),
     ).toEqual({
       kind: "OK",
@@ -354,7 +367,7 @@ describe("parseJobScanEditProposal", () => {
         { ...emptyEdit, quantity: 73 },
         "change FO69070073 customer to Acme",
       ),
-    ).toEqual({ kind: "UNREADABLE" });
+    ).toEqual({ kind: "UNSUPPORTED" });
     expect(
       parseJobScanEditProposal(
         { ...emptyEdit, quantity: -10 },
@@ -364,5 +377,47 @@ describe("parseJobScanEditProposal", () => {
     expect(
       parseJobScanEditContent('{"supported":true,"locationCode":', "move A1"),
     ).toEqual({ kind: "UNREADABLE" });
+  });
+
+  it("requires every proposed field to match its own explicit clause and its full value", () => {
+    expect(
+      parseJobScanEditProposal(
+        {
+          ...emptyEdit,
+          quantity: 25,
+          factoryQuantity: 25,
+          customerQuantity: 25,
+          partName: "25",
+        },
+        "Set quantity to 25",
+      ),
+    ).toEqual({ kind: "UNREADABLE" });
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, locationCode: "A-01" },
+        "Move to A-010",
+      ),
+    ).toEqual({ kind: "UNREADABLE" });
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, quantity: 40, storageFormat: "BOX" },
+        "Set quantity to 40 boxes",
+      ),
+    ).toEqual({ kind: "UNREADABLE" });
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, quantity: 40, factoryQuantity: 25 },
+        "set factory quantity to 25 and set quantity to 40",
+      ),
+    ).toEqual({
+      kind: "OK",
+      value: { fields: { quantity: 40, factoryQuantity: 25 } },
+    });
+    expect(
+      parseJobScanEditProposal(
+        { ...emptyEdit, quantity: 40 },
+        "Do not set quantity to 40",
+      ),
+    ).toEqual({ kind: "UNSUPPORTED" });
   });
 });

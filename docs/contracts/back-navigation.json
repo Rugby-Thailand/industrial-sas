@@ -8866,14 +8866,19 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:$overlay:Dialog:scanOpen",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "The shared record scanner Dialog owns acquisition and consumes its entry before applying a successful scan result to the retained records list.",
+      "expectation": "The shared record scanner Dialog owns acquisition and consumes its entry before applying a successful scan result to the retained records list, preserving a resolved warehouse QR as a location identity.",
       "tests": [
-        "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx"
+        "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
       ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
           "name": "reports unsupported QR labels, checks a warehouse location and ignores an answer after Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "restores warehouse QR identity in the records query and clears it on manual search"
         }
       ]
     },

@@ -10,6 +10,7 @@ export type JobScanRecordState = {
   filter: JobScanFilter;
   search: string;
   exactCode?: true | undefined;
+  locationId?: string | undefined;
   facets?: JobScanSearchFacets | undefined;
 };
 
@@ -40,12 +41,23 @@ function read(value: unknown): JobScanRecordState {
   const search =
     typeof state.search === "string" ? state.search.slice(0, 200) : "";
   const facets = readFacets(state.facets);
+  const locationId =
+    search.trim() &&
+    typeof state.locationId === "string" &&
+    /^[a-z0-9]+$/i.test(state.locationId) &&
+    state.locationId.length <= 100
+      ? state.locationId
+      : undefined;
   return {
     filter: FILTERS.includes(state.filter as JobScanFilter)
       ? (state.filter as JobScanFilter)
       : initial.filter,
     search,
-    ...(search.trim() && state.exactCode === true ? { exactCode: true } : {}),
+    ...(locationId
+      ? { locationId }
+      : search.trim() && state.exactCode === true
+        ? { exactCode: true }
+        : {}),
     ...(facets ? { facets } : {}),
   };
 }

@@ -292,8 +292,9 @@ function openRouterTextConfig() {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   const model =
     process.env.OPENROUTER_SEARCH_MODEL?.trim() ||
-    process.env.OPENROUTER_MODEL?.trim();
-  return apiKey && model ? { apiKey, model } : null;
+    process.env.OPENROUTER_MODEL?.trim() ||
+    "openai/gpt-6-luna";
+  return apiKey ? { apiKey, model } : null;
 }
 
 async function runJobScanStructuredAi<T, Fallback extends string>(
@@ -763,7 +764,8 @@ export const updateJobScan = mutationWithOrg({
     jobScanId: v.id("finishedGoodsJobScans"),
     requestId: v.string(),
     expectedVersion: v.number(),
-    fields: correctionFields,
+    fields: v.optional(correctionFields),
+    ticketPatch: v.optional(jobScanEditFields),
     customerLink: v.optional(customerLinkArg),
     location: v.optional(mappedLocation),
   },
@@ -785,9 +787,21 @@ export const updateJobScan = mutationWithOrg({
         args.expectedVersion !== version
       )
         return failure("STALE_REVISION");
-      const error = jobTicketError(args.fields);
+      if (
+        (args.fields && args.ticketPatch) ||
+        (!args.fields && args.customerLink) ||
+        (!args.fields &&
+          !args.location &&
+          !Object.keys(args.ticketPatch ?? {}).length)
+      )
+        return failure("FIELD_INVALID");
+      const submitted = args.fields ?? args.ticketPatch ?? {};
+      const factoryOrder = submitted.factoryOrder ?? before.factoryOrder;
+      const productBarcodeText =
+        submitted.productBarcodeText ?? before.productBarcodeText;
+      const error = jobTicketError({ factoryOrder, productBarcodeText });
       if (error) return failure(error);
-      const detailError = jobTicketDetailError(args.fields);
+      const detailError = jobTicketDetailError(submitted);
       if (detailError) return failure(detailError.code, detailError.field);
       // A reviewed ticket correction can include a location. Resolve it before
       // applying any ticket changes, using the same warehouse lookup as remapping.
@@ -804,7 +818,12 @@ export const updateJobScan = mutationWithOrg({
             ...destination,
           }
         : undefined;
-      const submittedCustomerText = args.fields.customer;
+      const reviewCustomer = Boolean(
+        args.fields || args.ticketPatch?.customer !== undefined,
+      );
+      const submittedCustomerText = reviewCustomer
+        ? submitted.customer
+        : before.customer;
       const nextCustomerText =
         submittedCustomerText?.trim() === before.customer?.trim()
           ? before.customer
@@ -836,28 +855,48 @@ export const updateJobScan = mutationWithOrg({
           nextCustomerLinkSource = undefined;
         }
       }
-      const nextReviewPending = customerReviewState({
-        voided: before.voided,
+      const nextReviewPending = reviewCustomer
+        ? customerReviewState({
+            voided: before.voided,
+            customer: nextCustomerText,
+            customerId: nextCustomerId,
+            customerLinkSource: nextCustomerLinkSource,
+          })
+        : before.customerReviewPending;
+      const normalized = {
+        factoryOrder: factoryOrder.trim(),
+        productBarcodeText: productBarcodeText.trim(),
+        partName: submitted.partName?.trim() || undefined,
         customer: nextCustomerText,
         customerId: nextCustomerId,
         customerLinkSource: nextCustomerLinkSource,
-      });
-      // Materialize optional fields so deleting an old value is intentional,
-      // version-checked and included in the immutable audit event.
-      const fields = {
-        factoryOrder: args.fields.factoryOrder.trim(),
-        productBarcodeText: args.fields.productBarcodeText.trim(),
-        partName: args.fields.partName?.trim() || undefined,
-        customer: nextCustomerText,
-        customerId: nextCustomerId,
-        customerLinkSource: nextCustomerLinkSource,
-        deliveryDate: args.fields.deliveryDate?.trim() || undefined,
-        manufacturingDate: args.fields.manufacturingDate?.trim() || undefined,
-        quantity: args.fields.quantity,
-        factoryQuantity: args.fields.factoryQuantity,
-        customerQuantity: args.fields.customerQuantity,
-        storageFormat: args.fields.storageFormat,
+        deliveryDate: submitted.deliveryDate?.trim() || undefined,
+        manufacturingDate: submitted.manufacturingDate?.trim() || undefined,
+        quantity: submitted.quantity,
+        factoryQuantity: submitted.factoryQuantity,
+        customerQuantity: submitted.customerQuantity,
+        storageFormat: submitted.storageFormat,
       };
+      // Full edits can explicitly clear old values. A reviewed patch only
+      // writes its listed fields, leaving legacy values byte-for-byte intact.
+      const fields: {
+        [Field in keyof typeof normalized]?:
+          (typeof normalized)[Field] | undefined;
+      } = args.fields
+        ? normalized
+        : {
+            ...Object.fromEntries(
+              (Object.keys(submitted) as (keyof typeof submitted)[]).map(
+                (field) => [field, normalized[field]],
+              ),
+            ),
+            ...(reviewCustomer
+              ? {
+                  customerId: nextCustomerId,
+                  customerLinkSource: nextCustomerLinkSource,
+                }
+              : {}),
+          };
       const changes = [...diffFields(before, fields)];
       if (locationPatch && diffFields(before, locationPatch).length) {
         changes.push({
@@ -879,7 +918,9 @@ export const updateJobScan = mutationWithOrg({
         await ctx.tenantDb.patch(TABLE, before._id, {
           ...fields,
           ...locationPatch,
-          customerReviewPending: nextReviewPending,
+          ...(reviewCustomer
+            ? { customerReviewPending: nextReviewPending }
+            : {}),
           version: version + 1,
           correctedAt: now,
           correctedByUserId: ctx.tenant.actor._id,
@@ -896,7 +937,8 @@ export const updateJobScan = mutationWithOrg({
         if (
           nextCustomerId &&
           (before.customerId !== nextCustomerId ||
-            before.factoryOrder !== fields.factoryOrder)
+            (fields.factoryOrder !== undefined &&
+              before.factoryOrder !== fields.factoryOrder))
         ) {
           await refreshCustomerLatestJob(
             ctx.tenantDb,
@@ -1136,6 +1178,8 @@ export const listJobScans = queryWithOrg({
     search: v.optional(v.string()),
     /** When true, match whole normalized factoryOrder/barcode/location text or code only. */
     exactCode: v.optional(v.boolean()),
+    /** A resolved storage QR searches current assignments by identity. */
+    locationId: optionalText,
     /** Optional structured filters applied alongside status and text search. */
     facets: v.optional(jobScanSearchFacets),
     cursor: v.optional(v.union(v.string(), v.null())),
@@ -1174,7 +1218,23 @@ export const listJobScans = queryWithOrg({
       Math.max(1, Math.floor(args.pageSize ?? 20)),
       100,
     );
-    const needle = normalizeJobScanSearch(args.search ?? "");
+    const needle =
+      args.locationId === undefined
+        ? normalizeJobScanSearch(args.search ?? "")
+        : "";
+    const location =
+      args.locationId && args.locationId.length <= 100
+        ? await jobLocationReader(ctx, args.warehouseId).byId({
+            locationId: args.locationId,
+          })
+        : null;
+    const zoneSharingLocation =
+      location?.zoneId && location.supportPositionId
+        ? await ctx.tenantDb.get<Doc<"storageZones">>(
+            "storageZones",
+            location.zoneId,
+          )
+        : null;
     const exact = Boolean(needle) && args.exactCode === true;
     const buildingNeedle =
       args.facets?.building !== undefined
@@ -1195,9 +1255,12 @@ export const listJobScans = queryWithOrg({
     // Keep legacy scope identical when neither exactCode nor facets are active,
     // and bind both into cursor scope whenever present so cursors never mix.
     const criteriaScope =
-      exact || hasFacets
+      exact || hasFacets || args.locationId !== undefined
         ? {
             ...(exact ? { exactCode: true } : {}),
+            ...(args.locationId !== undefined
+              ? { locationId: location?.locationId ?? "invalid" }
+              : {}),
             ...(buildingNeedle ? { building: buildingNeedle } : {}),
             ...(floorInvalid
               ? { floor: "invalid" }
@@ -1248,6 +1311,20 @@ export const listJobScans = queryWithOrg({
         (args.filter !== "ALL" && scan.mapped !== (args.filter === "MAPPED"))
       )
         return false;
+      if (args.locationId !== undefined) {
+        if (!location || !scan.mapped) return false;
+        if (scan.locationId) {
+          if (scan.locationId !== location.locationId) return false;
+        } else if (
+          !location.zoneId ||
+          scan.zoneId !== location.zoneId ||
+          (scan.supportPositionId !== location.supportPositionId &&
+            (scan.supportPositionId !== undefined ||
+              zoneSharingLocation?.locationId !== location.locationId))
+        ) {
+          return false;
+        }
+      }
       if (floorInvalid) return false;
       if (
         storageFormatFacet !== undefined &&
@@ -1315,8 +1392,8 @@ export const listJobScans = queryWithOrg({
       pageSize,
       cursor: args.cursor,
       scanCursor: args.scanCursor,
-      filtering: Boolean(needle) || hasFacets,
-      acceptNativeCursor: true,
+      filtering: Boolean(needle) || hasFacets || args.locationId !== undefined,
+      acceptNativeCursor: args.locationId === undefined,
       progressive: args.progressive === true,
       read: (range, limit) =>
         reader.page({

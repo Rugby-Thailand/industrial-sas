@@ -21,6 +21,7 @@ import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { writeFailure } from "@/lib/convex/mutationOutcome";
 import type {
   JobScanEditProposal,
+  JobScanEditableFields,
   JobScanStorageFormat,
 } from "../../../../convex/model/finishedGoods/jobScans";
 import { ErrorNotice, useOperation } from "../shared";
@@ -33,7 +34,6 @@ import {
   pickedLocationPayload,
   REQUIRED_FIELDS,
   TICKET_CODE_LIMITS,
-  toPayload,
   type PickedLocation,
   type TicketField,
 } from "./ticketDraft";
@@ -53,6 +53,7 @@ function prepareReview(
 ) {
   const ticket = jobScanCorrectionDraft(record);
   const changes: Change[] = [];
+  const ticketChanges: [keyof JobScanEditableFields, string | number][] = [];
   for (const field of [...REQUIRED_FIELDS, ...DETAIL_FIELDS]) {
     const raw = intent.fields?.[field];
     if (raw === undefined) continue;
@@ -71,8 +72,9 @@ function prepareReview(
     )
       return null;
     const before = ticket.values[field];
-    if (value === before) continue;
+    if (value === (field === "customer" ? before?.trim() : before)) continue;
     changes.push({ field, from: before, to: value });
+    ticketChanges.push([field, typeof raw === "number" ? raw : value]);
     ticket.values[field] = value;
   }
   const format = intent.fields?.storageFormat;
@@ -82,6 +84,7 @@ function prepareReview(
       from: ticket.storageFormat,
       to: format,
     });
+    ticketChanges.push(["storageFormat", format]);
     ticket.storageFormat = format;
   }
   const location = destination && pickedLocationPayload(destination);
@@ -99,8 +102,14 @@ function prepareReview(
     });
   if (!changes.length || !isComplete(ticket) || hasInvalidQuantity(ticket))
     return null;
-  const { source: _source, ...fields } = toPayload(ticket);
-  return { changes, fields, location: locationChanged ? location : undefined };
+  const ticketPatch = ticketChanges.length
+    ? (Object.fromEntries(ticketChanges) as JobScanEditableFields)
+    : undefined;
+  return {
+    changes,
+    ticketPatch,
+    location: locationChanged ? location : undefined,
+  };
 }
 
 export function JobScanRecordAssist({
@@ -227,7 +236,7 @@ export function JobScanRecordAssist({
       warehouseId,
       jobScanId: record.id,
       expectedVersion: version,
-      fields: review.fields,
+      ...(review.ticketPatch ? { ticketPatch: review.ticketPatch } : {}),
       ...(review.location ? { location: review.location } : {}),
     };
     const command = pendingCommand ?? {

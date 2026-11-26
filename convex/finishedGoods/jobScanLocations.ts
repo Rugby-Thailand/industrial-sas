@@ -226,6 +226,7 @@ async function lookupJobLocation(
   ctx: TenantFunctionContext,
   warehouseId: Id<"warehouses">,
   raw: string,
+  qrOnly = false,
 ) {
   const input = raw.trim();
   const fail = (code: string) => ({ ok: false as const, error: { code } });
@@ -240,6 +241,12 @@ async function lookupJobLocation(
     return found
       ? { ok: true as const, location: found }
       : fail("LOCATION_UNAVAILABLE");
+  }
+  if (qrOnly) {
+    const resolved = await resolveTarget(ctx, warehouseId, input, true);
+    return "error" in resolved
+      ? fail(resolved.error)
+      : { ok: true as const, location: locationFromLayout(resolved) };
   }
   const code = normalizeJobLocationCode(input);
   if (!code) return fail("INVALID_IDENTITY");
@@ -400,13 +407,19 @@ export const resolve = queryWithOrg({
     ...argsWarehouse,
     code: v.string(),
     buildingId: v.optional(v.id("storageBuildings")),
+    qrOnly: v.optional(v.boolean()),
   },
   returns: v.any(),
   permissionCode: READ,
   target: { table: "locations" },
   warehouseId: (args) => args.warehouseId,
   handler: async (ctx, args) => {
-    const result = await lookupJobLocation(ctx, args.warehouseId, args.code);
+    const result = await lookupJobLocation(
+      ctx,
+      args.warehouseId,
+      args.code,
+      args.qrOnly,
+    );
     // A filtered picker must not silently offer a location outside its filter.
     if (
       args.buildingId &&

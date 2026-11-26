@@ -34,6 +34,9 @@ vi.mock("../BarcodeCameraBox", () => ({
       <button disabled={disabled} onClick={() => onCode("ISAS:PALLET:1:unit")}>
         Read unrelated QR
       </button>
+      <button disabled={disabled} onClick={() => onCode("legacy-location-qr")}>
+        Read legacy location QR
+      </button>
     </>
   ),
 }));
@@ -42,6 +45,10 @@ const origin = "/th/finished-goods/scan?warehouse=one#camera";
 const records = "/en/finished-goods/scan/records?warehouse=one#results";
 beforeEach(() => {
   mocks.resolve.mockReset();
+  mocks.resolve.mockResolvedValue({
+    ok: true,
+    value: { ok: false, error: { code: "LOCATION_NOT_FOUND" } },
+  });
   mocks.change.mockReset();
   mocks.interpret.mockReset();
   window.history.replaceState({ __NA: true }, "", origin);
@@ -72,6 +79,7 @@ it("uses the scanned job code as an exact search and consumes the camera before 
       filter: "ALL",
       search: "FO12345",
       exactCode: true,
+      locationId: undefined,
       facets: undefined,
     }),
   );
@@ -103,13 +111,17 @@ it("reports unsupported QR labels, checks a warehouse location and ignores an an
   expect(mocks.resolve).toHaveBeenCalledWith(expect.anything(), {
     warehouseId: "warehouse-a",
     code: "ISAS:LOCATION:1:zone",
+    qrOnly: true,
   });
   act(() => window.history.back());
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
   await act(async () =>
-    answer({ ok: true, value: { ok: true, location: { code: "ZONE-A" } } }),
+    answer({
+      ok: true,
+      value: { ok: true, location: { code: "ZONE-A", locationId: "zonea" } },
+    }),
   );
   expect(mocks.change).not.toHaveBeenCalled();
   expect(
@@ -117,23 +129,27 @@ it("reports unsupported QR labels, checks a warehouse location and ignores an an
   ).toBe(records);
 });
 
-it("resolves a scanned warehouse QR to its canonical storage code", async () => {
-  mocks.resolve.mockResolvedValue({
-    ok: true,
-    value: { ok: true, location: { code: "ZONE-A" } },
-  });
-  const user = show();
-  await user.click(screen.getByRole("button", { name: "Scan to search" }));
-  await user.click(screen.getByRole("button", { name: "Read location QR" }));
-  await waitFor(() =>
-    expect(mocks.change).toHaveBeenCalledExactlyOnceWith({
-      filter: "ALL",
-      search: "ZONE-A",
-      exactCode: true,
-      facets: undefined,
-    }),
-  );
-});
+it.each(["Read location QR", "Read legacy location QR"])(
+  "uses the storage identity when scanning a warehouse QR with %s",
+  async (button) => {
+    mocks.resolve.mockResolvedValue({
+      ok: true,
+      value: { ok: true, location: { code: "ZONE-A", locationId: "zonea" } },
+    });
+    const user = show();
+    await user.click(screen.getByRole("button", { name: "Scan to search" }));
+    await user.click(screen.getByRole("button", { name: button }));
+    await waitFor(() =>
+      expect(mocks.change).toHaveBeenCalledExactlyOnceWith({
+        filter: "ALL",
+        search: "ZONE-A",
+        exactCode: undefined,
+        locationId: "zonea",
+        facets: undefined,
+      }),
+    );
+  },
+);
 
 it("Cancel consumes the record search camera entry before the next Back", async () => {
   const user = show();
@@ -178,6 +194,7 @@ it("applies validated AI facets after the search popup closes and keeps manual s
       search: "",
       facets: { floor: 2, storageFormat: "PALLET" },
       exactCode: undefined,
+      locationId: undefined,
     }),
   );
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

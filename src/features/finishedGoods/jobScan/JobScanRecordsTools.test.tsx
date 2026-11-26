@@ -15,10 +15,11 @@ const mocks = vi.hoisted(() => ({
   manage: true,
   list: vi.fn(),
   action: vi.fn(),
+  resolve: vi.fn(),
 }));
 vi.mock("convex/react", () => ({
   useMutation: () => vi.fn(),
-  useConvex: () => ({ action: mocks.action, query: vi.fn() }),
+  useConvex: () => ({ action: mocks.action, query: mocks.resolve }),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) => {
     if (args === "skip") return;
     const name = getFunctionName(ref);
@@ -51,7 +52,12 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({ onCode }: { onCode: (code: string) => void }) => (
-    <button onClick={() => onCode("FO12345")}>Read a job code</button>
+    <>
+      <button onClick={() => onCode("FO12345")}>Read a job code</button>
+      <button onClick={() => onCode("ISAS:LOCATION:1:locationa")}>
+        Read a location QR
+      </button>
+    </>
   ),
 }));
 
@@ -69,6 +75,10 @@ const row = {
 beforeEach(() => {
   mocks.list.mockClear();
   mocks.action.mockReset();
+  mocks.resolve.mockReset();
+  mocks.resolve.mockResolvedValue(
+    querySuccess({ ok: false, error: { code: "LOCATION_NOT_FOUND" } }),
+  );
   mocks.manage = true;
   window.localStorage.clear();
   window.history.replaceState(
@@ -76,6 +86,44 @@ beforeEach(() => {
     "",
     "/en/finished-goods/scan/records?warehouse=one#records",
   );
+});
+
+it("restores warehouse QR identity in the records query and clears it on manual search", async () => {
+  const user = userEvent.setup();
+  mocks.resolve.mockResolvedValue(
+    querySuccess({
+      ok: true,
+      location: { code: "F2-L12-3", locationId: "locationa" },
+    }),
+  );
+  const renderScreen = () =>
+    renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+  const view = renderScreen();
+  await user.click(screen.getByRole("button", { name: "Scan to search" }));
+  await user.click(screen.getByRole("button", { name: "Read a location QR" }));
+  const expected = expect.objectContaining({
+    locationId: "locationa",
+    filter: "ALL",
+    search: "F2-L12-3",
+  });
+  await waitFor(() => expect(mocks.list).toHaveBeenLastCalledWith(expected));
+  expect(mocks.list.mock.lastCall?.[0]).not.toHaveProperty("exactCode");
+  view.unmount();
+  renderScreen();
+  await waitFor(() => expect(mocks.list).toHaveBeenLastCalledWith(expected));
+  const search = screen.getByRole("textbox", { name: /search/i });
+  await user.clear(search);
+  await user.type(search, "F2");
+  await waitFor(() =>
+    expect(mocks.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: "F2" }),
+    ),
+  );
+  expect(mocks.list.mock.lastCall?.[0]).not.toHaveProperty("locationId");
 });
 
 it("applies scanned codes and AI filters to the actual records query and restores filters after remount", async () => {

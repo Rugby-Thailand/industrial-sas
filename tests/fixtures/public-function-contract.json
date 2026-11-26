@@ -10123,6 +10123,12 @@
             "tableName": "storageBuildings"
           },
           "optional": true
+        },
+        "qrOnly": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
         }
       }
     },
@@ -11368,6 +11374,12 @@
           },
           "optional": true
         },
+        "locationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
         "facets": {
           "fieldType": {
             "type": "object",
@@ -12338,7 +12350,89 @@
               }
             }
           },
-          "optional": false
+          "optional": true
+        },
+        "ticketPatch": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "factoryOrder": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": true
+              },
+              "productBarcodeText": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": true
+              },
+              "deliveryDate": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": true
+              },
+              "partName": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": true
+              },
+              "customer": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": true
+              },
+              "manufacturingDate": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": true
+              },
+              "quantity": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "factoryQuantity": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "customerQuantity": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "storageFormat": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "literal",
+                      "value": "PALLET"
+                    },
+                    {
+                      "type": "literal",
+                      "value": "BOX"
+                    },
+                    {
+                      "type": "literal",
+                      "value": "OTHER"
+                    }
+                  ]
+                },
+                "optional": true
+              }
+            }
+          },
+          "optional": true
         },
         "customerLink": {
           "fieldType": {

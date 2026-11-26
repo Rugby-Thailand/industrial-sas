@@ -260,6 +260,7 @@ describe("saved job ticket corrections", () => {
 
   it("saves reviewed ticket fields and the resolved location atomically with one revision", async () => {
     const { world, jobScanId, args } = await correctionSetup();
+    const { fields: _fields, ...command } = args;
     const foreign = await world.t.run(async (ctx) => {
       await ctx.db.patch(jobScanId, {
         mapped: false,
@@ -277,15 +278,20 @@ describe("saved job ticket corrections", () => {
     const snapshot = await world.t.run((ctx) => ctx.db.get(jobScanId));
     error(
       await call(world, jobScans.updateJobScan, {
-        ...args,
+        ...command,
         requestId: "foreign-destination",
+        ticketPatch: { quantity: 24 },
         location: { locationId: foreign },
       }),
       "LOCATION_UNAVAILABLE",
     );
     expect(await world.t.run((ctx) => ctx.db.get(jobScanId))).toEqual(snapshot);
 
-    const reviewed = { ...args, location: { locationId: world.locationId } };
+    const reviewed = {
+      ...command,
+      ticketPatch: { quantity: 24 },
+      location: { locationId: world.locationId },
+    };
     expect(id(await call(world, jobScans.updateJobScan, reviewed))).toBe(
       jobScanId,
     );
@@ -320,6 +326,50 @@ describe("saved job ticket corrections", () => {
           },
           { field: "quantity", from: "1000", to: "24" },
         ]),
+      }),
+    ]);
+  });
+
+  it("moves a saved scan without rewriting unreviewed legacy ticket values", async () => {
+    const { world, jobScanId, args } = await correctionSetup();
+    await world.t.run((ctx) =>
+      ctx.db.patch(jobScanId, {
+        partName: "  Legacy part name  ",
+        quantity: 1000,
+        mapped: false,
+        locationId: undefined,
+        zoneId: undefined,
+      }),
+    );
+    const { fields: _fields, ...command } = args;
+    id(
+      await call(world, jobScans.updateJobScan, {
+        ...command,
+        location: { locationId: world.locationId },
+      }),
+    );
+    expect(await world.t.run((ctx) => ctx.db.get(jobScanId))).toMatchObject({
+      partName: "  Legacy part name  ",
+      quantity: 1000,
+      source: "AI",
+      locationId: world.locationId,
+      version: 2,
+    });
+    const history = value(
+      await call(world, jobScans.listJobScanCorrections, {
+        warehouseId: world.warehouseId,
+        jobScanId,
+      }),
+    );
+    expect(history["items"]).toEqual([
+      expect.objectContaining({
+        changes: [
+          {
+            field: "location",
+            from: "Original dock label",
+            to: "BLDG-A-F01-Z01",
+          },
+        ],
       }),
     ]);
   });

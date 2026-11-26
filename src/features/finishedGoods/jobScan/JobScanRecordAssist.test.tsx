@@ -135,12 +135,7 @@ it("reviews both values, saves the same version atomically and consumes both dia
       warehouseId: "warehouse-a",
       jobScanId: "scan-a",
       expectedVersion: 3,
-      fields: {
-        factoryOrder: "FO12345",
-        productBarcodeText: "SKU-A",
-        partName: "Original product",
-        quantity: 40,
-      },
+      ticketPatch: { quantity: 40 },
       location: { locationId: "location-a" },
     }),
   );

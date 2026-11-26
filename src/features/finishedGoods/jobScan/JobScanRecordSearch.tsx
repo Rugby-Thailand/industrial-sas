@@ -40,7 +40,7 @@ export function JobScanRecordSearch({
   const [aiOpen, setAiOpen] = useState(false);
   const scan = useRef<DialogCompletionHandle>(null);
   const ai = useRef<DialogCompletionHandle>(null);
-  const { search, facets, exactCode } = criteria;
+  const { search, facets, exactCode, locationId } = criteria;
   const activeFacets = [
     facets?.building,
     facets?.floor !== undefined && t("floorNumber", { number: facets.floor }),
@@ -79,24 +79,36 @@ export function JobScanRecordSearch({
           onChange={(event) => {
             const search = event.target.value;
             onChange(
-              exactCode || facets
-                ? { search, exactCode: undefined, facets: undefined }
+              exactCode || locationId || facets
+                ? {
+                    search,
+                    exactCode: undefined,
+                    locationId: undefined,
+                    facets: undefined,
+                  }
                 : { search },
             );
           }}
         />
       </div>
-      {(exactCode || activeFacets.length > 0) && (
+      {(exactCode || locationId || activeFacets.length > 0) && (
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
           <span role="status">
-            {exactCode ? t("recordTools.exactMatch") : activeFacets.join(" · ")}
+            {exactCode || locationId
+              ? t("recordTools.exactMatch")
+              : activeFacets.join(" · ")}
           </span>
           <IconButton
             label={t("recordList.clearSearch")}
             variant="ghost"
             disabled={disabled}
             onClick={() =>
-              onChange({ search: "", exactCode: undefined, facets: undefined })
+              onChange({
+                search: "",
+                exactCode: undefined,
+                locationId: undefined,
+                facets: undefined,
+              })
             }
           >
             <X className="size-4" aria-hidden="true" />
@@ -113,13 +125,14 @@ export function JobScanRecordSearch({
             <RecordCodeCapture
               warehouseId={warehouseId}
               active={scanOpen && !disabled}
-              onCode={(code) => {
+              onCode={(code, locationId) => {
                 scan.current?.completeOwned?.(() => {
                   setScanOpen(false);
                   onChange({
                     filter: "ALL",
                     search: code,
-                    exactCode: true,
+                    exactCode: locationId ? undefined : true,
+                    locationId,
                     facets: undefined,
                   });
                 });
@@ -147,6 +160,7 @@ export function JobScanRecordSearch({
                     ...intent,
                     facets: intent.facets,
                     exactCode: undefined,
+                    locationId: undefined,
                   });
                 });
               }}
@@ -165,7 +179,7 @@ function RecordCodeCapture({
 }: {
   warehouseId: string;
   active: boolean;
-  onCode: (code: string) => void;
+  onCode: (code: string, locationId?: string) => void;
 }) {
   const t = useTranslations("JobScan");
   const convex = useConvex();
@@ -185,16 +199,12 @@ function RecordCodeCapture({
     const lifetime = capture.current;
     if (!lifetime || lifetime.signal.aborted) return;
     const code = raw.trim();
-    if (!code || code.length > 200 || /[\u0000-\u001f\u007f]/u.test(code)) {
+    if (!code || code.length > 500 || /\p{C}/u.test(code)) {
       setInvalid(true);
       return;
     }
-    if (!/^ISAS:/iu.test(code)) {
-      capture.current = null;
-      onCode(code);
-      return;
-    }
-    if (!/^ISAS:LOCATION:1:/iu.test(code)) {
+    const reserved = /^ISAS:/iu.test(code);
+    if (reserved && !/^ISAS:LOCATION:1:/u.test(code)) {
       setInvalid(true);
       return;
     }
@@ -205,10 +215,22 @@ function RecordCodeCapture({
       const result = await convex.query(fgRefs.resolveJobScanLocation, {
         warehouseId,
         code,
+        qrOnly: true,
       });
       if (lifetime.signal.aborted) return;
       if (result.ok && result.value.ok) {
-        onCode(result.value.location.code);
+        const { code, locationId } = result.value.location;
+        onCode(code, locationId);
+        return;
+      }
+      if (
+        !reserved &&
+        code.length <= 200 &&
+        result.ok &&
+        !result.value.ok &&
+        result.value.error.code === "LOCATION_NOT_FOUND"
+      ) {
+        onCode(code);
         return;
       }
       setInvalid(true);

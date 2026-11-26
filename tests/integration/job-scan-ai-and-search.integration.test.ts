@@ -242,7 +242,8 @@ describe("job-scan AI search and edit actions", () => {
       }),
     );
 
-    const editPrompt = "ย้ายไป FG1-F02-Z01 และเปลี่ยนจำนวนเป็น 250 กล่อง";
+    const editPrompt =
+      "ย้ายไป FG1-F02-Z01 และเปลี่ยนจำนวนเป็น 250 และเปลี่ยนรูปแบบเป็นกล่อง";
     transport.mockResolvedValueOnce(
       openRouterOk(
         JSON.stringify(
@@ -588,6 +589,8 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
 
   async function seedListFixture() {
     const world = await createConvexTenantWorld({
+      "../convex/finishedGoods/jobScanLocations.ts": () =>
+        import("../../convex/finishedGoods/jobScanLocations"),
       "../convex/finishedGoods/jobScans.ts": () =>
         import("../../convex/finishedGoods/jobScans"),
       "../convex/finishedGoods/searchIndexBackfill.ts": () =>
@@ -854,6 +857,7 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
       filter: "ALL" | "MAPPED" | "UNMAPPED";
       search?: string;
       exactCode?: boolean;
+      locationId?: string;
       facets?: {
         building?: string;
         floor?: number;
@@ -891,6 +895,60 @@ describe("listJobScans exactCode and facets across index and bounded fallback", 
     }
     throw new Error("Pagination did not finish.");
   }
+
+  it("resolves modern and legacy QR labels to the same scoped location identity without matching old text or barcode collisions", async () => {
+    const fixture = await seedListFixture();
+    const { world, warehouseId, ids } = fixture;
+    const code = "FG1-F02-Z01";
+    const legacyQr = "warehouse-legacy-qr";
+    const locationId = await world.t.run(async (ctx) => {
+      const current = (await ctx.db.get(ids.exactFoPalletF2))!;
+      const zone = (await ctx.db.get(current.zoneId!))!;
+      await ctx.db.patch(zone._id, { qrValue: legacyQr });
+      await ctx.db.patch(ids.exactFoPalletF2, { locationId: zone.locationId });
+      await ctx.db.patch(ids.prefixFoPalletF2, { locationText: code });
+      await ctx.db.patch(ids.southPalletF2, { productBarcodeText: code });
+      return zone.locationId;
+    });
+    const client = world.t.withIdentity(IDENTITY);
+    for (const qr of [`ISAS:LOCATION:1:${locationId}`, legacyQr]) {
+      expect(
+        await client.query(api.finishedGoods.jobScanLocations.resolve, {
+          warehouseId,
+          code: qr,
+          qrOnly: true,
+        }),
+      ).toMatchObject({
+        ok: true,
+        value: { ok: true, location: { locationId, code } },
+      });
+    }
+    expect(
+      await client.query(api.finishedGoods.jobScanLocations.resolve, {
+        warehouseId,
+        code,
+        qrOnly: true,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { ok: false, error: { code: "LOCATION_NOT_FOUND" } },
+    });
+    expect(
+      await listAll(fixture, {
+        filter: "ALL",
+        locationId,
+        search: code,
+        pageSize: 1,
+      }),
+    ).toEqual([ids.legacyZoneOnlyPalletF2, ids.exactFoPalletF2]);
+    expect(
+      await listAll(fixture, {
+        filter: "ALL",
+        locationId: "invalid",
+        search: code,
+      }),
+    ).toEqual([]);
+  });
 
   it("matches exact scanned codes without matching prefixes or non-code fields in both index and fallback modes", async () => {
     const fixture = await seedListFixture();

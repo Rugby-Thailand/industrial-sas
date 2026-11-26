@@ -202,6 +202,7 @@ export async function resolveTarget(
   ctx: TenantFunctionContext,
   warehouseId: Id<"warehouses">,
   raw: string,
+  qrOnly = false,
 ) {
   const code = raw.trim();
   if (!code || code.length > 500) return { error: "INVALID_IDENTITY" } as const;
@@ -209,27 +210,31 @@ export async function resolveTarget(
     return { error: "WRONG_ENTITY_TYPE" } as const;
   const [zonesByCode, zonesByQr, positionsByCode, positionsByQr] =
     await Promise.all([
-      rows<Doc<"storageZones">>(
-        ctx,
-        "storageZones",
-        "by_orgId_warehouseId_code",
-        [
-          { field: "warehouseId", value: warehouseId },
-          { field: "code", value: code.toUpperCase() },
-        ],
-      ),
+      qrOnly
+        ? []
+        : rows<Doc<"storageZones">>(
+            ctx,
+            "storageZones",
+            "by_orgId_warehouseId_code",
+            [
+              { field: "warehouseId", value: warehouseId },
+              { field: "code", value: code.toUpperCase() },
+            ],
+          ),
       rows<Doc<"storageZones">>(ctx, "storageZones", "by_orgId_qrValue", [
         { field: "qrValue", value: code },
       ]),
-      rows<Doc<"storagePositions">>(
-        ctx,
-        "storagePositions",
-        "by_orgId_warehouseId_code",
-        [
-          { field: "warehouseId", value: warehouseId },
-          { field: "code", value: code.toUpperCase() },
-        ],
-      ),
+      qrOnly
+        ? []
+        : rows<Doc<"storagePositions">>(
+            ctx,
+            "storagePositions",
+            "by_orgId_warehouseId_code",
+            [
+              { field: "warehouseId", value: warehouseId },
+              { field: "code", value: code.toUpperCase() },
+            ],
+          ),
       rows<Doc<"storagePositions">>(
         ctx,
         "storagePositions",
@@ -264,6 +269,8 @@ export async function resolveTarget(
   if (zones.length + distinctPositions.length > 1)
     return { error: "AMBIGUOUS_IDENTITY" } as const;
   const position = distinctPositions[0];
+  if (qrOnly && !zones.length && !position)
+    return { error: "LOCATION_NOT_FOUND" } as const;
   const zone =
     zones[0] ??
     (position
