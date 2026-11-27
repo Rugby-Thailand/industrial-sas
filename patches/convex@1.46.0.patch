@@ -1,0 +1,173 @@
+diff --git a/dist/cjs/browser/sync/web_socket_manager.js b/dist/cjs/browser/sync/web_socket_manager.js
+index 8f686cd92137b7d30191d2b07c7087a3bf285447..c53e962fcee37cf7dcf33b1f8202bce99121238b 100644
+--- a/dist/cjs/browser/sync/web_socket_manager.js
++++ b/dist/cjs/browser/sync/web_socket_manager.js
+@@ -95,6 +95,13 @@ class WebSocketManager {
+     /** Scheduled reconnect state: timeout handle and timing info */
+     __publicField(this, "scheduledReconnect", null);
+     __publicField(this, "networkOnlineHandler", null);
++    __publicField(this, "canRetryOnReturn", false);
++    __publicField(this, "onVisibilityChange", () => {
++      if (this.canRetryOnReturn && document.visibilityState === "visible" && navigator.onLine !== false && this.socket.state === "disconnected" && this.scheduledReconnect !== null) {
++        this.canRetryOnReturn = false;
++        this.tryReconnectImmediately();
++      }
++    });
+     /** Pending event to send after reconnecting due to network recovery */
+     __publicField(this, "pendingNetworkRecoveryInfo", null);
+     __publicField(this, "uri");
+@@ -140,11 +147,17 @@ class WebSocketManager {
+       this._logVerbose("network online event detected");
+       this.tryReconnectImmediately();
+     };
++    if (typeof document !== "undefined") {
++      document.addEventListener("visibilitychange", this.onVisibilityChange);
++    }
+     window.addEventListener("online", this.networkOnlineHandler);
+     this._logVerbose("network online event listener registered");
+   }
+   cleanupNetworkListener() {
+     if (this.networkOnlineHandler && typeof window !== "undefined" && typeof window.removeEventListener === "function") {
++      if (typeof document !== "undefined") {
++        document.removeEventListener("visibilitychange", this.onVisibilityChange);
++      }
+       window.removeEventListener("online", this.networkOnlineHandler);
+       this.networkOnlineHandler = null;
+       this._logVerbose("network online event listener removed");
+@@ -231,6 +244,7 @@ class WebSocketManager {
+           this.logger.log("WebSocket reconnected at", prettyNow());
+         }
+       }
++      this.canRetryOnReturn = true;
+       this.connectionCount += 1;
+       this.lastCloseReason = null;
+       if (this.pendingNetworkRecoveryInfo !== null) {
+@@ -306,6 +320,9 @@ class WebSocketManager {
+           this.onServerDisconnectError(msg);
+         }
+       }
++      if (event.reason || ![CLOSE_GOING_AWAY, CLOSE_NO_STATUS, 1006].includes(event.code)) {
++        this.canRetryOnReturn = false;
++      }
+       const reason = classifyDisconnectError(event.reason);
+       this.scheduleReconnect(reason);
+       return;
+diff --git a/dist/esm/browser/sync/web_socket_manager.js b/dist/esm/browser/sync/web_socket_manager.js
+index 14a000bccd16b869fb097e992efc2ca8a6fd7ee6..3cbf96e1276d87e3a70cdfa8ce04385de4900a07 100644
+--- a/dist/esm/browser/sync/web_socket_manager.js
++++ b/dist/esm/browser/sync/web_socket_manager.js
+@@ -77,6 +77,13 @@ export class WebSocketManager {
+     /** Scheduled reconnect state: timeout handle and timing info */
+     __publicField(this, "scheduledReconnect", null);
+     __publicField(this, "networkOnlineHandler", null);
++    __publicField(this, "canRetryOnReturn", false);
++    __publicField(this, "onVisibilityChange", () => {
++      if (this.canRetryOnReturn && document.visibilityState === "visible" && navigator.onLine !== false && this.socket.state === "disconnected" && this.scheduledReconnect !== null) {
++        this.canRetryOnReturn = false;
++        this.tryReconnectImmediately();
++      }
++    });
+     /** Pending event to send after reconnecting due to network recovery */
+     __publicField(this, "pendingNetworkRecoveryInfo", null);
+     __publicField(this, "uri");
+@@ -122,11 +129,17 @@ export class WebSocketManager {
+       this._logVerbose("network online event detected");
+       this.tryReconnectImmediately();
+     };
++    if (typeof document !== "undefined") {
++      document.addEventListener("visibilitychange", this.onVisibilityChange);
++    }
+     window.addEventListener("online", this.networkOnlineHandler);
+     this._logVerbose("network online event listener registered");
+   }
+   cleanupNetworkListener() {
+     if (this.networkOnlineHandler && typeof window !== "undefined" && typeof window.removeEventListener === "function") {
++      if (typeof document !== "undefined") {
++        document.removeEventListener("visibilitychange", this.onVisibilityChange);
++      }
+       window.removeEventListener("online", this.networkOnlineHandler);
+       this.networkOnlineHandler = null;
+       this._logVerbose("network online event listener removed");
+@@ -213,6 +226,7 @@ export class WebSocketManager {
+           this.logger.log("WebSocket reconnected at", prettyNow());
+         }
+       }
++      this.canRetryOnReturn = true;
+       this.connectionCount += 1;
+       this.lastCloseReason = null;
+       if (this.pendingNetworkRecoveryInfo !== null) {
+@@ -288,6 +302,9 @@ export class WebSocketManager {
+           this.onServerDisconnectError(msg);
+         }
+       }
++      if (event.reason || ![CLOSE_GOING_AWAY, CLOSE_NO_STATUS, 1006].includes(event.code)) {
++        this.canRetryOnReturn = false;
++      }
+       const reason = classifyDisconnectError(event.reason);
+       this.scheduleReconnect(reason);
+       return;
+diff --git a/src/browser/sync/web_socket_manager.ts b/src/browser/sync/web_socket_manager.ts
+index ce3f48cad845a5852b4408118f7770e8db034581..c7b85404a414b6b382ddc279d3dde7e1be5539ff 100644
+--- a/src/browser/sync/web_socket_manager.ts
++++ b/src/browser/sync/web_socket_manager.ts
+@@ -195,6 +195,21 @@ export class WebSocketManager {
+   } | null = null;
+ 
+   private networkOnlineHandler: (() => void) | null = null;
++  // Allow one foreground retry for an established connection lost in transit.
++  private canRetryOnReturn = false;
++  private readonly onVisibilityChange = () => {
++    if (
++      this.canRetryOnReturn &&
++      document.visibilityState === "visible" &&
++      navigator.onLine !== false &&
++      this.socket.state === "disconnected" &&
++      this.scheduledReconnect !== null
++    ) {
++      this.canRetryOnReturn = false;
++      this.tryReconnectImmediately();
++    }
++  };
++
+ 
+   /** Pending event to send after reconnecting due to network recovery */
+   private pendingNetworkRecoveryInfo: { timeSavedMs: number } | null = null;
+@@ -281,6 +296,9 @@ export class WebSocketManager {
+       this.tryReconnectImmediately();
+     };
+ 
++    if (typeof document !== "undefined") {
++      document.addEventListener("visibilitychange", this.onVisibilityChange);
++    }
+     window.addEventListener("online", this.networkOnlineHandler);
+     this._logVerbose("network online event listener registered");
+   }
+@@ -291,6 +309,9 @@ export class WebSocketManager {
+       typeof window !== "undefined" &&
+       typeof window.removeEventListener === "function"
+     ) {
++      if (typeof document !== "undefined") {
++        document.removeEventListener("visibilitychange", this.onVisibilityChange);
++      }
+       window.removeEventListener("online", this.networkOnlineHandler);
+       this.networkOnlineHandler = null;
+       this._logVerbose("network online event listener removed");
+@@ -406,6 +427,7 @@ export class WebSocketManager {
+         }
+       }
+ 
++      this.canRetryOnReturn = true;
+       this.connectionCount += 1;
+       this.lastCloseReason = null;
+ 
+@@ -499,6 +521,10 @@ export class WebSocketManager {
+           this.onServerDisconnectError(msg);
+         }
+       }
++      // Preserve server-requested backoff, including on later failed handshakes.
++      if (event.reason || ![CLOSE_GOING_AWAY, CLOSE_NO_STATUS, 1006].includes(event.code)) {
++        this.canRetryOnReturn = false;
++      }
+       const reason = classifyDisconnectError(event.reason);
+       this.scheduleReconnect(reason);
+       return;
