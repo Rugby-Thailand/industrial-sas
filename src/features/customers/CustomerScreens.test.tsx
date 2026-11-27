@@ -3329,11 +3329,11 @@ describe("customer workspace navigation", () => {
       filter: "unmapped",
     });
     await nativeBack();
-    expect(filter()).toHaveTextContent("All tickets");
+    await waitFor(() => expect(filter()).toHaveTextContent("All tickets"));
     await nativeBack();
-    expect(href()).toBe(`${WORKSPACE_URL}?warehouse=wh-1`);
+    await waitFor(() => expect(href()).toBe(`${WORKSPACE_URL}?warehouse=wh-1`));
     await nativeBack();
-    expect(href()).toBe(LIST_ORIGIN);
+    await waitFor(() => expect(href()).toBe(LIST_ORIGIN));
   });
 
   it("opens and remounts a direct jobs deep link with its warehouse and filter", () => {
