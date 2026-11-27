@@ -4,7 +4,15 @@ type ErrorEvent = Parameters<NonNullable<InitOptions["beforeSend"]>>[0];
 type StreamedSpan = Parameters<NonNullable<InitOptions["beforeSendSpan"]>>[0];
 type Transport = ReturnType<NonNullable<InitOptions["transport"]>>;
 import { normalizeRoute, redactDimensions } from "./dimensions";
-import { sanitizeObservabilityEvent, type ObservabilityEvent } from "./event";
+import {
+  OBSERVABILITY_EVENT_CODES,
+  sanitizeObservabilityEvent,
+  type ObservabilityEvent,
+} from "./event";
+
+const SENTRY_EVENT_CODES: readonly string[] = OBSERVABILITY_EVENT_CODES.filter(
+  (code) => code !== "web.vital",
+);
 
 // The SDK adds dynamic sampling context after beforeSend/ beforeSendSpan.
 // Its envelope header can contain the original transaction name. Keep only
@@ -59,12 +67,7 @@ export function sentryObservabilityEvent(input: ObservabilityEvent): Event {
 // breadcrumbs, user context, headers and request bodies cannot bypass this gate.
 export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
   const code =
-    event.message &&
-    [
-      "application.render.failed",
-      "workspace.query.failed",
-      "observability.code.rejected",
-    ].includes(event.message)
+    event.message && SENTRY_EVENT_CODES.includes(event.message)
       ? event.message
       : "application.unhandled.failed";
   const frames = event.exception?.values
@@ -102,7 +105,11 @@ export function sanitizeSentryEvent(event: ErrorEvent): ErrorEvent {
       ? { event_id: event.event_id }
       : {}),
     ...(event.timestamp === undefined ? {} : { timestamp: event.timestamp }),
-    level: event.level === "warning" ? "warning" : "error",
+    level:
+      event.level === "warning" ||
+      (event.level === "info" && code === "connection.stall")
+        ? event.level
+        : "error",
     message: code,
     ...(event.release && /^[0-9a-f]{40}$/.test(event.release)
       ? { release: event.release }

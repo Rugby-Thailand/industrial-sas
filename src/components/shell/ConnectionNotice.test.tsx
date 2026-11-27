@@ -14,20 +14,19 @@ const link = vi.hoisted(() => ({
   client: true,
 }));
 
-vi.mock("convex/react", () => ({
-  useConvex: () =>
-    link.client
-      ? {
-          connectionState: () => link.state,
-          subscribeToConnectionState: (listener: () => void) => {
-            link.listeners.add(listener);
-            return () => link.listeners.delete(listener);
-          },
-        }
-      : undefined,
-}));
+vi.mock("convex/react", () => {
+  const client = {
+    connectionState: () => link.state,
+    subscribeToConnectionState: (listener: () => void) => {
+      link.listeners.add(listener);
+      return () => link.listeners.delete(listener);
+    },
+  };
+  return { useConvex: () => (link.client ? client : undefined) };
+});
 
 import { registerNavigationGuardOwner } from "@/lib/navigationGuard";
+import { useConnectionStall } from "@/components/system/connectionStall";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { RouteLoading } from "@/components/system/RouteLoading";
 import {
@@ -44,15 +43,39 @@ import {
   RECONNECTION_GRACE_MS,
 } from "./ConnectionNotice";
 
+/** What stale-data consumers such as the customer list read. */
+function StallProbe() {
+  return <span data-testid="stall">{useConnectionStall() ?? "none"}</span>;
+}
+
 /** The notice reads the shell's stall answer, so it renders inside it. */
 const renderNotice = (options?: { locale: "en" | "th" }) =>
   renderWithIntl(
     <ConnectionStallProvider>
       <ConnectionNotice focusFallbackId="fallback" />
       <main id="fallback" tabIndex={-1} />
+      <StallProbe />
     </ConnectionStallProvider>,
     options,
   );
+
+const stallAnswer = () => screen.getByTestId("stall").textContent;
+
+function setVisible(visible: boolean) {
+  act(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => (visible ? "visible" : "hidden"),
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
+
+const connected = (connectionCount: number) => ({
+  isWebSocketConnected: true,
+  hasEverConnected: true,
+  connectionCount,
+});
 
 function setLink(next: Partial<typeof link.state>) {
   act(() => {
@@ -106,6 +129,7 @@ beforeEach(() => {
   link.listeners.clear();
   link.client = true;
   setOnline(true);
+  setVisible(true);
 });
 afterEach(() => vi.useRealTimers());
 
@@ -399,6 +423,165 @@ describe("ConnectionNotice", () => {
     );
     expect(container.querySelector(".animate-spin")).not.toBeNull();
     expect(container.querySelectorAll(".animate-pulse")).toHaveLength(4);
+  });
+
+  it("gives a hidden outage a fresh grace in the foreground and stays silent when it recovers meanwhile", () => {
+    setLink(connected(1));
+    renderNotice({ locale: "en" });
+
+    setVisible(false);
+    setLink({ isWebSocketConnected: false });
+    advance(RECONNECTION_GRACE_MS * 3);
+    expect(notice()).toBeNull();
+    // Data may be out of date while hidden: that answer does not wait.
+    expect(stallAnswer()).toBe("dropped");
+
+    setVisible(true);
+    advance(RECONNECTION_GRACE_MS - 1_000);
+    expect(notice()).toBeNull();
+    expect(stallAnswer()).toBe("dropped");
+    setLink(connected(2));
+    advance(RECONNECTION_GRACE_MS * 2);
+    expect(notice()).toBeNull();
+    expect(stallAnswer()).toBe("none");
+  });
+
+  it("warns once a hidden outage outlasts the foreground grace, still guarding pending saves", () => {
+    setLink(connected(1));
+    renderNotice({ locale: "en" });
+    setVisible(false);
+    setLink({ isWebSocketConnected: false, inflightMutations: 1 });
+    advance(RECONNECTION_GRACE_MS * 3);
+
+    setVisible(true);
+    advance(RECONNECTION_GRACE_MS - 1);
+    expect(notice()).toBeNull();
+    advance(1);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /^Reconnecting Data may be out of date\.$/,
+    );
+    expect(
+      screen.getByRole("button", { name: "Save pending" }),
+    ).toHaveAttribute("aria-disabled", "true");
+
+    setLink(connected(2));
+    expect(notice()).toBeNull();
+  });
+
+  it("gives the phone time to recover when hidden and return events reach React in one batch", () => {
+    setLink(connected(1));
+    renderNotice({ locale: "en" });
+    setLink({ isWebSocketConnected: false });
+    act(() => {
+      setVisible(false);
+      advance(RECONNECTION_GRACE_MS + 1);
+      setVisible(true);
+    });
+    expect(notice()).toBeNull();
+    advance(RECONNECTION_GRACE_MS);
+    expect(notice()).toBeInTheDocument();
+  });
+
+  it("warns after the usual grace for a drop that starts in the foreground", () => {
+    setLink(connected(1));
+    renderNotice({ locale: "en" });
+    // An earlier return to the foreground has long finished its grace.
+    setVisible(false);
+    setVisible(true);
+    advance(RECONNECTION_GRACE_MS * 2);
+
+    setLink({ isWebSocketConnected: false });
+    advance(RECONNECTION_GRACE_MS - 1);
+    expect(notice()).toBeNull();
+    advance(1);
+    expect(notice()).not.toBeNull();
+  });
+
+  it("keeps a warning shown in the foreground across hiding and returning, and waits again for the next outage", () => {
+    setLink(connected(1));
+    renderNotice({ locale: "en" });
+    setLink({ isWebSocketConnected: false });
+    advance(RECONNECTION_GRACE_MS);
+    const region = screen.getByRole("status");
+    expect(region).toHaveTextContent("Reconnecting");
+
+    setVisible(false);
+    expect(notice()).not.toBeNull();
+    setVisible(true);
+    // Neither withdrawn nor announced again on return.
+    expect(screen.getByRole("status")).toBe(region);
+    expect(region).toHaveTextContent(
+      /^Reconnecting Data may be out of date\.$/,
+    );
+    advance(RECONNECTION_GRACE_MS);
+    expect(region).toHaveTextContent("Reconnecting");
+
+    setLink(connected(2));
+    expect(notice()).toBeNull();
+    // The next outage, hidden then recovered within the foreground grace.
+    setVisible(false);
+    setLink({ isWebSocketConnected: false });
+    advance(RECONNECTION_GRACE_MS * 2);
+    setVisible(true);
+    advance(RECONNECTION_GRACE_MS - 1_000);
+    setLink(connected(3));
+    expect(notice()).toBeNull();
+
+    // And a later one in the foreground waits its own grace.
+    advance(RECONNECTION_GRACE_MS);
+    setLink({ isWebSocketConnected: false });
+    advance(RECONNECTION_GRACE_MS - 1);
+    expect(notice()).toBeNull();
+    advance(1);
+    expect(region).toHaveTextContent("Reconnecting");
+  });
+
+  it("waits for the foreground before warning about a first connection that loaded hidden", () => {
+    setVisible(false);
+    renderNotice({ locale: "en" });
+    advance(FIRST_CONNECTION_GRACE_MS * 2);
+    expect(notice()).toBeNull();
+    expect(stallAnswer()).toBe("first");
+
+    setVisible(true);
+    advance(RECONNECTION_GRACE_MS - 1);
+    expect(notice()).toBeNull();
+    advance(1);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /^Connecting to the server Data can't load until it connects\.$/,
+    );
+  });
+
+  it("records opt-in stall diagnostics using the shell subscription even when the notice is deferred", () => {
+    vi.stubEnv("NEXT_PUBLIC_OBSERVABILITY_SINK", "console");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      setLink(connected(1));
+      renderNotice();
+      expect(link.listeners.size).toBe(1);
+      setVisible(false);
+      setLink({ isWebSocketConnected: false, inflightMutations: 1 });
+      advance(RECONNECTION_GRACE_MS);
+      expect(notice()).toBeNull();
+      setVisible(true);
+      setLink(connected(2));
+      const events = info.mock.calls.map(
+        ([line]) => JSON.parse(line).observability,
+      );
+      expect(events.map((event) => event.dimensions.outcome)).toEqual([
+        "ongoing",
+        "recovered",
+      ]);
+      expect(events[1].dimensions).toMatchObject({
+        backgrounded: true,
+        foreground: true,
+        writesPending: true,
+      });
+      expect(link.listeners.size).toBe(1);
+    } finally {
+      info.mockRestore();
+      vi.unstubAllEnvs();
+    }
   });
 
   it("has nothing to watch without a configured backend", () => {

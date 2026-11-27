@@ -417,7 +417,11 @@ configured for Sentry or Convex logs.** Release failures are visible only as fai
 manifests.
 
 Frontend event codes are restricted to `application.render.failed`,
-`web.vital`, `workspace.query.failed` and the fixed rejection code. Request
+`connection.stall`, `web.vital`, `workspace.query.failed` and the fixed rejection code.
+For recurrent disconnects, compare `ongoing` and `recovered` events using
+`durationSec`, peak `retries`, and the `backgrounded` and `offline` flags.
+The shell reports up to ten sustained outages per mount to the configured sink.
+An offline browser can lose the ongoing event before reporting recovery. Request
 IDs must be UUIDs; named `req_` slugs are dropped. Warehouse identifiers are
 omitted entirely, and routes replace unknown segments with `[id]`. The console
 sink applies this policy even to literal events built outside the helper.

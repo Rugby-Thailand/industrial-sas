@@ -72,10 +72,27 @@ export const STATIC_ROUTE_SEGMENTS: ReadonlySet<string> = new Set([
 
 type DimensionRule = (value: unknown) => DimensionValue | undefined;
 
+export const MAX_CONNECTION_RETRIES = 100;
+export const MAX_CONNECTION_DURATION_SEC = 86_400;
+export const MAX_CONNECTION_EPISODES = 10;
+
 const oneOf =
   (...allowed: readonly string[]): DimensionRule =>
   (value) =>
     typeof value === "string" && allowed.includes(value) ? value : undefined;
+
+const booleanValue: DimensionRule = (value) =>
+  typeof value === "boolean" ? value : undefined;
+
+const boundedInt =
+  (min: number, max: number): DimensionRule =>
+  (value) =>
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= min &&
+    value <= max
+      ? value
+      : undefined;
 
 const finiteNumber: DimensionRule = (value) =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
@@ -139,6 +156,18 @@ export const OBSERVABILITY_DIMENSIONS: Readonly<Record<string, DimensionRule>> =
       "back-forward-cache",
       "restore",
     ),
+    // Connection stall diagnostics (`connectionDiagnostics.ts`). Closed enums,
+    // booleans and tightly bounded integers cannot carry identifiers, phone
+    // numbers, timestamps, free text or business content.
+    phase: oneOf("first", "dropped"),
+    outcome: oneOf("ongoing", "recovered"),
+    foreground: booleanValue,
+    backgrounded: booleanValue,
+    offline: booleanValue,
+    writesPending: booleanValue,
+    retries: boundedInt(0, MAX_CONNECTION_RETRIES),
+    durationSec: boundedInt(0, MAX_CONNECTION_DURATION_SEC),
+    episodes: boundedInt(1, MAX_CONNECTION_EPISODES),
     // Workspace query failures (`WorkspaceAccessBoundary`) and the shell's
     // page failure boundary.
     route: normalizeRoute,

@@ -167,8 +167,74 @@ describe("observability dimension allowlist", () => {
       "delta",
       "rating",
       "navigationType",
+      "phase",
+      "outcome",
+      "foreground",
+      "backgrounded",
+      "offline",
+      "writesPending",
+      "retries",
+      "durationSec",
+      "episodes",
       "route",
     ]);
+  });
+
+  it("bounds connection stall dimensions to closed enums, booleans and tight integer ranges", () => {
+    expect(
+      redactDimensions({
+        phase: "dropped",
+        outcome: "recovered",
+        foreground: true,
+        backgrounded: false,
+        offline: true,
+        writesPending: false,
+        retries: 4,
+        durationSec: 18,
+        episodes: 2,
+        route: `/th/finished-goods/products/${SENTINELS.productCode}`,
+      }),
+    ).toEqual({
+      phase: "dropped",
+      outcome: "recovered",
+      foreground: true,
+      backgrounded: false,
+      offline: true,
+      writesPending: false,
+      retries: 4,
+      durationSec: 18,
+      episodes: 2,
+      route: `th.finished-goods.products.${ROUTE_PLACEHOLDER}`,
+    });
+
+    // Reject out-of-range numbers, floats, strings, phone numbers, timestamps and sentinels.
+    expect(
+      redactDimensions({
+        phase: SENTINELS.name,
+        outcome: "failed",
+        foreground: "true",
+        backgrounded: 1,
+        offline: SENTINELS.email,
+        writesPending: null,
+        retries: 101,
+        durationSec: 86_401,
+        episodes: 0,
+      }),
+    ).toEqual({});
+    expect(
+      redactDimensions({
+        retries: -1,
+        durationSec: 1.5,
+        episodes: 101,
+      }),
+    ).toEqual({});
+    expect(
+      redactDimensions({
+        retries: Number.NaN,
+        durationSec: 812_345_678,
+        episodes: 1_786_414_500_000,
+      }),
+    ).toEqual({});
   });
 
   it("keeps a failure reference only in Next's digest or the generated shape", () => {
@@ -309,6 +375,7 @@ describe("observability events", () => {
       expect(redactDimensions({ warehouse })).toEqual({});
     expect(OBSERVABILITY_EVENT_CODES).toEqual([
       "application.render.failed",
+      "connection.stall",
       "web.vital",
       "workspace.query.failed",
       REJECTED_EVENT_CODE,

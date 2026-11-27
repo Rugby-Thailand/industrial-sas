@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as Sentry from "@sentry/nextjs";
+import { connectionStallEvent } from "./connectionDiagnostics";
 import { observabilityEvent } from "./event";
 import {
   sentryDataCollection,
@@ -202,6 +203,80 @@ describe("external telemetry boundary", () => {
     await Sentry.close(2000);
     Sentry.setUser(null);
     Sentry.setContext("business", null);
+    Sentry.setTag("unsafe", null);
+  });
+  it("forwards bounded connection stall events through Sentry without leaking sentinels", async () => {
+    const envelopes: unknown[] = [];
+    Sentry.init({
+      dsn: "https://public@o1.ingest.sentry.io/2",
+      defaultIntegrations: false,
+      dataCollection: sentryDataCollection,
+      beforeSend: sanitizeSentryEvent,
+      tracesSampleRate: 0,
+      transport: () =>
+        privateSentryTransport({
+          send: async (envelope: unknown) => {
+            envelopes.push(envelope);
+            return { statusCode: 200 };
+          },
+          flush: async () => true,
+        }),
+    });
+    Sentry.setUser({ email: secret });
+    Sentry.setTag("unsafe", secret);
+    Sentry.captureEvent({
+      ...sentryObservabilityEvent(
+        connectionStallEvent(
+          {
+            phase: "dropped",
+            outcome: "ongoing",
+            foreground: true,
+            backgrounded: false,
+            offline: false,
+            writesPending: true,
+            retries: 3,
+            durationSec: 4,
+            episodes: 2,
+            route: `/en/finished-goods/products/${secret}?token=${secret}`,
+          },
+          1_786_414_500_000,
+        ),
+      ),
+      extra: { secret },
+    });
+    Sentry.captureEvent({
+      ...sentryObservabilityEvent(
+        connectionStallEvent(
+          {
+            phase: "dropped",
+            outcome: "recovered",
+            foreground: true,
+            backgrounded: true,
+            offline: true,
+            writesPending: true,
+            retries: 5,
+            durationSec: 18,
+            episodes: 2,
+            route: `/th/hr/employees/${secret}`,
+          },
+          1_786_414_514_000,
+        ),
+      ),
+    });
+    await Sentry.flush(2000);
+    expect(envelopes).toHaveLength(2);
+    const serialized = JSON.stringify(envelopes);
+    expect(serialized).not.toContain("SENTINEL");
+    expect(serialized).toContain('"message":"connection.stall"');
+    expect(serialized).toContain('"level":"warning"');
+    expect(serialized).toContain('"level":"info"');
+    expect(serialized).toContain('"outcome":"ongoing"');
+    expect(serialized).toContain('"outcome":"recovered"');
+    expect(serialized).toContain('"retries":5');
+    expect(serialized).toContain('"durationSec":18');
+    expect(serialized).toContain('"episodes":2');
+    await Sentry.close(2000);
+    Sentry.setUser(null);
     Sentry.setTag("unsafe", null);
   });
   it("forwards only allowlisted metrics and never forwards request credentials", async () => {

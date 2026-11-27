@@ -32,6 +32,7 @@ export const REJECTED_EVENT_CODE = "observability.code.rejected";
 /** Current application emitters only; add a code after reviewing its payload. */
 export const OBSERVABILITY_EVENT_CODES = Object.freeze([
   "application.render.failed",
+  "connection.stall",
   "web.vital",
   "workspace.query.failed",
   REJECTED_EVENT_CODE,
