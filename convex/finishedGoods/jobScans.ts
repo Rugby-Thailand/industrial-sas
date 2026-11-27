@@ -37,6 +37,7 @@ import {
   MAX_JOB_SCAN_ITEMS,
   JOB_TICKET_JSON_SCHEMA,
   JOB_TICKET_PROMPT,
+  LUNA_JOB_TICKET_DATE_PROMPT,
   JOB_TICKET_SEARCH_PHOTO_JSON_SCHEMA,
   JOB_TICKET_SEARCH_PHOTO_PROMPT,
   isSavedFactoryOrderCode,
@@ -548,6 +549,7 @@ export const extractJobTicket = actionWithOrg({
       imageUrl: args.imageUrl,
       supplements,
       openAiImageDetail: "original",
+      openAiLunaPromptSuffix: LUNA_JOB_TICKET_DATE_PROMPT,
       name: "job_ticket",
       schema: JOB_TICKET_JSON_SCHEMA,
     });

@@ -5,6 +5,7 @@ function barcode(
   text: string,
   y: number,
   format: "Code128" | "QRCode" = "Code128",
+  x = 20,
 ) {
   return {
     text,
@@ -12,10 +13,10 @@ function barcode(
     format,
     orientation: 0,
     position: {
-      topLeft: { x: 20, y },
-      topRight: { x: 120, y },
-      bottomLeft: { x: 20, y: y + 12 },
-      bottomRight: { x: 120, y: y + 12 },
+      topLeft: { x, y },
+      topRight: { x: x + 100, y },
+      bottomLeft: { x, y: y + 12 },
+      bottomRight: { x: x + 100, y: y + 12 },
     },
   };
 }
@@ -64,4 +65,14 @@ it("ignores ambiguous multi-ticket identifiers", () => {
       600,
     ),
   ).toEqual({ codes: [] });
+});
+
+it.each([
+  barcode("F1-L3-11", 370),
+  barcode("BOX-A", 480),
+  barcode("BOX-A", 370, "Code128", 300),
+])("keeps only the job code when a background label is present", (label) => {
+  expect(
+    ticketPhotoEvidence([barcode("FO00123", 100), label], 600).codes,
+  ).toEqual(["FO00123"]);
 });

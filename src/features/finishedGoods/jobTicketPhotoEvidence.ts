@@ -28,10 +28,12 @@ function usableReads(reads: readonly TicketBarcode[]) {
 function bounds(read: TicketBarcode) {
   const { topLeft, topRight, bottomLeft, bottomRight } = read.position;
   const points = [topLeft, topRight, bottomLeft, bottomRight];
+  const left = Math.min(...points.map(({ x }) => x));
+  const right = Math.max(...points.map(({ x }) => x));
   return {
-    width:
-      Math.max(...points.map(({ x }) => x)) -
-      Math.min(...points.map(({ x }) => x)),
+    left,
+    right,
+    width: right - left,
     top: Math.min(...points.map(({ y }) => y)),
     bottom: Math.max(...points.map(({ y }) => y)),
   };
@@ -79,22 +81,33 @@ export function ticketPhotoEvidence(
   const productReads = valid.filter(
     (read) =>
       read.format === "Code128" &&
-      classifyTicketBarcode(read.text) === "productBarcodeText",
+      classifyTicketBarcode(read.text) === "productBarcodeText" &&
+      !/^F\d+-L\d+-\d+(?:-[A-Z0-9]+)*$/i.test(read.text.trim()),
   );
   if (new Set(productReads.map((read) => read.text.trim())).size > 1) {
     return { codes: [] };
   }
 
   const anchor = jobs.find((read) => read.format === "Code128") ?? jobs[0]!;
+  const header = bounds(anchor);
+  const span = header.width * (anchor.format === "QRCode" ? 2.8 : 1);
   const product = productReads.find((read) => {
-    if (upright(anchor) && upright(read)) {
-      return bounds(read).top > bounds(anchor).bottom;
-    }
-    return false;
+    if (!upright(anchor) || !upright(read) || !span) return false;
+    const label = bounds(read);
+    const gap = label.top - header.bottom;
+    // Allow the QR to sit to the left of the product line. A distant barcode
+    // elsewhere in the photo cannot verify this ticket's product.
+    const horizontalGap = Math.max(
+      header.left - label.right,
+      label.left - header.right,
+    );
+    return (
+      gap > 0 &&
+      gap <= span * 3.2 &&
+      horizontalGap <= span * (anchor.format === "QRCode" ? 1 : 0.45)
+    );
   });
   const crop = detailCrop(anchor, product, height);
-  const header = bounds(anchor);
-  const span = header.width * 2.8;
   const deliveryTop = Math.max(0, Math.round(header.bottom + span * 0.046));
   const deliveryBottom = Math.min(
     height,

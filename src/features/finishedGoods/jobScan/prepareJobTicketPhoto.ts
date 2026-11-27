@@ -298,8 +298,7 @@ export async function prepareJobTicketPhoto(
       try {
         jpeg = await encodeJpeg(canvas, signal);
       } catch {
-        // The AI read is already paid for: store its smaller JPEG rather
-        // than discarding the scan because the larger encode failed.
+        // Reuse the AI JPEG when the upload JPEG cannot be encoded.
         signal.throwIfAborted();
         return aiFile;
       }

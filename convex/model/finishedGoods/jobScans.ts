@@ -58,8 +58,10 @@ export const JOB_TICKET_PROMPT = `Transcribe a Thai factory job ticket (FM-PD-02
 - quantity: the number in QUANTITY (จำนวน), to the right of MFG DATE. If a printed value is struck out and a clearly legible handwritten replacement appears in that box, use the replacement. Ignore notes, balances, and in/out numbers in other boxes.
 - factory_quantity, customer_quantity: read the next two distinct pallet-count boxes below CHECKER BY, respectively ตอนออกจากโรงงาน and ตอนลงงานให้ลูกค้า. A visibly empty box is null. A printed 0.00 is the number 0. Never use the main quantity or a value from the stock movement table as a substitute.
 Return null for missing, unreadable, or ambiguous values. Numeric results are numbers without separators.
-Use ASCII double quotes, apostrophe, and x for printed dimensions. When reading either date, read each digit in order directly from its box; even a strange printed year or date must be transcribed as written. Review the year and day glyphs once before committing. Do not infer dates from the job number. Copy any unusual-looking printed digit without trying to correct it. JOB numbers such as FO69070073 or FOM6908062 are different from product codes.
-For both date strings, insert a space between every digit and each slash, for example 2 9 / 1 2 / 2 5 5 3. Use this format to copy each glyph individually. Do not substitute a year just because the printed year seems unlikely.`;
+Use ASCII double quotes, apostrophe, and x for printed dimensions. When reading either date, read each digit in order directly from its box; even a strange printed year or date must be transcribed as written. Review the year and day glyphs once before committing. Do not infer dates from the job number. Copy any unusual-looking printed digit without trying to correct it. JOB numbers such as FO69070073 or FOM6908062 are different from product codes.`;
+
+export const LUNA_JOB_TICKET_DATE_PROMPT =
+  "For both date strings, insert a space between every digit and each slash, for example 2 9 / 1 2 / 2 5 5 3. Use this format to copy each glyph individually. Do not substitute a year just because the printed year seems unlikely.";
 
 export type JobTicketSearchCandidates = {
   factoryOrder?: string;

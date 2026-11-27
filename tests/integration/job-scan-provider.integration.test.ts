@@ -10,6 +10,7 @@ import { ACCOUNTING_WINDOW_MS } from "../../convex/lib/imageProvider";
 import {
   JOB_TICKET_JSON_SCHEMA,
   JOB_TICKET_PROMPT,
+  LUNA_JOB_TICKET_DATE_PROMPT,
 } from "../../convex/model/finishedGoods/jobScans";
 import {
   PUBLIC_API_ACTOR,
@@ -835,7 +836,10 @@ describe("registered extractJobTicket provider selection", () => {
       service_tier: "default",
       reasoning: { effort: "none" },
       input: [
-        { role: "developer", content: JOB_TICKET_PROMPT },
+        {
+          role: "developer",
+          content: `${JOB_TICKET_PROMPT}\n${LUNA_JOB_TICKET_DATE_PROMPT}`,
+        },
         {
           role: "user",
           content: [
@@ -940,6 +944,9 @@ describe("registered extractJobTicket provider selection", () => {
     expect(JSON.parse(String(init?.body))).toMatchObject({
       model: "openai/fixture-model",
       reasoning: { effort: "none" },
+      messages: expect.arrayContaining([
+        { role: "system", content: JOB_TICKET_PROMPT },
+      ]),
       response_format: { json_schema: { name: "job_ticket", strict: true } },
     });
   });
