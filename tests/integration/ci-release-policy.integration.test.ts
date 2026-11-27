@@ -27,6 +27,7 @@ function decision(
     repository?: string;
     ref?: string;
     event?: string;
+    releaseTarget?: string;
     cancelled?: boolean;
   } = {},
 ) {
@@ -38,6 +39,7 @@ function decision(
       ref: input.ref ?? "refs/heads/main",
       event_name: input.event ?? "push",
     },
+    inputs: { release_target: input.releaseTarget ?? "" },
     needs: {
       check: {
         result: input.check ?? "success",
@@ -53,20 +55,23 @@ function decision(
 
 describe("captured staging policy", () => {
   it.each([
-    [undefined, "true"],
-    ["", "true"],
-    ["true", "true"],
-    ["false", "false"],
-    ["FALSE", "true"],
-    ["invalid", "true"],
+    [undefined, undefined, "true"],
+    ["", "false", "true"],
+    ["true", "false", "true"],
+    ["false", "false", "false"],
+    ["false", "true", "true"],
+    ["FALSE", undefined, "true"],
+    ["invalid", undefined, "true"],
   ])(
-    "captures %s as %s without overwriting earlier outputs",
-    (value, expected) => {
+    "captures staging flag %s with staging-only %s as %s",
+    (value, stagingOnly, expected) => {
       const directory = mkdtempSync(join(tmpdir(), "ci-release-policy-"));
       const output = join(directory, "outputs");
       const env: NodeJS.ProcessEnv = { ...process.env, GITHUB_OUTPUT: output };
       delete env.STAGING_ENABLED;
+      delete env.STAGING_ONLY;
       if (value !== undefined) env.STAGING_ENABLED = value;
+      if (stagingOnly !== undefined) env.STAGING_ONLY = stagingOnly;
       try {
         writeFileSync(output, "other=value\n");
         const result = spawnSync(
@@ -144,10 +149,56 @@ describe("actual release job conditions", () => {
   it("allows trusted main dispatch and ignores a mid-run variable change", () => {
     for (const event of ["push", "workflow_dispatch"])
       expect(
-        decision("release", { policy: "false", staging: "skipped", event }),
+        decision("release", {
+          policy: "false",
+          staging: "skipped",
+          event,
+          releaseTarget: event === "workflow_dispatch" ? "production" : "",
+        }),
       ).toBe(true);
     // Downstream conditions must read the captured check output, never vars.
     for (const job of ["staging", "release"] as const)
       expect(workflow.jobs[job].if).not.toContain("vars.");
   });
+
+  it("allows a main staging rehearsal and blocks production after every staging outcome", () => {
+    const dispatch = { event: "workflow_dispatch", releaseTarget: "staging" };
+    const policyStep = workflow.jobs.check.steps.find(
+      (step: { id?: string }) => step.id === "release-policy",
+    );
+    const stagingOnly = policyStep.env.STAGING_ONLY;
+    for (const [event, target, expected] of [
+      ["workflow_dispatch", "staging", true],
+      ["workflow_dispatch", "production", false],
+      ["push", "", false],
+    ])
+      expect(
+        runInNewContext(stagingOnly.slice(3, -2).trim(), {
+          github: { event_name: event },
+          inputs: { release_target: target },
+        }),
+      ).toBe(expected);
+    expect(decision("staging", dispatch)).toBe(true);
+    expect(
+      decision("staging", { ...dispatch, ref: "refs/heads/feature" }),
+    ).toBe(false);
+    for (const check of results.filter((result) => result !== "success"))
+      expect(decision("staging", { ...dispatch, check })).toBe(false);
+    expect(decision("staging", { ...dispatch, cancelled: true })).toBe(false);
+    for (const staging of results)
+      for (const policy of ["true", "false"])
+        expect(decision("release", { ...dispatch, policy, staging })).toBe(
+          false,
+        );
+  });
+
+  it.each(["", "unknown"])(
+    "blocks both release jobs for a dispatch with target %j",
+    (releaseTarget) => {
+      for (const job of ["staging", "release"] as const)
+        expect(
+          decision(job, { event: "workflow_dispatch", releaseTarget }),
+        ).toBe(false);
+    },
+  );
 });

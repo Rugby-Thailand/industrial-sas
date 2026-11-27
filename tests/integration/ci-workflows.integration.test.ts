@@ -1,5 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -175,16 +183,20 @@ describe("owned workflows", () => {
 
 describe("workflow policy rejects regressions", () => {
   it.each([
-    ["missing shard", "shard: [1, 2, 3, 4, 5]", "shard: [1, 2, 3, 4]"],
-    ["duplicate shard", "shard: [1, 2, 3, 4, 5]", "shard: [1, 2, 3, 4, 4]"],
+    ["missing shard", "shard: [1, 2, 3, 4, 5, 6]", "shard: [1, 2, 3, 4, 5]"],
+    [
+      "duplicate shard",
+      "shard: [1, 2, 3, 4, 5, 6]",
+      "shard: [1, 2, 3, 4, 5, 5]",
+    ],
     [
       "fail-fast cancellation",
-      "      fail-fast: false\n      matrix:\n        shard: [1, 2, 3, 4, 5]",
-      "      fail-fast: true\n      matrix:\n        shard: [1, 2, 3, 4, 5]",
+      "      fail-fast: false\n      matrix:\n        shard: [1, 2, 3, 4, 5, 6]",
+      "      fail-fast: true\n      matrix:\n        shard: [1, 2, 3, 4, 5, 6]",
     ],
     [
       "mismatched total",
-      "--shard=${{ matrix.shard }}/5",
+      "--shard=${{ matrix.shard }}/6",
       "--shard=${{ matrix.shard }}/2",
     ],
     [
@@ -211,7 +223,7 @@ describe("workflow policy rejects regressions", () => {
     ],
     [
       "wrong report path",
-      "path: test-results/vitest-junit/shard-${{ matrix.shard }}-5.xml",
+      "path: test-results/vitest-junit/shard-${{ matrix.shard }}-6.xml",
       "path: test-results/vitest-junit/shard-${{ matrix.shard }}-2.xml",
     ],
   ])("rejects %s in native test shards", (_reason, from, to) => {
@@ -316,9 +328,15 @@ describe("workflow policy rejects regressions", () => {
     }
   });
 
-  it("requires the navigation matrix leg and all three installed engines", () => {
+  it("requires all navigation engine legs and both WebKit shards", () => {
     expectJobFailure("quality.yml", "browser", [
-      ["          - suite: navigation-2\n            shard: 2\n", ""],
+      [
+        "          - suite: navigation-webkit-2\n            project: desktop-webkit\n            shard: 2\n            shards: 2\n",
+        "",
+      ],
+    ]);
+    expectJobFailure("quality.yml", "browser", [
+      ['project: "*-chromium"', "project: desktop-chromium"],
     ]);
     expectJobFailure("quality.yml", "browser", [
       [
@@ -352,6 +370,13 @@ describe("workflow policy rejects regressions", () => {
       ["pnpm exec vitest run\n", "pnpm exec vitest run --project unit\n"],
       ["pnpm exec vitest run\n", "pnpm exec vitest run --shard=1/3\n"],
       ["          --coverage\n", ""],
+      ["timeout --kill-after=30s 15m ", ""],
+      ["          --maxWorkers=4\n", ""],
+      ["        id: vitest\n", ""],
+      [
+        "VITEST_OUTCOME: ${{ steps.vitest.outcome }}",
+        "VITEST_OUTCOME: success",
+      ],
       [
         "          if-no-files-found: error\n",
         "          if-no-files-found: warn\n",
@@ -362,7 +387,11 @@ describe("workflow policy rejects regressions", () => {
       ],
     ] as const)
       expectJobFailure("workspace-matrix.yml", "coverage", [[from, to]]);
-    for (const name of ["Vitest with coverage", "Upload coverage and JUnit"]) {
+    for (const name of [
+      "Vitest with coverage",
+      "Verify coverage and JUnit",
+      "Upload coverage and JUnit",
+    ]) {
       const step = namedStep("workspace-matrix.yml", name);
       expectJobFailure("workspace-matrix.yml", "coverage", [[step, ""]]);
     }
@@ -410,6 +439,17 @@ describe("workflow policy rejects regressions", () => {
     );
   });
 
+  it("requires the production and staging dispatch choices", () => {
+    for (const edit of [
+      ["type: choice", "type: string"],
+      ["options: [production, staging]", "options: [production]"],
+      ["default: production", "default: staging"],
+    ] as const)
+      expect(problemsWith("quality.yml", [edit])).toContain(
+        "quality.yml: dispatch must offer production (default) and staging targets",
+      );
+  });
+
   it("captures the staging flag only after successful CI", () => {
     const policy = namedStep("quality.yml", "Capture staging policy");
     const aggregate = namedStep(
@@ -420,6 +460,7 @@ describe("workflow policy rejects regressions", () => {
       [[policy, ""]],
       [[policy, `${policy}\n${policy}`]],
       [[policy, policy.replace("id: release-policy", "id: other")]],
+      [[policy, policy.replace(/STAGING_ONLY: .+/, "STAGING_ONLY: false")]],
       [
         [
           policy,
@@ -457,9 +498,9 @@ describe("workflow policy rejects regressions", () => {
     // predicates then decide, and nothing may widen them.
     const guard = "if: ${{ !cancelled() && needs.check.result == 'success' && ";
     const stagingIf =
-      "${{ !cancelled() && needs.check.result == 'success' && needs.check.outputs.staging_enabled == 'true' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}";
+      "${{ !cancelled() && needs.check.result == 'success' && needs.check.outputs.staging_enabled == 'true' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.release_target == 'production' || inputs.release_target == 'staging'))) }}";
     const releaseIf =
-      "${{ !cancelled() && needs.check.result == 'success' && ((needs.check.outputs.staging_enabled == 'false' && needs.staging.result == 'skipped') || (needs.check.outputs.staging_enabled == 'true' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED')) && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}";
+      "${{ !cancelled() && needs.check.result == 'success' && ((needs.check.outputs.staging_enabled == 'false' && needs.staging.result == 'skipped') || (needs.check.outputs.staging_enabled == 'true' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED')) && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.release_target == 'production')) }}";
     const stagingProblem = `quality.yml:staging: if must be exactly ${stagingIf}`;
     const releaseProblem = `quality.yml:release: if must be exactly ${releaseIf}`;
     const forJob = (problems: string[], job: string) =>
@@ -495,17 +536,14 @@ describe("workflow policy rejects regressions", () => {
     for (const predicate of [
       " && github.repository == 'Rugby-Thailand/industrial-sas'",
       " && github.ref == 'refs/heads/main'",
-      " || github.event_name == 'workflow_dispatch'",
+      " || (github.event_name == 'workflow_dispatch' && (inputs.release_target == 'production' || inputs.release_target == 'staging'))",
     ])
       expect(problemsWith("quality.yml", [[predicate, ""]])).toContain(
         stagingProblem,
       );
     expect(
       problemsWith("quality.yml", [
-        [
-          "'workflow_dispatch') }}\n    runs-on: ubuntu-24.04\n    timeout-minutes: 60",
-          "'workflow_dispatch') || true }}\n    runs-on: ubuntu-24.04\n    timeout-minutes: 60",
-        ],
+        [stagingIf, stagingIf.replace(" }}", " || true }}")],
       ]),
     ).toContain(stagingProblem);
 
@@ -517,12 +555,13 @@ describe("workflow policy rejects regressions", () => {
         "needs.staging.result != 'failure'",
       ],
       ["needs.check.outputs.staging_enabled == 'false' && ", ""],
+      [
+        releaseIf,
+        releaseIf.replace(" && inputs.release_target == 'production'", ""),
+      ],
       [releaseIf, releaseIf.replace("!cancelled()", "always()")],
       [releaseIf, releaseIf.replace("!cancelled() && ", "")],
-      [
-        "'workflow_dispatch') }}\n    runs-on: ubuntu-24.04\n    timeout-minutes: 90",
-        "'workflow_dispatch') || true }}\n    runs-on: ubuntu-24.04\n    timeout-minutes: 90",
-      ],
+      [releaseIf, releaseIf.replace(" }}", " || true }}")],
     ] as const)
       expect(problemsWith("quality.yml", [[from, to]])).toContain(
         releaseProblem,
@@ -532,6 +571,16 @@ describe("workflow policy rejects regressions", () => {
         ["    needs: [check, staging]\n", "    needs: [check]\n"],
       ]),
     ).toContain("quality.yml:release: must need staging");
+    expect(
+      problemsWith("quality.yml", [
+        [
+          "RELEASE_DISPATCH_TARGET: ${{ inputs.release_target }}",
+          "RELEASE_DISPATCH_TARGET: production",
+        ],
+      ]),
+    ).toContain(
+      "quality.yml:staging: runner needs the workflow dispatch target",
+    );
   });
 
   it("scopes release credentials to the runner step", () => {
@@ -878,11 +927,11 @@ describe("workflow policy rejects regressions", () => {
     for (const replacement of [
       "",
       `${ts6}\n${ts6}`,
-      ts6.replace("matrix.lane == 'contracts'", "matrix.lane == 'static'"),
+      ts6.replace("matrix.lane == 'types'", "matrix.lane == 'static'"),
       ts6.replace("!cancelled()", "false"),
     ])
       expect(problemsWith("quality.yml", [[ts6, replacement]])).toContain(
-        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in contracts",
+        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in types",
       );
     for (const override of [
       "        shell: echo {0}\n",
@@ -892,7 +941,7 @@ describe("workflow policy rejects regressions", () => {
       expect(
         problemsWith("quality.yml", [[ts6, `${ts6}\n${override.trimEnd()}`]]),
       ).toContain(
-        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in contracts",
+        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in types",
       );
     for (const [from, to] of [
       [
@@ -959,7 +1008,7 @@ describe("workflow policy rejects regressions", () => {
     for (const lanes of ["[static]", "[static, static]"])
       expect(
         problemsWith("quality.yml", [
-          ["lane: [static, contracts]", `lane: ${lanes}`],
+          ["lane: [static, contracts, types]", `lane: ${lanes}`],
         ]),
       ).toContain(
         "quality.yml:validate: exact complete validation lanes required",
@@ -989,6 +1038,7 @@ describe("workflow policy rejects regressions", () => {
       "Formatting",
       "Typecheck (cold next typegen + Bun checker)",
       "TypeScript 6 gate (cold generated route types)",
+      "Convex deployment typecheck",
       "Lint",
       "Back navigation contract and architecture fixtures",
       "Runtime dependency audit",
@@ -1079,17 +1129,17 @@ describe("workflow policy rejects regressions", () => {
         problemsWith("quality.yml", [[from!, to!]]).length,
       ).toBeGreaterThan(0);
     const codegen = namedStep("quality.yml", "Convex codegen freshness");
-    const ts6 = namedStep(
+    const bun = namedStep(
       "quality.yml",
-      "TypeScript 6 gate (cold generated route types)",
+      "Typecheck (cold next typegen + Bun checker)",
     );
     expect(
       problemsWith("quality.yml", [
         [codegen, ""],
-        [ts6, `${codegen}\n${ts6}`],
+        [bun, `${codegen}\n${bun}`],
       ]),
     ).toContain(
-      "quality.yml:validate: typechecks must precede codegen sequentially",
+      "quality.yml:validate: Bun typecheck must precede codegen in contracts",
     );
   });
 
@@ -1321,6 +1371,79 @@ describe("merged test report", () => {
     ).toContain("| lines | 50% | 5/10 |");
     expect(coverageMarkdown({})).toBe("Combined coverage summary unavailable.");
   });
+});
+
+it("publishes a coverage summary only with valid JSON, LCOV, and passing JUnit", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "ci-coverage-artifacts-"));
+  const stepSummary = join(cwd, "summary.md");
+  const script = resolve("scripts/ci/check-coverage.mjs");
+  const run = (outcome = "success") =>
+    spawnSync(process.execPath, [script], {
+      cwd,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GITHUB_STEP_SUMMARY: stepSummary,
+        VITEST_OUTCOME: outcome,
+      },
+    });
+  const goodJUnit =
+    '<testsuites tests="2" failures="0" errors="0"></testsuites>';
+  const metric = { total: 2, covered: 1, pct: 50 };
+  try {
+    const missing = run();
+    expect(missing.status).toBe(1);
+    expect(missing.stderr).toContain("coverage/coverage-summary.json");
+    expect(missing.stderr).toContain("coverage/lcov.info");
+    expect(missing.stderr).toContain("test-results/vitest-junit.xml");
+
+    mkdirSync(join(cwd, "coverage"));
+    mkdirSync(join(cwd, "test-results"));
+    const coverage = join(cwd, "coverage/coverage-summary.json");
+    const lcov = join(cwd, "coverage/lcov.info");
+    const junit = join(cwd, "test-results/vitest-junit.xml");
+    writeFileSync(coverage, "{}");
+    expect(run().status).toBe(1);
+    writeFileSync(
+      coverage,
+      JSON.stringify({
+        total: {
+          lines: metric,
+          statements: metric,
+          functions: metric,
+          branches: metric,
+        },
+      }),
+    );
+    writeFileSync(lcov, "");
+    expect(run().status).toBe(1);
+    writeFileSync(lcov, "SF:fixture.ts\nDA:1,1\nend_of_record\n");
+    expect(run().status).toBe(1);
+    for (const invalidJUnit of [
+      goodJUnit.replace("</testsuites>", ""),
+      goodJUnit.replace('failures="0"', 'failures="1"'),
+      goodJUnit.replace(' failures="0"', ""),
+      goodJUnit.replace('errors="0"', 'errors="-1"'),
+      goodJUnit.replace(
+        "</testsuites>",
+        "\n<testsuite>\n<testcase>\n<skipped/>\n</testcase>\n<testcase>\n<skipped/>\n</testcase>\n</testsuite>\n</testsuites>",
+      ),
+    ]) {
+      writeFileSync(junit, invalidJUnit);
+      expect(run().status).toBe(1);
+    }
+    writeFileSync(junit, goodJUnit);
+    const failedStep = run("failure");
+    expect(failedStep.status).toBe(1);
+    expect(failedStep.stderr).toContain("The Vitest step did not succeed");
+    expect(() => readFileSync(stepSummary)).toThrow();
+    expect(run().status).toBe(0);
+    expect(readFileSync(stepSummary, "utf8")).toContain(
+      "| lines | 50% | 1/2 |",
+    );
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });
 
 describe("aggregate entrypoint", () => {

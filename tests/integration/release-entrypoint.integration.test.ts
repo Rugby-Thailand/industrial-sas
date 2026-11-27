@@ -96,7 +96,11 @@ describe("trusted release process boundary", () => {
     );
     expect(
       validateReleaseRuntime(
-        { ...trusted, GITHUB_EVENT_NAME: "workflow_dispatch" },
+        {
+          ...trusted,
+          GITHUB_EVENT_NAME: "workflow_dispatch",
+          RELEASE_DISPATCH_TARGET: "production",
+        },
         "production",
         repository,
       ),
@@ -119,6 +123,29 @@ describe("trusted release process boundary", () => {
       expect(
         validateReleaseRuntime(
           { ...trusted, ...patch },
+          "production",
+          repository,
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("keeps production off-limits to staging and unknown dispatch targets", () => {
+    const dispatch = { ...trusted, GITHUB_EVENT_NAME: "workflow_dispatch" };
+    const staging = { ...dispatch, RELEASE_ENVIRONMENT: "staging" };
+    for (const releaseTarget of ["production", "staging"]) {
+      expect(
+        validateReleaseRuntime(
+          { ...staging, RELEASE_DISPATCH_TARGET: releaseTarget },
+          "staging",
+          repository,
+        ),
+      ).toBe(true);
+    }
+    for (const releaseTarget of [undefined, "", "unknown", "staging"]) {
+      expect(
+        validateReleaseRuntime(
+          { ...dispatch, RELEASE_DISPATCH_TARGET: releaseTarget },
           "production",
           repository,
         ),

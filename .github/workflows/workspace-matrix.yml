@@ -50,11 +50,8 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # Combined coverage of every Vitest project in one unsharded run, so the
-  # numbers describe the whole suite. Informational: no thresholds. V8
-  # instrumentation puts the heaviest emulated-backend import test (seven full
-  # snapshots, ~1,470 full-table scans) at 4.4–5.0 s against Vitest's 5 s
-  # default, so only this coverage run gets a 15 s budget.
+  # Keep the full suite in one coverage report. The inner deadline leaves
+  # time to diagnose missing reports and upload any results Vitest wrote.
   coverage:
     name: Full-suite coverage
     runs-on: ubuntu-24.04
@@ -65,8 +62,10 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-node-pnpm
       - name: Vitest with coverage
+        id: vitest
         run: >-
-          pnpm exec vitest run
+          timeout --kill-after=30s 15m pnpm exec vitest run
+          --maxWorkers=4
           --coverage
           --coverage.reportOnFailure
           --testTimeout=15000
@@ -74,6 +73,11 @@ jobs:
           --reporter=github-actions
           --reporter=junit
           --outputFile.junit=test-results/vitest-junit.xml
+      - name: Verify coverage and JUnit
+        if: ${{ !cancelled() }}
+        env:
+          VITEST_OUTCOME: ${{ steps.vitest.outcome }}
+        run: node scripts/ci/check-coverage.mjs
       - name: Upload coverage and JUnit
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

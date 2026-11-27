@@ -5,9 +5,9 @@ import { runPolicy } from "./tests/e2e/support/policy";
 const port = 3265;
 const baseURL = `http://127.0.0.1:${port}`;
 const reportName = process.env.NAVIGATION_REPORT_NAME ?? "navigation";
-if (!/^navigation(?:-[12])?$/.test(reportName))
+if (!/^navigation(?:-[12]|-chromium|-firefox|-webkit-[12])?$/.test(reportName))
   throw new Error(
-    "NAVIGATION_REPORT_NAME must be navigation, navigation-1 or navigation-2",
+    "NAVIGATION_REPORT_NAME must be a recognized navigation report name",
   );
 const policy = runPolicy({ sensitive: false, outputName: reportName });
 if (

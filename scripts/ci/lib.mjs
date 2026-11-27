@@ -61,8 +61,14 @@ export function junitSummary(xml) {
   const suites = xml.match(/<testsuites\b[^>]*>/);
   if (!suites) throw new Error("JUnit report has no <testsuites> element");
   const attribute = (name) => {
-    const match = suites[0].match(new RegExp(`\\b${name}="(\\d+)"`));
-    return match ? Number(match[1]) : 0;
+    const match = suites[0].match(new RegExp(`\\s${name}="([^"]*)"`));
+    // Vitest lists skipped and todo cases individually without a root count.
+    if (!match && name === "skipped")
+      return (xml.match(/^\s*<skipped\/>\s*$/gm) ?? []).length;
+    const value = Number(match?.[1]);
+    if (!/^\d+$/.test(match?.[1] ?? "") || !Number.isSafeInteger(value))
+      throw new Error(`JUnit report has a missing or invalid ${name} count`);
+    return value;
   };
   return {
     tests: attribute("tests"),
