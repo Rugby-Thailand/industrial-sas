@@ -178,6 +178,34 @@ export const listGroups = queryWithOrg({
   },
 });
 
+/** Recent unassigned joins for the customer-specific connect flow. */
+export const listPendingGroups = queryWithOrg({
+  permissionCode: CUSTOMER_LINE_PERMISSION.manageGroups,
+  target: { table: "customerLineGroups" },
+  args: { cursor: v.optional(v.string()) },
+  returns: pageOf(groupView),
+  handler: async (ctx, { cursor }) => {
+    if (!(await holds(ctx, CAPABILITY_GRANTS.manageGroups))) return emptyPage;
+    const connection = await primaryConnection(ctx);
+    if (connection?.state !== "active") return emptyPage;
+    const result = await ctx.tenantDb
+      .byIndex<Group>(
+        "customerLineGroups",
+        "by_orgId_connectionId_state_current_lastActivityAt",
+        [
+          { field: "connectionId", value: connection._id },
+          { field: "state", value: "pending" },
+          { field: "current", value: true },
+        ],
+      )
+      .page({ limit: LIMITS.page, cursor, order: "desc" });
+    return {
+      page: result.page.map((group) => projectGroup(group)),
+      continueCursor: result.isDone ? null : result.continueCursor,
+    };
+  },
+});
+
 export const getGroup = queryWithOrg({
   ...readGate,
   args: { groupId: v.string() },

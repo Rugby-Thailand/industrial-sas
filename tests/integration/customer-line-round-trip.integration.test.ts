@@ -3,6 +3,7 @@ import { Buffer } from "node:buffer";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { api, internal } from "../../convex/_generated/api";
+import { LIMITS } from "../../convex/customerLine/policy";
 import {
   createConvexTenantWorld,
   seedConvexAuthorization,
@@ -211,6 +212,7 @@ it("sets up a test OA and routes reviewed replies from two employees back to the
   if (!pending)
     throw new Error("Expected the signed join to create a pending group");
   const groupId = pending._id;
+  expect(value(await user.query(line.listPendingGroups, {})).page).toEqual([]);
   expect(
     value(
       await user.mutation(line.approveGroup, {
@@ -286,6 +288,17 @@ it("sets up a test OA and routes reviewed replies from two employees back to the
       }),
     ),
   ).toBeNull();
+  expect(value(await user.query(line.listPendingGroups, {})).page).toEqual([
+    {
+      _id: groupId,
+      name: pending.name,
+      state: "pending",
+      version: pending.version,
+      lastActivityAt: now,
+    },
+  ]);
+  const foreignJoinList = await other.query(line.listPendingGroups, {});
+  expect(foreignJoinList.ok ? foreignJoinList.value.page : []).toEqual([]);
   expect(
     value(
       await user.mutation(line.approveGroup, {
@@ -296,6 +309,7 @@ it("sets up a test OA and routes reviewed replies from two employees back to the
       }),
     ),
   ).toBeNull();
+  expect(value(await user.query(line.listPendingGroups, {})).page).toEqual([]);
   const afterApproval = Date.now();
   const first = text("first", ALICE, afterApproval + 2, true);
   const second = text("second", BOB, afterApproval + 3, true);
@@ -336,7 +350,16 @@ it("sets up a test OA and routes reviewed replies from two employees back to the
     },
   );
   expect(abandoned).not.toBeNull();
-  await world.t.finishAllScheduledFunctions(vi.runAllTimers);
+  // Finish immediate work before moving the clock past its leases.
+  await vi.advanceTimersByTimeAsync(1);
+  await world.t.finishInProgressScheduledFunctions();
+  expect(
+    pushes
+      .filter(({ text }) => text.startsWith("Reviewed reply"))
+      .map(({ text }) => text),
+  ).toEqual(["Reviewed reply 2"]);
+  await vi.advanceTimersByTimeAsync(LIMITS.leaseMs + 1);
+  await world.t.finishInProgressScheduledFunctions();
   expect(groupSummaryCalls).toBe(2);
   expect(value(await user.query(line.getGroup, { groupId }))).toMatchObject({
     name: "Dispatch",

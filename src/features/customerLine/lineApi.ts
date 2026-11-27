@@ -74,8 +74,12 @@ export const CUSTOMER_LINE_PATH = "/master-data/customers/line";
 export const CUSTOMER_LINE_SETTINGS_PATH =
   "/master-data/customers/line/settings";
 
-export function customerLineGroupPath(groupId: string): string {
-  return `${CUSTOMER_LINE_PATH}/${encodeURIComponent(groupId)}`;
+export function customerLineGroupPath(
+  groupId: string,
+  customerId?: string,
+): string {
+  const path = `${CUSTOMER_LINE_PATH}/${encodeURIComponent(groupId)}`;
+  return customerId ? `${path}?${new URLSearchParams({ customerId })}` : path;
 }
 
 /**
@@ -93,6 +97,11 @@ export const customerLineRefs = {
     { readonly customerId?: string; readonly cursor?: string },
     TenantFunctionOutcome<LinePage<LineGroup>>
   >("customerLine/groups:listGroups"),
+  listPendingGroups: makeFunctionReference<
+    "query",
+    { readonly cursor?: string },
+    TenantFunctionOutcome<LinePage<LineGroup>>
+  >("customerLine/groups:listPendingGroups"),
   getGroup: makeFunctionReference<
     "query",
     { readonly groupId: string },

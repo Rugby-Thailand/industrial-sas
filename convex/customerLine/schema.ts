@@ -102,6 +102,10 @@ export const customerLineTables = {
       byOrg("connectionId", "current", "lastActivityAt"),
     )
     .index(
+      "by_orgId_connectionId_state_current_lastActivityAt",
+      byOrg("connectionId", "state", "current", "lastActivityAt"),
+    )
+    .index(
       "by_orgId_connectionId_customerId_current_lastActivityAt",
       byOrg("connectionId", "customerId", "current", "lastActivityAt"),
     ),

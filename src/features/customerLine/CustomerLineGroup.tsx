@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import {
   Building2,
   Pause,
@@ -32,6 +33,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { customerPath } from "@/lib/navigation";
 import { completeTask } from "@/lib/taskNavigation";
 import {
+  CUSTOMER_LINE_PATH,
   CUSTOMER_LINE_SETTINGS_PATH,
   customerLineGroupPath,
   customerLineRefs,
@@ -49,7 +51,15 @@ import {
   useLineViewer,
 } from "./lineShared";
 
-export function CustomerLineGroup({ groupId }: { readonly groupId: string }) {
+interface CustomerLineGroupProps {
+  readonly groupId: string;
+  readonly suggestedCustomerId?: string | undefined;
+}
+
+export function CustomerLineGroup({
+  groupId,
+  suggestedCustomerId,
+}: CustomerLineGroupProps) {
   const t = useTranslations("CustomerLine");
   return (
     <CustomerGate
@@ -61,12 +71,19 @@ export function CustomerLineGroup({ groupId }: { readonly groupId: string }) {
         />
       }
     >
-      <CustomerLineGroupBody key={groupId} groupId={groupId} />
+      <CustomerLineGroupBody
+        key={groupId}
+        groupId={groupId}
+        suggestedCustomerId={suggestedCustomerId}
+      />
     </CustomerGate>
   );
 }
 
-function CustomerLineGroupBody({ groupId }: { readonly groupId: string }) {
+function CustomerLineGroupBody({
+  groupId,
+  suggestedCustomerId,
+}: CustomerLineGroupProps) {
   const t = useTranslations("CustomerLine");
   const { loading, deniedRequestId, viewer } = useLineViewer();
 
@@ -117,16 +134,20 @@ function CustomerLineGroupBody({ groupId }: { readonly groupId: string }) {
     );
   }
 
-  return <CustomerLineGroupQuery groupId={groupId} viewer={viewer} />;
+  return (
+    <CustomerLineGroupQuery
+      groupId={groupId}
+      suggestedCustomerId={suggestedCustomerId}
+      viewer={viewer}
+    />
+  );
 }
 
 function CustomerLineGroupQuery({
   groupId,
+  suggestedCustomerId,
   viewer,
-}: {
-  readonly groupId: string;
-  readonly viewer: LineViewer;
-}) {
+}: CustomerLineGroupProps & { readonly viewer: LineViewer }) {
   const t = useTranslations("CustomerLine");
   const router = useRouter();
   const setGroupState = useMutation(customerLineRefs.setGroupState);
@@ -141,6 +162,7 @@ function CustomerLineGroupQuery({
   async function runStateTransition(
     expectedVersion: number,
     state: "active" | "paused" | "pending",
+    reviewAgain = false,
   ) {
     if (stateOperation.busy) return;
     setStateError(null);
@@ -158,7 +180,10 @@ function CustomerLineGroupQuery({
           outcome.value !== null &&
           "groupId" in outcome.value
         ) {
-          const destination = customerLineGroupPath(outcome.value.groupId);
+          const destination = customerLineGroupPath(
+            outcome.value.groupId,
+            reviewAgain ? suggestedCustomerId : undefined,
+          );
           stateOperation.complete(() =>
             completeTask(destination, router.replace),
           );
@@ -219,6 +244,11 @@ function CustomerLineGroupQuery({
           tone="warning"
           title={t("groupNotFoundTitle")}
           body={t("groupNotFoundBody")}
+          action={
+            <Button asChild variant="outline" size="sm">
+              <Link href={CUSTOMER_LINE_PATH}>{t("viewAllGroups")}</Link>
+            </Button>
+          }
           testId="line-group-not-found"
         />
       </>
@@ -228,31 +258,38 @@ function CustomerLineGroupQuery({
   return (
     <CustomerLineGroupContent
       group={groupOutcome.value}
+      suggestedCustomerId={suggestedCustomerId}
       connection={connection}
       viewer={viewer}
       stateBusy={stateOperation.busy}
       stateError={stateError ?? (stateOperation.error || null)}
       onStateTransition={runStateTransition}
+      onClearStateError={() => setStateError(null)}
     />
   );
 }
 
 function CustomerLineGroupContent({
   group,
+  suggestedCustomerId,
   connection,
   viewer,
   stateBusy,
   stateError,
   onStateTransition,
+  onClearStateError,
 }: {
   readonly group: LineGroup;
+  readonly suggestedCustomerId?: string | undefined;
   readonly connection: LinePrimaryConnectionSummary | null | undefined;
   readonly viewer: LineViewer;
   readonly stateBusy: boolean;
   readonly stateError: string | null;
+  readonly onClearStateError: () => void;
   readonly onStateTransition: (
     version: number,
     state: "active" | "paused" | "pending",
+    reviewAgain?: boolean,
   ) => Promise<void>;
 }) {
   const t = useTranslations("CustomerLine");
@@ -264,9 +301,14 @@ function CustomerLineGroupContent({
     navigation: "write",
   });
   const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [changeCustomerOpen, setChangeCustomerOpen] = useState(false);
+  const [changeCustomerVersion, setChangeCustomerVersion] = useState(
+    group.version,
+  );
   const [disconnectTarget, setDisconnectTarget] = useState({
     name: group.name,
     version: group.version,
+    ignoreJoin: group.state === "pending",
   });
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
 
@@ -276,6 +318,10 @@ function CustomerLineGroupContent({
     connection !== undefined &&
     connection.state !== "disconnected";
   const providerLeft = group.providerDeparture === "left";
+  const ignored =
+    group.state === "disconnected" &&
+    !group.customerId &&
+    !group.providerDeparture;
 
   async function confirmDisconnect() {
     if (disconnectOperation.busy) return;
@@ -308,7 +354,9 @@ function CustomerLineGroupContent({
         backFallbackHref="/master-data/customers/line"
         meta={
           <>
-            <GroupStateBadge state={group.state} />
+            <span role="status">
+              <GroupStateBadge state={group.state} ignored={ignored} />
+            </span>
             {group.providerDeparture ? (
               <ProviderDepartureBadge departure={group.providerDeparture} />
             ) : null}
@@ -367,37 +415,69 @@ function CustomerLineGroupContent({
           </Button>
         ) : null}
         {viewer.canManageGroups &&
-        (group.state === "paused" || group.state === "disconnected") ? (
+        (group.state === "active" || group.state === "paused") &&
+        !providerLeft ? (
           <Button
             type="button"
             variant="outline"
-            disabled={!oaConnected || providerLeft}
-            pending={stateBusy}
-            pendingLabel={t("requestingReapproval")}
-            onClick={() => void onStateTransition(group.version, "pending")}
-            data-testid="line-group-reapprove"
+            disabled={!oaConnected || stateBusy}
+            onClick={() => {
+              onClearStateError();
+              setChangeCustomerVersion(group.version);
+              setChangeCustomerOpen(true);
+            }}
+            data-testid="line-group-change-customer"
           >
             <RefreshCw aria-hidden="true" className="size-4" />
-            {t("requestReapproval")}
+            {t("changeGroupCustomer")}
           </Button>
         ) : null}
         {viewer.canManageGroups &&
-        (group.state === "active" || group.state === "paused") ? (
+        group.state === "disconnected" &&
+        !providerLeft ? (
           <Button
             type="button"
             variant="outline"
+            disabled={!oaConnected}
+            pending={stateBusy}
+            pendingLabel={t("requestingReapproval")}
+            onClick={() =>
+              void onStateTransition(
+                group.version,
+                "pending",
+                group.customerId === undefined,
+              )
+            }
+            data-testid="line-group-reapprove"
+          >
+            <RefreshCw aria-hidden="true" className="size-4" />
+            {t(
+              group.customerId === undefined
+                ? "reviewIgnoredJoin"
+                : "requestReapproval",
+            )}
+          </Button>
+        ) : null}
+        {viewer.canManageGroups &&
+        group.state !== "disconnected" &&
+        !providerLeft ? (
+          <Button
+            type="button"
+            variant={group.state === "pending" ? "ghost" : "outline"}
+            disabled={stateBusy}
             onClick={() => {
               setDisconnectError(null);
               setDisconnectTarget({
                 name: group.name,
                 version: group.version,
+                ignoreJoin: group.state === "pending",
               });
               setDisconnectOpen(true);
             }}
             data-testid="line-group-disconnect"
           >
             <Unlink aria-hidden="true" className="size-4" />
-            {t("disconnectGroup")}
+            {t(group.state === "pending" ? "ignoreJoin" : "disconnectGroup")}
           </Button>
         ) : null}
       </PageHeader>
@@ -460,7 +540,12 @@ function CustomerLineGroupContent({
             testId="line-group-pending-notice"
           />
           {viewer.canManageGroups ? (
-            <PendingApprovalSection group={group} oaReady={oaReady} />
+            <PendingApprovalSection
+              key={suggestedCustomerId}
+              group={group}
+              oaReady={oaReady}
+              initialCustomerId={suggestedCustomerId ?? ""}
+            />
           ) : null}
         </div>
       ) : (
@@ -476,40 +561,93 @@ function CustomerLineGroupContent({
           {group.state === "disconnected" ? (
             <Notice
               tone="muted"
-              title={t("disconnectedNoticeTitle")}
+              title={t(
+                ignored ? "groupState.ignored" : "disconnectedNoticeTitle",
+              )}
               body={
                 group.providerDeparture === "left"
                   ? t("providerLeftNoticeBody")
                   : group.providerDeparture === "failed"
                     ? t("providerFailedNoticeBody")
-                    : t("disconnectedNoticeBody")
+                    : ignored
+                      ? t("ignoredNoticeBody")
+                      : t("disconnectedNoticeBody")
               }
               testId="line-group-disconnected-notice"
             />
           ) : null}
 
           <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-            <GroupQuestionsSection
-              group={group}
-              oaReady={oaReady}
-              canSend={viewer.canSend}
-            />
-            <GroupContactsSection
-              groupId={group._id}
-              canManageGroups={viewer.canManageGroups}
-            />
+            {group.customerId ? (
+              <>
+                <GroupQuestionsSection
+                  group={group}
+                  oaReady={oaReady}
+                  canSend={viewer.canSend}
+                />
+                <GroupContactsSection
+                  groupId={group._id}
+                  canManageGroups={viewer.canManageGroups}
+                />
+              </>
+            ) : null}
           </div>
         </div>
       )}
 
       <ConfirmDialog
+        open={changeCustomerOpen}
+        onOpenChange={setChangeCustomerOpen}
+        title={t("changeGroupCustomerTitle", { group: group.name })}
+        description={t("changeGroupCustomerBody", {
+          customer: group.customerName ?? t("approveCustomerLabel"),
+        })}
+        error={
+          changeCustomerVersion === group.version
+            ? stateError
+            : t("groupConfirmationChanged")
+        }
+        cancelLabel={t("cancel")}
+        confirmLabel={t("changeGroupCustomerConfirm")}
+        confirmDisabled={
+          changeCustomerVersion !== group.version ||
+          providerLeft ||
+          !oaConnected
+        }
+        pendingLabel={t("requestingReapproval")}
+        pending={stateBusy}
+        onConfirm={() =>
+          void onStateTransition(changeCustomerVersion, "pending")
+        }
+        testId="line-group-change-customer-dialog"
+      />
+
+      <ConfirmDialog
         open={disconnectOpen}
         onOpenChange={setDisconnectOpen}
-        title={t("disconnectGroupTitle", { name: disconnectTarget.name })}
-        description={t("disconnectGroupBody")}
-        error={displayedDisconnectError}
+        title={t(
+          disconnectTarget.ignoreJoin
+            ? "ignoreJoinTitle"
+            : "disconnectGroupTitle",
+          { name: disconnectTarget.name },
+        )}
+        description={t(
+          disconnectTarget.ignoreJoin
+            ? "ignoreJoinBody"
+            : "disconnectGroupBody",
+        )}
+        error={
+          disconnectTarget.version === group.version
+            ? displayedDisconnectError
+            : t("groupConfirmationChanged")
+        }
+        confirmDisabled={
+          disconnectTarget.version !== group.version || providerLeft
+        }
         cancelLabel={t("cancel")}
-        confirmLabel={t("disconnectGroupConfirm")}
+        confirmLabel={t(
+          disconnectTarget.ignoreJoin ? "ignoreJoin" : "disconnectGroupConfirm",
+        )}
         pendingLabel={t("disconnectingGroup")}
         tone="destructive"
         pending={disconnectOperation.busy}
@@ -523,9 +661,11 @@ function CustomerLineGroupContent({
 function PendingApprovalSection({
   group,
   oaReady,
+  initialCustomerId,
 }: {
   readonly group: LineGroup;
   readonly oaReady: boolean;
+  readonly initialCustomerId: string;
 }) {
   const t = useTranslations("CustomerLine");
   const approveGroup = useMutation(customerLineRefs.approveGroup);
@@ -534,47 +674,38 @@ function PendingApprovalSection({
     describeError: () => "UNKNOWN",
     navigation: "write",
   });
-  const [customerId, setCustomerId] = useState(group.customerId ?? "");
-  const [confirmed, setConfirmed] = useState(false);
+  const [customerId, setCustomerId] = useState(initialCustomerId);
   const [error, setError] = useState<string | null>(null);
+  const target = useQuery(
+    api.customers.catalogue.getCustomer,
+    customerId ? { customerId } : "skip",
+  );
+  const customer =
+    target?.ok && target.value?.status === "ACTIVE" ? target.value : null;
 
   useNavigationDraft({
-    dirty: customerId !== (group.customerId ?? "") || confirmed,
+    dirty: customerId !== initialCustomerId,
     pending: operation.busy,
     discard: () => {
-      setCustomerId(group.customerId ?? "");
-      setConfirmed(false);
+      setCustomerId(initialCustomerId);
       setError(null);
     },
   });
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (operation.busy || !oaReady) return;
-    if (!customerId) {
-      setError(t("approveCustomerRequired"));
-      return;
-    }
-    if (!confirmed) {
-      setError(t("approveConfirmRequired"));
-      return;
-    }
+  async function confirmLink() {
+    if (operation.busy || !oaReady || !customer) return;
     setError(null);
     await operation.run(
-      async () =>
+      () =>
         approveGroup({
           groupId: group._id,
-          customerId,
+          customerId: customer.customerId,
           expectedVersion: group.version,
           confirmed: true,
         }),
       (outcome) => {
         const result = readLineWriteOutcome(outcome);
-        if (!result.ok) {
-          setError(t(`errors.${result.code}`));
-        } else {
-          setConfirmed(false);
-        }
+        if (!result.ok) setError(t(`errors.${result.code}`));
       },
     );
   }
@@ -583,7 +714,11 @@ function PendingApprovalSection({
     error ?? (operation.error ? t("errors.UNKNOWN") : null);
 
   return (
-    <Panel as="section" className="space-y-4">
+    <Panel
+      as="section"
+      className="space-y-4"
+      data-testid="line-approve-group-form"
+    >
       <SectionHeader
         title={t("approveSectionTitle")}
         description={t("approveSectionDescription")}
@@ -591,47 +726,43 @@ function PendingApprovalSection({
       {!oaReady ? (
         <Notice tone="warning" title={t("approveRequiresOa")} />
       ) : null}
-      <form
-        onSubmit={(event) => void handleSubmit(event)}
-        className="space-y-4"
-        data-testid="line-approve-group-form"
+      <CustomerPicker
+        label={t("approveCustomerLabel")}
+        value={customerId}
+        onChange={(next) => {
+          setCustomerId(next);
+          setError(null);
+        }}
+        unlinkedLabel={t("approveCustomerUnlinked")}
+        searchPlaceholder={t("approveCustomerSearch")}
+        disabled={operation.busy || !oaReady}
+        testId="line-approve-customer-picker"
+      />
+      {customer ? (
+        <p
+          id="line-confirm-link-help"
+          className="text-sm wrap-anywhere text-muted"
+        >
+          {t("approveConfirmationSummary", {
+            group: group.name,
+            customer: customer.name,
+          })}
+        </p>
+      ) : customerId && target !== undefined ? (
+        <ErrorNotice message={t("customerSelectionUnavailable")} />
+      ) : null}
+      <ErrorNotice message={displayedError} />
+      <Button
+        type="button"
+        disabled={!oaReady || !customer}
+        {...(customer ? { "aria-describedby": "line-confirm-link-help" } : {})}
+        pending={operation.busy}
+        pendingLabel={t("approving")}
+        onClick={() => void confirmLink()}
+        data-testid="line-approve-submit"
       >
-        <CustomerPicker
-          label={t("approveCustomerLabel")}
-          value={customerId}
-          onChange={(next) => {
-            setCustomerId(next);
-            if (error) setError(null);
-          }}
-          unlinkedLabel={t("approveCustomerUnlinked")}
-          searchPlaceholder={t("approveCustomerSearch")}
-          disabled={operation.busy || !oaReady}
-          testId="line-approve-customer-picker"
-        />
-        <CheckboxField
-          checked={confirmed}
-          disabled={operation.busy || !oaReady}
-          onChange={(event) => {
-            setConfirmed(event.target.checked);
-            if (error) setError(null);
-          }}
-          label={t("approveConfirmLabel")}
-          description={t("approveConfirmDescription")}
-          data-testid="line-approve-confirm-checkbox"
-        />
-        <ErrorNotice message={displayedError} />
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="submit"
-            disabled={!oaReady}
-            pending={operation.busy}
-            pendingLabel={t("approving")}
-            data-testid="line-approve-submit"
-          >
-            {t("approveSubmit")}
-          </Button>
-        </div>
-      </form>
+        {t("approveSubmit")}
+      </Button>
     </Panel>
   );
 }

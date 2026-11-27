@@ -19,6 +19,7 @@ import {
   CUSTOMER_LINE_SETTINGS_PATH,
   customerLineGroupPath,
   customerLineRefs,
+  type LineGroup,
   type LinePrimaryConnectionSummary,
   type LineViewer,
 } from "./lineApi";
@@ -203,7 +204,6 @@ function CustomerLineInboxContent({
   readonly customerId?: string;
 }) {
   const t = useTranslations("CustomerLine");
-  const format = useFormatter();
   const [cursors, setCursors] = useState<string[]>([]);
   const activeCursor = cursors.at(-1);
 
@@ -270,18 +270,19 @@ function CustomerLineInboxContent({
         canManageConnection={viewer.canManageConnection}
       />
 
-      {customerId ? (
-        <Notice
-          tone="accent"
-          title={t("filteredNoticeTitle")}
-          body={t("filteredNoticeBody")}
-          testId="line-filtered-inbox-notice"
-          action={
-            <Button asChild size="sm" variant="outline">
-              <Link href={CUSTOMER_LINE_PATH}>{t("viewAllGroups")}</Link>
-            </Button>
-          }
+      {viewer.canManageGroups &&
+      connection?.state === "active" &&
+      connection.basicId ? (
+        <InviteInstructions
+          basicId={connection.basicId}
+          showExpanded={Boolean(customerId)}
         />
+      ) : null}
+
+      {customerId &&
+      viewer.canManageGroups &&
+      connection?.state === "active" ? (
+        <PendingJoins key={customerId} customerId={customerId} />
       ) : null}
 
       <Notice
@@ -291,11 +292,10 @@ function CustomerLineInboxContent({
         testId="line-audience-notice"
       />
 
-      {connection?.basicId ? (
-        <InviteInstructions
-          basicId={connection.basicId}
-          defaultOpen={Boolean(customerId)}
-        />
+      {customerId ? (
+        <h2 className="text-base font-semibold text-text">
+          {t("customerGroupsTitle")}
+        </h2>
       ) : null}
 
       {loadingGroups ? (
@@ -312,60 +312,9 @@ function CustomerLineInboxContent({
           title={customerId ? t("filteredEmptyTitle") : t("emptyTitle")}
           body={customerId ? t("filteredEmptyBody") : t("emptyBody")}
           testId="line-groups-empty"
-          action={
-            customerId ? (
-              <Button asChild variant="outline">
-                <Link href={CUSTOMER_LINE_PATH}>{t("viewAllGroups")}</Link>
-              </Button>
-            ) : undefined
-          }
         />
       ) : (
-        <ul
-          aria-label={t("groupListLabel")}
-          data-testid="line-groups-list"
-          className="divide-y divide-border rounded-lg border border-border bg-surface"
-        >
-          {groups.map((group) => (
-            <li key={group._id}>
-              <Link
-                href={customerLineGroupPath(group._id)}
-                data-testid={`line-group-link-${group._id}`}
-                className="flex min-h-touch items-center gap-3 px-4 py-3 hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
-              >
-                <span className="min-w-0 flex-1 space-y-1">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold wrap-anywhere text-text">
-                      {group.name}
-                    </span>
-                    <GroupStateBadge state={group.state} />
-                    {group.providerDeparture ? (
-                      <ProviderDepartureBadge
-                        departure={group.providerDeparture}
-                      />
-                    ) : null}
-                  </span>
-                  <span className="block text-xs wrap-anywhere text-muted">
-                    {group.customerName ?? t("unlinkedCustomer")}
-                    {" · "}
-                    <span className="tabular-nums">
-                      {t("lastActivity", {
-                        time: format.dateTime(group.lastActivityAt, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        }),
-                      })}
-                    </span>
-                  </span>
-                </span>
-                <ChevronRight
-                  aria-hidden="true"
-                  className="size-4 shrink-0 text-muted"
-                />
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <GroupRows groups={groups} />
       )}
 
       {hasPrevious || hasNext ? (
@@ -402,5 +351,133 @@ function CustomerLineInboxContent({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function PendingJoins({ customerId }: { readonly customerId: string }) {
+  const t = useTranslations("CustomerLine");
+  const [cursors, setCursors] = useState<string[]>([]);
+  const cursor = cursors.at(-1);
+  const outcome = useQuery(
+    customerLineRefs.listPendingGroups,
+    cursor ? { cursor } : {},
+  );
+  const page = outcome?.ok ? outcome.value : null;
+  const next = page?.continueCursor;
+
+  return (
+    <section
+      className="space-y-2.5"
+      aria-label={t("pendingJoinsTitle")}
+      data-testid="line-pending-joins"
+    >
+      <h2 className="text-base font-semibold text-text">
+        {t("pendingJoinsTitle")}
+      </h2>
+      {outcome === undefined ? (
+        <LedgerPanelStatus state={{ kind: "LOADING" }} label={t("loading")} />
+      ) : !outcome.ok ? (
+        <LedgerPanelStatus
+          state={{ kind: "DENIED", requestId: outcome.denial.requestId }}
+        />
+      ) : page?.page.length ? (
+        <>
+          <p className="text-sm text-muted">{t("pendingJoinsHint")}</p>
+          <GroupRows groups={page.page} customerId={customerId} />
+        </>
+      ) : (
+        <p className="text-sm text-muted">{t("pendingJoinsEmpty")}</p>
+      )}
+      {cursors.length > 0 || next ? (
+        <div className="flex flex-wrap gap-2">
+          {cursors.length > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              disabled={!outcome}
+              onClick={() => setCursors((current) => current.slice(0, -1))}
+            >
+              {t("previousPage")}
+            </Button>
+          ) : null}
+          {next ? (
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setCursors((current) => [...current, next])}
+            >
+              {t("nextPage")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function GroupRows({
+  groups,
+  customerId,
+}: {
+  readonly groups: readonly LineGroup[];
+  readonly customerId?: string;
+}) {
+  const t = useTranslations("CustomerLine");
+  const format = useFormatter();
+  return (
+    <ul
+      aria-label={t("groupListLabel")}
+      data-testid={customerId ? "line-pending-group-list" : "line-groups-list"}
+      className="divide-y divide-border rounded-lg border border-border bg-surface"
+    >
+      {groups.map((group) => (
+        <li key={group._id}>
+          <Link
+            href={customerLineGroupPath(group._id, customerId)}
+            data-testid={`line-group-link-${group._id}`}
+            className="flex min-h-touch items-center gap-3 px-4 py-3 hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
+          >
+            <span className="min-w-0 flex-1 space-y-1">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold wrap-anywhere text-text">
+                  {group.name}
+                </span>
+                <GroupStateBadge
+                  state={group.state}
+                  ignored={
+                    group.state === "disconnected" &&
+                    !group.customerId &&
+                    !group.providerDeparture
+                  }
+                />
+                {group.providerDeparture ? (
+                  <ProviderDepartureBadge departure={group.providerDeparture} />
+                ) : null}
+              </span>
+              <span className="block text-xs wrap-anywhere text-muted">
+                {customerId
+                  ? t("reviewJoin")
+                  : (group.customerName ?? t("unlinkedCustomer"))}
+                {" · "}
+                <span className="tabular-nums">
+                  {t(group.state === "pending" ? "joinedAt" : "lastActivity", {
+                    time: format.dateTime(group.lastActivityAt, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }),
+                  })}
+                </span>
+              </span>
+            </span>
+            <ChevronRight
+              aria-hidden="true"
+              className="size-4 shrink-0 text-muted"
+            />
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }

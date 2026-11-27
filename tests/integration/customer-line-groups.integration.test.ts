@@ -707,6 +707,49 @@ describe("customer LINE enrollment", () => {
     ).toEqual({ code: "CUSTOMER_UNAVAILABLE" });
   });
 
+  it("removes an ignored join from pending review and lets staff reopen it without inviting the bot again", async () => {
+    const world = await setup();
+    const { webhookPath } = await world.activate(world.admin, BOT_A);
+    const pending = async () =>
+      value(await world.admin.query(line.listPendingGroups, {})).page;
+    await world.accept(webhookPath, [
+      ev({
+        type: "join",
+        groupId: GROUP,
+        timestamp: T0 + 10,
+        groupName: "Wrong chat",
+      }),
+    ]);
+    const join = (await pending()).find(({ name }) => name === "Wrong chat")!;
+    expect(
+      value(
+        await world.admin.mutation(line.setGroupState, {
+          groupId: join._id,
+          expectedVersion: join.version,
+          state: "disconnected",
+        }),
+      ),
+    ).toBeNull();
+    expect((await pending()).map(({ name }) => name)).not.toContain(
+      "Wrong chat",
+    );
+    const ignored = value(
+      await world.admin.query(line.getGroup, { groupId: join._id }),
+    )!;
+    expect(ignored).toMatchObject({ state: "disconnected" });
+    expect(ignored).not.toHaveProperty("providerDeparture");
+    const reopened = value(
+      await world.admin.mutation(line.setGroupState, {
+        groupId: ignored._id,
+        expectedVersion: ignored.version,
+        state: "pending",
+      }),
+    );
+    const next = (await pending()).find(({ name }) => name === "Wrong chat")!;
+    expect(reopened).toEqual({ groupId: next._id });
+    expect(next).not.toHaveProperty("customerId");
+  });
+
   it("starts staff reapproval as a fresh enrollment isolated from earlier history", async () => {
     const world = await setup();
     const { webhookPath } = await world.activate(world.admin, BOT_A);

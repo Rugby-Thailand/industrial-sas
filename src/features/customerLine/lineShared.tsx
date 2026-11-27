@@ -1,11 +1,12 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { Copy } from "lucide-react";
+import { Copy, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { Input } from "@/components/ui/input";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import {
   customerLineRefs,
@@ -43,12 +44,18 @@ const GROUP_STATE_TONE: Readonly<Record<LineGroupState, BadgeTone>> = {
   disconnected: "muted",
 };
 
-export function GroupStateBadge({ state }: { readonly state: LineGroupState }) {
+export function GroupStateBadge({
+  state,
+  ignored = false,
+}: {
+  readonly state: LineGroupState;
+  readonly ignored?: boolean;
+}) {
   const t = useTranslations("CustomerLine");
   return (
     <StatusBadge
       tone={GROUP_STATE_TONE[state]}
-      label={t(`groupState.${state}`)}
+      label={t(ignored ? "groupState.ignored" : `groupState.${state}`)}
     />
   );
 }
@@ -140,51 +147,58 @@ export function ConnectionStateBadge({
 
 export function InviteInstructions({
   basicId,
-  defaultOpen = false,
+  showExpanded = false,
 }: {
   readonly basicId: string;
-  readonly defaultOpen?: boolean;
+  readonly showExpanded?: boolean;
 }) {
   const t = useTranslations("CustomerLine");
   const fieldId = useId();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const idRef = useRef<HTMLInputElement>(null);
   const [copyMessage, setCopyMessage] = useState("");
-  const inviteText = t("inviteMessage", { basicId });
+  const profileUrl = `https://line.me/R/ti/p/${encodeURIComponent(basicId)}`;
 
   async function handleCopy() {
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
       try {
-        await navigator.clipboard.writeText(inviteText);
+        await navigator.clipboard.writeText(basicId);
         setCopyMessage(t("copied"));
         return;
       } catch {
-        // Fallback to selecting the readonly text below.
+        // Leave the ID selected for manual copying.
       }
     }
-    textareaRef.current?.focus();
-    textareaRef.current?.select();
+    idRef.current?.focus();
+    idRef.current?.select();
     setCopyMessage(t("copyFallbackSelected"));
   }
 
   const content = (
     <div className="space-y-2.5" data-testid="line-invite-instructions">
-      <p className="text-xs leading-relaxed text-muted">{t("inviteHint")}</p>
-      <label htmlFor={fieldId} className="sr-only">
-        {t("inviteLabel")}
-      </label>
-      <textarea
-        ref={textareaRef}
-        id={fieldId}
-        readOnly
-        rows={2}
-        value={inviteText}
-        className="w-full rounded-md border border-input bg-raised px-3 py-2 text-sm text-text focus-visible:outline-2 focus-visible:outline-ring"
-      />
+      <p className="text-sm leading-relaxed text-muted">
+        {t("inviteHint", { basicId })}
+      </p>
       <div className="flex flex-wrap items-center gap-2">
+        <Button asChild size="sm" variant="outline">
+          <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+            <ExternalLink aria-hidden="true" className="size-4" />
+            {t("openBotInLine")}
+          </a>
+        </Button>
+        <label htmlFor={fieldId} className="sr-only">
+          {t("inviteLabel")}
+        </label>
+        <Input
+          readOnly
+          ref={idRef}
+          id={fieldId}
+          value={basicId}
+          className="w-44 max-w-full font-mono"
+        />
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant="ghost"
           onClick={() => void handleCopy()}
           data-testid="copy-invite-button"
         >
@@ -198,7 +212,7 @@ export function InviteInstructions({
     </div>
   );
 
-  if (defaultOpen) {
+  if (showExpanded) {
     return (
       <section className="space-y-2 rounded-lg border border-border bg-surface p-4">
         <h2 className="text-base leading-6 font-semibold text-text">

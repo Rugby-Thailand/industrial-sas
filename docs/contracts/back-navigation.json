@@ -11912,16 +11912,9 @@
             "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
           ],
           "falsy": [
-            "li",
-            "lucide-react#ChevronRight",
-            "span",
+            "GroupRows",
             "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
-            "src/components/ui/EmptyState#EmptyState",
-            "src/components/ui/button#Button",
-            "src/features/customerLine/lineShared#GroupStateBadge",
-            "src/features/customerLine/lineShared#ProviderDepartureBadge",
-            "src/i18n/navigation#Link",
-            "ul"
+            "src/components/ui/EmptyState#EmptyState"
           ]
         },
         {
@@ -11929,34 +11922,12 @@
           "truthy": [
             "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
           ],
-          "falsy": [
-            "li",
-            "lucide-react#ChevronRight",
-            "span",
-            "src/components/ui/EmptyState#EmptyState",
-            "src/components/ui/button#Button",
-            "src/features/customerLine/lineShared#GroupStateBadge",
-            "src/features/customerLine/lineShared#ProviderDepartureBadge",
-            "src/i18n/navigation#Link",
-            "ul"
-          ]
+          "falsy": ["GroupRows", "src/components/ui/EmptyState#EmptyState"]
         },
         {
           "shape": "conditional",
-          "truthy": [
-            "src/components/ui/EmptyState#EmptyState",
-            "src/components/ui/button#Button",
-            "src/i18n/navigation#Link"
-          ],
-          "falsy": [
-            "li",
-            "lucide-react#ChevronRight",
-            "span",
-            "src/features/customerLine/lineShared#GroupStateBadge",
-            "src/features/customerLine/lineShared#ProviderDepartureBadge",
-            "src/i18n/navigation#Link",
-            "ul"
-          ]
+          "truthy": ["src/components/ui/EmptyState#EmptyState"],
+          "falsy": ["GroupRows"]
         },
         {
           "shape": "conditional",
@@ -12292,6 +12263,105 @@
           "name": "primary OA disconnect confirmation cancels cleanly before next Back and blocks dismissal while pending"
         }
       ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineInbox.tsx#PendingJoins:cursors",
+      "policy": "presentation",
+      "expectation": "Pending-join pagination swaps rows and their review links within the current customer's inbox. It preserves the customer selection and creates no history entry.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["GroupRows", "p"],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "GroupRows",
+            "p",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": ["GroupRows", "p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "pages pending joins without leaving the customer or changing the review links"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#PendingApprovalSection:customerId",
+      "policy": "presentation",
+      "expectation": "The customer picker changes inline validation and the link summary. An unavailable customer stays editable and cannot be submitted. Draft protection preserves deliberate edits.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": ["src/components/ui/Notice#ErrorNotice"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#ErrorNotice"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "can replace an unavailable proposed customer before linking"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#CustomerLineGroupContent:changeCustomerOpen",
+      "policy": "overlay",
+      "expectation": "The shared ConfirmDialog protects the current group link. Cancel consumes the dialog entry, a pending write blocks dismissal, and completion replaces the retired enrollment and restores the original inbox on Back.",
+      "integration": "confirmation",
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "cancels or completes a wrong customer correction without leaving a dead Back step"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#CustomerLineGroupContent:$overlay:ConfirmDialog:changeCustomerOpen",
+      "policy": "overlay",
+      "expectation": "The shared ConfirmDialog protects the current group link. Cancel consumes the dialog entry, a pending write blocks dismissal, and completion replaces the retired enrollment and restores the original inbox on Back.",
+      "integration": "confirmation",
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "cancels or completes a wrong customer correction without leaving a dead Back step"
+        }
+      ]
     }
   ],
   "overlayDelegates": [
@@ -12449,12 +12519,16 @@
     {
       "id": "src/features/customerLine/CustomerLineGroup.tsx#runStateTransition:$task:completeTask:customerLineGroupPath",
       "intent": "completion",
-      "expectation": "LINE group reapproval replaces the retired enrollment after the live write settles. Back restores the actual filtered inbox with its locale, query, and hash.",
+      "expectation": "Reconnecting or correcting a LINE group replaces its retired enrollment after the live write settles. Back restores the actual filtered inbox with its locale, query, and hash.",
       "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
       "cases": [
         {
           "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
           "name": "reopens a locally disconnected LINE group and Back restores the filtered inbox"
+        },
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "cancels or completes a wrong customer correction without leaving a dead Back step"
         }
       ]
     },

@@ -227,6 +227,20 @@ beforeEach(() => {
     ok: true,
     value: { page: [ACTIVE_GROUP, PENDING_GROUP], continueCursor: null },
   });
+  setQuery(customerLineRefs.listPendingGroups, {
+    ok: true,
+    value: { page: [PENDING_GROUP], continueCursor: null },
+  });
+  mocks.queryResolvers.set(
+    "customers/catalogue:getCustomer",
+    ({ customerId }) => ({
+      ok: true,
+      value:
+        customerId === "cust-7"
+          ? { customerId, name: "Thairungruang Packaging", status: "ACTIVE" }
+          : null,
+    }),
+  );
   setQuery(customerLineRefs.getGroup, { ok: true, value: ACTIVE_GROUP });
   setQuery(customerLineRefs.listQuestions, {
     ok: true,
@@ -359,7 +373,7 @@ describe("CustomerLineInbox", () => {
     ).toBeInTheDocument();
   });
 
-  it("filtered CustomerLineInbox forwards customerId, shows copyable invite instructions with OA basicId, unfiltered pending link, and reply audience notice", async () => {
+  it("shows staff invite actions and pending joins on the customer LINE page", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
@@ -370,7 +384,17 @@ describe("CustomerLineInbox", () => {
     expect(
       mocks.queryArgs.get(getFunctionName(customerLineRefs.listGroups)),
     ).toEqual({ customerId: "cust-7" });
-    expect(screen.getByTestId("line-filtered-inbox-notice")).toBeVisible();
+    expect(
+      within(screen.getByTestId("line-pending-joins")).getByTestId(
+        "line-group-link-grp-receiving",
+      ),
+    ).toHaveAttribute(
+      "href",
+      "/master-data/customers/line/grp-receiving?customerId=cust-7",
+    );
+    expect(
+      screen.getByRole("link", { name: "Open bot in LINE" }),
+    ).toHaveAttribute("href", "https://line.me/R/ti/p/%40yongkit-care");
     expect(screen.getByTestId("line-view-all-groups")).toHaveAttribute(
       "href",
       "/master-data/customers/line",
@@ -378,14 +402,32 @@ describe("CustomerLineInbox", () => {
     expect(screen.getByTestId("line-audience-notice")).toHaveTextContent(
       "Visible to everyone in the LINE group",
     );
-    const inviteBox = screen.getByLabelText(
-      "Bot invitation instructions",
-    ) as HTMLTextAreaElement;
-    expect(inviteBox.value).toContain("@yongkit-care");
+    expect(screen.getByLabelText("Bot LINE ID")).toHaveValue("@yongkit-care");
 
     fireEvent.click(screen.getByTestId("copy-invite-button"));
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
     expect(writeText.mock.calls[0]?.[0]).toContain("@yongkit-care");
+  });
+  it("pages pending joins without leaving the customer or changing the review links", () => {
+    const older = { ...PENDING_GROUP, _id: "older-join", name: "Older join" };
+    mocks.queryResolvers.set(
+      getFunctionName(customerLineRefs.listPendingGroups),
+      ({ cursor }) => ({
+        ok: true,
+        value: cursor
+          ? { page: [older], continueCursor: null }
+          : { page: [PENDING_GROUP], continueCursor: "pending-2" },
+      }),
+    );
+    renderScreen(<CustomerLineInbox customerId="cust-7" />);
+    const pending = within(screen.getByTestId("line-pending-joins"));
+    fireEvent.click(pending.getByRole("button", { name: "Next page" }));
+    expect(pending.getByRole("link", { name: /Older join/ })).toHaveAttribute(
+      "href",
+      "/master-data/customers/line/older-join?customerId=cust-7",
+    );
+    fireEvent.click(pending.getByRole("button", { name: "Previous page" }));
+    expect(pending.getByTestId("line-group-link-grp-receiving")).toBeVisible();
   });
 });
 
@@ -417,7 +459,6 @@ describe("CustomerLineGroup", () => {
     ).toBe(false);
 
     chooseOption("Customer company", "Thairungruang Packaging (C-0007)");
-    fireEvent.click(screen.getByTestId("line-approve-confirm-checkbox"));
     fireEvent.click(screen.getByTestId("line-approve-submit"));
 
     await waitFor(() =>
@@ -427,6 +468,85 @@ describe("CustomerLineGroup", () => {
         expectedVersion: 1,
         confirmed: true,
       }),
+    );
+  });
+
+  it("preselects the customer from the join link and preserves the selection after a rejected approval", async () => {
+    setQuery(customerLineRefs.getGroup, { ok: true, value: PENDING_GROUP });
+    const approveSpy = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, value: { code: "VERSION_CONFLICT" } })
+      .mockResolvedValueOnce({ ok: true, value: null });
+    registerTestMutation(customerLineRefs.approveGroup, approveSpy);
+    renderScreen(
+      <CustomerLineGroup
+        groupId="grp-receiving"
+        suggestedCustomerId="cust-7"
+      />,
+    );
+    expect(
+      screen.getByText(
+        /Connects Thairungruang · Receiving to Thairungruang Packaging/,
+      ),
+    ).toBeVisible();
+    expect(approveSpy).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm and connect" }),
+    );
+    expect(await screen.findByText(/This group changed/)).toBeVisible();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm and connect" }),
+    );
+    await waitFor(() => expect(approveSpy).toHaveBeenCalledTimes(2));
+    expect(approveSpy).toHaveBeenLastCalledWith({
+      groupId: "grp-receiving",
+      customerId: "cust-7",
+      expectedVersion: 1,
+      confirmed: true,
+    });
+  });
+
+  it("can replace an unavailable proposed customer before linking", () => {
+    setQuery(customerLineRefs.getGroup, { ok: true, value: PENDING_GROUP });
+    renderScreen(
+      <CustomerLineGroup
+        groupId="grp-receiving"
+        suggestedCustomerId="unavailable"
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Confirm and connect" }),
+    ).toBeDisabled();
+    expect(screen.getByText(/This customer is unavailable/)).toBeVisible();
+    chooseOption("Customer company", "Thairungruang Packaging (C-0007)");
+    expect(
+      screen.getByRole("button", { name: "Confirm and connect" }),
+    ).toBeEnabled();
+  });
+
+  it("can ignore a wrong LINE chat before it is linked", async () => {
+    setQuery(customerLineRefs.getGroup, { ok: true, value: PENDING_GROUP });
+    const stateSpy = vi.fn().mockResolvedValue({ ok: true, value: null });
+    registerTestMutation(customerLineRefs.setGroupState, stateSpy);
+    renderScreen(
+      <CustomerLineGroup
+        groupId="grp-receiving"
+        suggestedCustomerId="cust-7"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Ignore join" }));
+    const dialog = within(screen.getByTestId("line-group-disconnect-dialog"));
+    expect(dialog.getByText(/The bot stays in LINE/)).toBeVisible();
+    fireEvent.click(dialog.getByRole("button", { name: "Ignore join" }));
+    await waitFor(() =>
+      expect(stateSpy).toHaveBeenCalledWith({
+        groupId: "grp-receiving",
+        expectedVersion: 1,
+        state: "disconnected",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByTestId("line-group-disconnect-dialog")).toBeNull(),
     );
   });
 
@@ -540,7 +660,13 @@ describe("CustomerLineGroup", () => {
         state: "active",
       }),
     );
-    fireEvent.click(screen.getByTestId("line-group-reapprove"));
+    fireEvent.click(screen.getByTestId("line-group-change-customer"));
+    fireEvent.click(
+      within(screen.getByTestId("line-group-change-customer-dialog")).getByRole(
+        "button",
+        { name: "End link and choose customer" },
+      ),
+    );
     await waitFor(() =>
       expect(stateSpy).toHaveBeenCalledWith({
         groupId: "grp-dispatch",
@@ -562,7 +688,7 @@ describe("CustomerLineGroup", () => {
     const leftPausedView = renderScreen(
       <CustomerLineGroup groupId="grp-dispatch" />,
     );
-    expect(screen.getByTestId("line-group-reapprove")).toBeDisabled();
+    expect(screen.queryByTestId("line-group-change-customer")).toBeNull();
     leftPausedView.unmount();
 
     setQuery(customerLineRefs.getGroup, {
@@ -574,6 +700,79 @@ describe("CustomerLineGroup", () => {
       screen.getByTestId("line-group-disconnected-notice"),
     ).toHaveTextContent("does not imply the bot left the LINE chat");
     expect(screen.getByTestId("line-group-reapprove")).toBeEnabled();
+  });
+
+  it("cancels or completes a wrong customer correction without leaving a dead Back step", async () => {
+    stopHistory?.();
+    const source = "/th/master-data/customers/line?customerId=cust-7#groups";
+    const oldGroup =
+      "/th/master-data/customers/line/grp-dispatch?customerId=cust-7";
+    window.history.replaceState({ appNavigationIndex: 0 }, "", source);
+    stopHistory = trackAppHistory();
+    window.history.pushState({}, "", oldGroup);
+    mocks.replace.mockImplementation((href: string) => {
+      window.history.replaceState(window.history.state, "", `/th${href}`);
+    });
+
+    const correction = deferred<unknown>();
+    const changeGroup = vi.fn(() => correction.promise);
+    registerTestMutation(customerLineRefs.setGroupState, changeGroup);
+    const view = renderScreen(
+      <CustomerLineGroup groupId="grp-dispatch" suggestedCustomerId="cust-7" />,
+    );
+    const button = screen.getByRole("button", { name: "Change customer" });
+    fireEvent.click(button);
+    let dialog = screen.getByTestId("line-group-change-customer-dialog");
+    expect(dialog).toHaveTextContent(
+      "Previous questions and verified contacts stay with the old link",
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId("line-group-change-customer-dialog"),
+      ).toBeNull(),
+    );
+    await waitFor(() =>
+      expect(window.location.href.endsWith(oldGroup)).toBe(true),
+    );
+    expect(changeGroup).not.toHaveBeenCalled();
+
+    fireEvent.click(button);
+    dialog = screen.getByTestId("line-group-change-customer-dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: "End link and choose customer",
+      }),
+    );
+    expect(changeGroup).toHaveBeenCalledWith({
+      groupId: "grp-dispatch",
+      expectedVersion: 3,
+      state: "pending",
+    });
+    expect(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    ).toBeDisabled();
+    setQuery(customerLineRefs.getGroup, { ok: true, value: null });
+    view.rerender(
+      <DraftGuardProvider>
+        <CustomerLineGroup
+          groupId="grp-dispatch"
+          suggestedCustomerId="cust-7"
+        />
+      </DraftGuardProvider>,
+    );
+    await act(async () =>
+      correction.resolve({ ok: true, value: { groupId: "corrected" } }),
+    );
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        "/master-data/customers/line/corrected",
+      ),
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(window.location.href.endsWith(source)).toBe(true),
+    );
   });
 
   it("reopens a locally disconnected LINE group and Back restores the filtered inbox", async () => {

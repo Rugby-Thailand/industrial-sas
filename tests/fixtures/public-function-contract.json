@@ -2998,6 +2998,212 @@
       ]
     }
   },
+  "customerLine/groups:listPendingGroups": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "page": {
+                    "fieldType": {
+                      "type": "array",
+                      "value": {
+                        "type": "object",
+                        "value": {
+                          "_id": {
+                            "fieldType": {
+                              "type": "id",
+                              "tableName": "customerLineGroups"
+                            },
+                            "optional": false
+                          },
+                          "name": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "state": {
+                            "fieldType": {
+                              "type": "union",
+                              "value": [
+                                {
+                                  "type": "literal",
+                                  "value": "pending"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "active"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "paused"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "disconnected"
+                                }
+                              ]
+                            },
+                            "optional": false
+                          },
+                          "customerId": {
+                            "fieldType": {
+                              "type": "id",
+                              "tableName": "customers"
+                            },
+                            "optional": true
+                          },
+                          "customerName": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": true
+                          },
+                          "version": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": false
+                          },
+                          "lastActivityAt": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": false
+                          },
+                          "providerDeparture": {
+                            "fieldType": {
+                              "type": "union",
+                              "value": [
+                                {
+                                  "type": "literal",
+                                  "value": "pending"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "left"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "failed"
+                                }
+                              ]
+                            },
+                            "optional": true
+                          }
+                        }
+                      }
+                    },
+                    "optional": false
+                  },
+                  "continueCursor": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
   "customerLine/groups:listQuestions": {
     "kind": "query",
     "visibility": "public",

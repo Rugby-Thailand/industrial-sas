@@ -37,6 +37,7 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
   useWorkspace: () => ({
     authenticated: true,
     readiness: { kind: "READY_TO_QUERY" },
+    navigationPermissions: ["masterData.customer.read"],
   }),
 }));
 vi.mock("@/i18n/navigation", () => ({
@@ -93,6 +94,52 @@ it("the LINE group route opened directly falls back to the inbox", async () => {
   );
   back();
   expect(mocks.router.replace).toHaveBeenCalledWith(inbox);
+});
+
+it("uses the customer from the LINE join URL as the proposed link on the actual route", async () => {
+  mocks.queries.set(
+    "customerLine/groups:getGroup",
+    queryValue({
+      _id: "group-a",
+      name: "Receiving",
+      state: "pending",
+      version: 1,
+      lastActivityAt: Date.now(),
+    }),
+  );
+  mocks.queries.set(
+    "customerLine/groups:getPrimaryConnectionSummary",
+    queryValue({
+      state: "active",
+      name: "Yongkit",
+      basicId: "@yongkit",
+    }),
+  );
+  mocks.queries.set("customers/catalogue:getCustomer", (args: unknown) => {
+    expect(args).toEqual({ customerId: "customer-a" });
+    return queryValue({
+      customerId: "customer-a",
+      name: "Customer A",
+      status: "ACTIVE",
+    });
+  });
+  mocks.queries.set(
+    "customers/linking:searchCustomerOptions",
+    queryValue({
+      items: [{ customerId: "customer-a", code: "C-A", name: "Customer A" }],
+      hasMore: false,
+    }),
+  );
+  render(
+    await CustomerLineGroupPage({
+      params: Promise.resolve({ locale: "en", groupId: "group-a" }),
+      searchParams: Promise.resolve({ customerId: "customer-a" }),
+    }),
+  );
+  expect(screen.getByText(/Connects Receiving to Customer A/)).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Confirm and connect" }),
+  ).toBeEnabled();
 });
 
 it("the LINE settings route opened directly falls back to the inbox", async () => {
