@@ -123,6 +123,7 @@ function PeriodsContent({
             <HrSiteSelect
               id={`${id}-site`}
               surface="periods-filter"
+              filter
               value={criteria.site}
               onChange={(site) => setCriteria({ site })}
               placeholder={t("allSites")}

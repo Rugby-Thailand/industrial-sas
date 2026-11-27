@@ -1,5 +1,6 @@
 "use client";
 
+import { FilterRadios } from "@/components/system/FilterRadios";
 import { useQuery } from "convex/react";
 import { Pencil, Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -10,6 +11,12 @@ import { traverseBack } from "@/lib/navigationGuard";
 import { flushSync } from "react-dom";
 
 import { useHrAccess, useHrCan } from "@/components/providers/HrAccessProvider";
+import {
+  AppliedFilterChip,
+  ClearFilterButton,
+  FilterTrigger,
+} from "@/components/system/FilterActions";
+import { SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Label } from "@/components/ui/label";
@@ -69,7 +76,8 @@ import {
   HrSearchField,
   useHrPagedQuery,
 } from "./HrPagedList";
-import { HrSiteSelect } from "./HrSiteSelect";
+import { HrSiteSelect, siteLabel } from "./HrSiteSelect";
+import { HrFilterSheet } from "./HrFilterSheet";
 import { orgItems, type MasterRow } from "./HrOrgShared";
 import { HrInitials, HrToolbar } from "./HrUi";
 
@@ -297,8 +305,8 @@ function EmployeesContent({
   readonly onClose: (criteria: ListCriteria) => void;
 }) {
   const t = useTranslations("Hr.employees");
+  const filterText = useTranslations("Hr.filterControls");
   const access = useHrAccess();
-  const id = useId();
   const [criteria, setCriteria, entry] = useHrListCriteria(
     LIST_DEFAULTS,
     "employees",
@@ -338,7 +346,12 @@ function EmployeesContent({
     criteria.site !== "" ||
     status !== undefined ||
     department !== undefined;
-  const clear = () => setCriteria(LIST_DEFAULTS);
+  const filterCount =
+    Number(status !== undefined) +
+    Number(criteria.site !== "") +
+    Number(department !== undefined);
+  const clearFilters = () => setCriteria({ status: "", site: "", dept: "" });
+  const clearSearch = () => setCriteria({ q: "" });
   // The last save's receipt on the list it returns to. It is not a history
   // entry: opening an editor (or Forward to one) replaces it.
   const [receipt, setReceipt] = useState<Saved | null>(null);
@@ -378,73 +391,12 @@ function EmployeesContent({
         <Notice tone="warning" title={t("noSites")} body={t("noSitesHint")} />
       ) : (
         <section aria-label={t("tableLabel")} className="space-y-3">
-          <HrToolbar label={t("filters")}>
-            <HrSearchField
-              id={`${id}-search`}
-              label={t("search")}
-              placeholder={t("searchHint")}
-              value={criteria.q}
-              onSettled={(q) => setCriteria({ q }, true)}
-            />
-            {access.sites.length > 1 ? (
-              <div className="grid w-full gap-2 sm:w-56">
-                <Label htmlFor={`${id}-site`}>{t("site")}</Label>
-                <HrSiteSelect
-                  id={`${id}-site`}
-                  surface="employees-filter"
-                  value={criteria.site}
-                  onChange={(site) => setCriteria({ site })}
-                  placeholder={t("allSites")}
-                  emptyLabel={t("allSites")}
-                  allLabel={t("allSites")}
-                />
-              </div>
-            ) : null}
-            <div className="grid w-full gap-2 sm:w-44">
-              <Label htmlFor={`${id}-status`}>{t("status")}</Label>
-              <SelectControl
-                id={`${id}-status`}
-                value={criteria.status}
-                onValueChange={(next) => setCriteria({ status: next })}
-                placeholder={t("currentEmployees")}
-                emptyLabel={t("currentEmployees")}
-                options={[
-                  { value: "", label: t("currentEmployees") },
-                  ...STATUS_FILTERS.map((value) => ({
-                    value,
-                    label: t(`statusFilter.${value}`),
-                  })),
-                ]}
-              />
-            </div>
-            {departments !== undefined && departments.length > 0 ? (
-              <div className="grid w-full gap-2 sm:w-52">
-                <Label htmlFor={`${id}-department`}>{t("department")}</Label>
-                <SelectControl
-                  id={`${id}-department`}
-                  value={department ?? ""}
-                  onValueChange={(next) => setCriteria({ dept: next })}
-                  placeholder={t("allDepartments")}
-                  emptyLabel={t("allDepartments")}
-                  options={[
-                    { value: "", label: t("allDepartments") },
-                    ...departments.map((row) => ({
-                      value: row.id,
-                      label:
-                        row.status === "ACTIVE"
-                          ? row.name
-                          : t("inactiveOption", { name: row.name }),
-                    })),
-                  ]}
-                />
-              </div>
-            ) : null}
-            {filtered ? (
-              <Button type="button" variant="ghost" onClick={clear}>
-                {t("clearFilters")}
-              </Button>
-            ) : null}
-          </HrToolbar>
+          <EmployeeFilters
+            criteria={criteria}
+            setCriteria={setCriteria}
+            departments={departments}
+            disabled={editing !== undefined}
+          />
           {departmentProblem === null ? null : (
             <HrInlineError code={departmentProblem} />
           )}
@@ -470,14 +422,22 @@ function EmployeesContent({
                     filtered ? (
                       <EmptyState
                         title={t("noMatches")}
-                        body={t("noMatchesHint")}
+                        body={t(
+                          filterCount > 0
+                            ? "noMatchesHint"
+                            : "noSearchMatchesHint",
+                        )}
                         action={
                           <Button
                             type="button"
                             variant="outline"
-                            onClick={clear}
+                            onClick={
+                              filterCount > 0 ? clearFilters : clearSearch
+                            }
                           >
-                            {t("clearFilters")}
+                            {filterCount > 0
+                              ? t("clearFilters")
+                              : filterText("clearSearch")}
                           </Button>
                         }
                       />
@@ -518,6 +478,219 @@ function EmployeesContent({
           <HrPager paging={paging} label={t("pagination")} />
         </section>
       )}
+    </div>
+  );
+}
+
+function EmployeeFilters({
+  criteria,
+  setCriteria,
+  departments,
+  disabled,
+}: {
+  readonly criteria: ListCriteria;
+  readonly setCriteria: (
+    patch: Partial<ListCriteria>,
+    typing?: boolean,
+  ) => void;
+  readonly departments: readonly MasterRow[] | undefined;
+  readonly disabled: boolean;
+}) {
+  const t = useTranslations("Hr.employees");
+  const filterText = useTranslations("Hr.filterControls");
+  const siteText = useTranslations("Hr.sitePicker");
+  const access = useHrAccess();
+  const id = useId();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const sheetOpen = useRef(false);
+  const [draft, setDraft] = useState({ status: "", site: "", dept: "" });
+  const [chosenSites, setChosenSites] = useUrlBackedState<
+    Readonly<Record<string, string>>
+  >(access.identityKey ?? "", {});
+  const focus = useRef(`${id}-status`);
+  const site = access.sites.find((option) => option.id === criteria.site);
+  const localSiteName = site ? siteLabel(site) : chosenSites[criteria.site];
+  const selectedSite = useQuery(
+    hrRefs.sitesPage,
+    criteria.site !== "" &&
+      localSiteName === undefined &&
+      access.sitesComplete === false
+      ? { pageSize: 20, selectedId: criteria.site }
+      : "skip",
+  );
+  const exactSite =
+    selectedSite?.ok && "selected" in selectedSite.value
+      ? selectedSite.value.selected
+      : undefined;
+  const siteName =
+    localSiteName ?? (exactSite ? siteLabel(exactSite) : siteText("selected"));
+  const statuses = [
+    { value: "", label: t("currentEmployees") },
+    ...STATUS_FILTERS.map((value) => ({
+      value,
+      label: t(`statusFilter.${value}`),
+    })),
+  ];
+  const status = statuses.find((option) => option.value === criteria.status);
+  const departmentOptions = [
+    { value: "", label: t("allDepartments") },
+    ...(departments ?? []).map((row) => ({
+      value: row.id,
+      label:
+        row.status === "ACTIVE"
+          ? row.name
+          : t("inactiveOption", { name: row.name }),
+    })),
+  ];
+  const department = departmentOptions.find(
+    (option) => option.value === criteria.dept,
+  );
+  const quickStatuses = statuses.filter((option) =>
+    ["", "ACTIVE", "INACTIVE", criteria.status].includes(option.value),
+  );
+  const fields = [
+    {
+      key: "status",
+      label: status?.label ?? t("status"),
+      active: status !== undefined && criteria.status !== "",
+    },
+    { key: "site", label: siteName, active: criteria.site !== "" },
+    {
+      key: "dept",
+      label: department?.label ?? t("department"),
+      active: criteria.dept !== "",
+    },
+  ] as const;
+  const applied = fields.filter((field) => field.active);
+  const changeOpen = (next: boolean) => {
+    if (sheetOpen.current === next) return;
+    sheetOpen.current = next;
+    if (next) {
+      setDraft({
+        status: status?.value ?? "",
+        site: criteria.site,
+        dept: criteria.dept,
+      });
+    }
+    setFiltersOpen(next);
+  };
+  return (
+    <div inert={disabled}>
+      <HrToolbar label={t("filters")} className="items-start">
+        <HrSearchField
+          id={`${id}-search`}
+          label={t("search")}
+          placeholder={t("searchHint")}
+          clearLabel={filterText("clearSearch")}
+          pause={filtersOpen || disabled}
+          value={criteria.q}
+          onSettled={(q) => setCriteria({ q }, q !== "")}
+          className="grid min-w-0 flex-1 gap-2 sm:max-w-72"
+        />
+        <div className="flex items-center gap-1 self-end">
+          <HrFilterSheet
+            open={filtersOpen}
+            onOpenChange={changeOpen}
+            title={t("filters")}
+            focus={focus}
+            trigger={
+              <SheetTrigger asChild>
+                <FilterTrigger
+                  label={t("filters")}
+                  count={applied.length}
+                  onClick={() => {
+                    focus.current = `${id}-status`;
+                  }}
+                />
+              </SheetTrigger>
+            }
+            onApply={() => setCriteria(draft)}
+          >
+            <section className="space-y-2">
+              <h3 className="font-semibold text-text">{t("status")}</h3>
+              <FilterRadios
+                id={`${id}-status`}
+                label={t("status")}
+                options={statuses}
+                value={draft.status}
+                onChange={(status) =>
+                  setDraft((current) => ({ ...current, status }))
+                }
+              />
+            </section>
+            {access.sites.length > 1 ||
+            access.sitesComplete === false ||
+            criteria.site !== "" ? (
+              <section className="space-y-2">
+                <Label htmlFor={`${id}-site`}>{t("site")}</Label>
+                <HrSiteSelect
+                  id={`${id}-site`}
+                  surface="employees-filter"
+                  filter
+                  value={draft.site}
+                  onChange={(site, label) => {
+                    if (label !== undefined && site !== "")
+                      setChosenSites({ ...chosenSites, [site]: label });
+                    setDraft((current) => ({ ...current, site }));
+                  }}
+                  placeholder={t("allSites")}
+                  emptyLabel={t("allSites")}
+                  allLabel={t("allSites")}
+                />
+              </section>
+            ) : null}
+            {(departments?.length ?? 0) > 0 || criteria.dept !== "" ? (
+              <section className="space-y-2">
+                <Label htmlFor={`${id}-dept`}>{t("department")}</Label>
+                <SelectControl
+                  id={`${id}-dept`}
+                  value={draft.dept}
+                  onValueChange={(dept) =>
+                    setDraft((current) => ({ ...current, dept }))
+                  }
+                  placeholder={t("allDepartments")}
+                  emptyLabel={t("allDepartments")}
+                  options={departmentOptions}
+                />
+              </section>
+            ) : null}
+          </HrFilterSheet>
+          {applied.length > 1 ? (
+            <ClearFilterButton
+              label={t("clearFilters")}
+              onClick={() => setCriteria({ status: "", site: "", dept: "" })}
+            />
+          ) : null}
+        </div>
+        <div className="w-full">
+          <FilterRadios
+            id={`${id}-quick-status`}
+            label={t("status")}
+            value={status?.value ?? ""}
+            options={quickStatuses}
+            onChange={(status) => setCriteria({ status })}
+            wrap
+          />
+        </div>
+        {applied.length > 0 ? (
+          <ul className="flex w-full flex-wrap items-center gap-2">
+            {applied.map(({ key, label }) => (
+              <li key={key} className="max-w-full">
+                <AppliedFilterChip
+                  label={label}
+                  editLabel={filterText("edit", { label })}
+                  removeLabel={filterText("remove", { label })}
+                  onEdit={() => {
+                    focus.current = `${id}-${key}`;
+                    changeOpen(true);
+                  }}
+                  onRemove={() => setCriteria({ [key]: "" })}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </HrToolbar>
     </div>
   );
 }

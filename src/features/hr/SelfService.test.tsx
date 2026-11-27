@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import {
+  waitFor,
+  cleanup,
+  fireEvent,
+  screen,
+  within,
+} from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -232,7 +238,7 @@ it("reconciles summary filters to the exact bounded attendance rows", () => {
   });
 });
 
-it("keeps scanning filtered requests and resets the cursor when applying search", () => {
+it("keeps scanning filtered requests and resets the cursor when applying search", async () => {
   state.query.mockImplementation(
     (_ref, args: { cursor?: string; text?: string }) =>
       envelope({
@@ -246,6 +252,7 @@ it("keeps scanning filtered requests and resets the cursor when applying search"
   renderWithIntl(<HrRequestsScreen />, { locale: "en" });
   expect(screen.getByText("No matches in this batch")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Older page" }));
+  fireEvent.click(screen.getByRole("button", { name: "Request filters" }));
   fireEvent.change(screen.getByLabelText("Search requests"), {
     target: { value: " missed punch " },
   });
@@ -253,12 +260,14 @@ it("keeps scanning filtered requests and resets the cursor when applying search"
     target: { value: "2026-10-01" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
-  expect(state.query).toHaveBeenLastCalledWith("hr/self:requests", {
-    clockRefresh: expect.any(Number),
-    limit: 20,
-    text: " missed punch ",
-    from: "2026-10-01",
-  });
+  await waitFor(() =>
+    expect(state.query).toHaveBeenLastCalledWith("hr/self:requests", {
+      clockRefresh: expect.any(Number),
+      limit: 20,
+      text: "missed punch",
+      from: "2026-10-01",
+    }),
+  );
   expect(screen.getByRole("button", { name: "Newer page" })).toBeDisabled();
 });
 it("distinguishes empty frozen history batches from exhausted personal history", () => {

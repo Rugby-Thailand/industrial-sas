@@ -273,7 +273,7 @@ describe("employee registry pages", () => {
     });
     expect(screen.getByText("No matching employees")).toBeInTheDocument();
     fireEvent.click(
-      screen.getAllByRole("button", { name: "Clear filters" })[0]!,
+      screen.getAllByRole("button", { name: "Clear search" })[0]!,
     );
     expect(employeeCalls().at(-1)).toEqual({ pageSize: 20 });
   });

@@ -15,6 +15,14 @@ const mock = vi.hoisted(() => ({
   ok: true,
   userId: "user",
   orgId: "org",
+  options: null as Array<
+    Array<{
+      buildingId: string;
+      buildingCode: string;
+      buildingName: string;
+      floorCount: number;
+    }>
+  > | null,
 }));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ userId: mock.userId, orgId: mock.orgId }),
@@ -38,9 +46,11 @@ vi.mock("convex/react", () => ({
         ok: mock.ok,
         value: {
           status: "ready",
-          page: rows.map((row) => ({ ...row, floorCount: row.floorNumber })),
-          isDone: true,
-          continueCursor: "",
+          page: mock.options
+            ? mock.options[args.cursor ? 1 : 0]
+            : rows.map((row) => ({ ...row, floorCount: row.floorNumber })),
+          isDone: !mock.options || !!args.cursor,
+          continueCursor: mock.options && !args.cursor ? "more" : "",
         },
       };
     const page = rows.filter(
@@ -126,6 +136,7 @@ beforeEach(() => {
   mock.ok = true;
   mock.userId = "user";
   mock.orgId = "org";
+  mock.options = null;
   mock.rows = [
     row,
     {
@@ -282,7 +293,7 @@ it("offers one New building action beside the all-locations search", () => {
   );
   expect(actions[0]).toHaveTextContent("Building");
   const search = screen.getByRole("textbox", { name: "Search locations" });
-  expect(search.nextElementSibling).toBe(actions[0]);
+  expect(search.parentElement?.nextElementSibling).toBe(actions[0]);
 });
 
 it("filters across buildings, floors, sublocations and statuses without trapping an empty result", async () => {
@@ -300,7 +311,7 @@ it("filters across buildings, floors, sublocations and statuses without trapping
   await waitFor(() =>
     expect(screen.getByText("No matching locations")).toBeVisible(),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+  fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
   await chooseOption("Building", "B · Annex");
   await waitFor(() =>
     expect(screen.getByRole("link", { name: "Raw materials" })).toBeVisible(),
@@ -375,4 +386,93 @@ it("distinguishes both move holds while displaying one pallet and the union foot
   expect(
     screen.getByText("Occupied and reserved footprint: 1.8 m²"),
   ).toBeVisible();
+});
+
+it("clears individual location conditions and all filters without clearing search or the current view", async () => {
+  window.history.replaceState(
+    {},
+    "",
+    "/en/master-data/storage-layouts?other=keep#records",
+  );
+  renderPage();
+  fireEvent.click(screen.getByRole("button", { name: "All locations" }));
+  const search = screen.getByRole("textbox", { name: "Search locations" });
+  fireEvent.change(search, { target: { value: "Bay 1" } });
+  fireEvent.click(screen.getByRole("radio", { name: "Active" }));
+  await chooseOption("Building", "A · Main storage");
+  await chooseOption("Floor", "4");
+  fireEvent.click(screen.getByRole("button", { name: "Clear Building" }));
+  expect(screen.getByRole("combobox", { name: "Building" })).toHaveFocus();
+  const prefs = () =>
+    JSON.parse(new URLSearchParams(window.location.search).get("locations")!);
+  expect(prefs()).toMatchObject({
+    view: "table",
+    search: "Bay 1",
+    status: "ACTIVE",
+    building: "ALL",
+    floor: "4",
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+  expect(screen.getByRole("radio", { name: "All statuses" })).toHaveFocus();
+  expect(prefs()).toMatchObject({
+    view: "table",
+    search: "Bay 1",
+    status: "ALL",
+    building: "ALL",
+    floor: "ALL",
+  });
+  expect(search).toHaveValue("Bay 1");
+  expect(window.location.hash).toBe("#records");
+  expect(new URLSearchParams(window.location.search).get("other")).toBe("keep");
+  await act(async () => {
+    const pop = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    window.history.back();
+    await pop;
+  });
+  expect(prefs()).toMatchObject({
+    status: "ACTIVE",
+    floor: "4",
+    search: "Bay 1",
+  });
+});
+
+it("searches accumulated building and floor choices while preserving the selected filter", () => {
+  mock.options = [
+    Array.from({ length: 11 }, (_, i) => ({
+      buildingId: `building-${i}`,
+      buildingCode: `A${i}`,
+      buildingName: `Warehouse ${i}`,
+      floorCount: 14,
+    })),
+    [
+      {
+        buildingId: "late",
+        buildingCode: "ZZ",
+        buildingName: "Annex",
+        floorCount: 1,
+      },
+    ],
+  ];
+  renderPage();
+  fireEvent.click(screen.getByRole("button", { name: "All locations" }));
+  const lookup = screen.getByRole("textbox", { name: "Search Building" });
+  fireEvent.change(lookup, { target: { value: "not-found" } });
+  expect(
+    screen.getByText("No matching choices. Try a different search."),
+  ).toBeVisible();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load more building choices" }),
+  );
+  fireEvent.change(lookup, { target: { value: "zz" } });
+  fireEvent.click(screen.getByRole("radio", { name: "ZZ · Annex" }));
+  fireEvent.change(lookup, { target: { value: "A4" } });
+  expect(screen.getByRole("radio", { name: "ZZ · Annex" })).toBeChecked();
+  expect(screen.getByRole("radio", { name: "A4 · Warehouse 4" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Clear Building" }));
+  const floorSearch = screen.getByRole("textbox", { name: "Search Floor" });
+  fireEvent.change(floorSearch, { target: { value: "14" } });
+  expect(screen.getByRole("radio", { name: "14" })).toBeVisible();
+  expect(screen.queryByRole("radio", { name: "13" })).toBeNull();
 });

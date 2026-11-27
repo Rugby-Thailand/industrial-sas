@@ -25,7 +25,7 @@ import {
 
 import { addDays, formatBusinessDate } from "./format";
 import { compareDates } from "../../../convex/model/hr/calendar";
-import { DateRangeFields } from "./HistoryScreen";
+import { filterRangeIssue, HrFilterRange } from "./HrFilterRange";
 import { DayStatusBadge, HrGate, HrInlineError, useHrBack } from "./HrShared";
 import { useHrListCriteria } from "./HrListCriteria";
 import {
@@ -124,13 +124,6 @@ function ReviewContent() {
     `${criteria.from}:${criteria.to}`,
     urlRange ?? rangeFor(today, linkedDate),
   );
-  const setRange = (next: { from: string; to: string }) => {
-    setRangeState(next);
-    // A half-typed date stays local (the queue reports the invalid range)
-    // instead of snapping the field back to the default window.
-    if (isDate(next.from) && isDate(next.to))
-      setCriteria({ from: next.from, to: next.to }, true);
-  };
   // A newly linked day outside the shown window moves the window to it;
   // a date the user can already see leaves their chosen range alone.
   const [rangeDate, setRangeDate] = useState(linkedDate);
@@ -143,6 +136,17 @@ function ReviewContent() {
     )
       setRangeState(rangeFor(today, linkedDate));
   }
+  const [fields, setFields] = useUrlBackedState(
+    `${entry ?? ""}|${range.from}|${range.to}`,
+    range,
+  );
+  const setRange = (next: { from: string; to: string }, typing = true) => {
+    setFields(next);
+    if (filterRangeIssue(next, today) === undefined) {
+      setRangeState(next);
+      setCriteria({ from: next.from, to: next.to }, typing);
+    }
+  };
   // The open day's own detail (shared with the detail pane's query) tells
   // which tab it belongs to, independently of the page being listed.
   const detail = useHrQuery(
@@ -254,13 +258,20 @@ function ReviewContent() {
       <HrToolbar
         className={selected === undefined ? undefined : "hidden @3xl:flex"}
       >
-        <DateRangeFields {...range} max={today} onChange={setRange} />
+        <HrFilterRange
+          id={`${id}-range`}
+          {...fields}
+          max={today}
+          onChange={(next) => setRange(next)}
+          onPreset={(next) => setRange(next, false)}
+        />
         {access.sites.length > 1 ? (
           <div className="grid w-full gap-2 sm:w-56">
             <Label htmlFor={`${id}-site`}>{t("site")}</Label>
             <HrSiteSelect
               id={`${id}-site`}
               surface="review-filter"
+              filter
               value={criteria.site}
               onChange={(site) => setCriteria({ site })}
               placeholder={t("allSites")}

@@ -88,7 +88,6 @@ describe("FloorLocationTable", () => {
     );
     expect(screen.getByRole("button", { name: "Add location" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    fireEvent.click(screen.getByRole("button", { name: "Filter locations" }));
     fireEvent.click(screen.getByRole("button", { name: "Grid view" }));
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(25);
@@ -125,15 +124,26 @@ describe("FloorLocationTable", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Filter locations" }));
-    fireEvent.click(screen.getByRole("button", { name: "Empty" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Empty" }));
+    expect(rows()).toHaveLength(3);
+    expect(clear).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Filter locations" }));
+    expect(screen.getByRole("checkbox", { name: "Empty" })).not.toBeChecked();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Empty" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     expect(rows()).toHaveLength(1);
     expect(firstCode()).toBe("Z1");
     expect(clear).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(rows()).toHaveLength(3);
-    fireEvent.click(screen.getByRole("button", { name: "Unmeasured" }));
+    fireEvent.click(screen.getByRole("button", { name: "Filter locations" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Unmeasured" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     expect(firstCode()).toBe("Z3");
-    fireEvent.click(screen.getByRole("button", { name: "Stored" }));
+    fireEvent.click(screen.getByRole("button", { name: /Filter locations/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Stored" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     expect(rows()).toHaveLength(2);
   });
 
@@ -152,7 +162,6 @@ describe("FloorLocationTable", () => {
       target: { value: "Z9" },
     });
     expect(searchChange).toHaveBeenCalledWith("Z9");
-    fireEvent.click(screen.getByRole("button", { name: "Filter locations" }));
     fireEvent.click(screen.getByRole("button", { name: "Grid view" }));
     const selected = screen.getByRole("button", {
       name: "Select location Z205 · Location 56",
@@ -407,11 +416,6 @@ describe("FloorLocationTable", () => {
         phone.mockRestore();
       }
       render(<FloorLocationTable zones={candidates} onSelect={select} />);
-      fireEvent.click(
-        screen.getByRole("button", {
-          name: locale === "th" ? "ตัวกรอง" : "Filter locations",
-        }),
-      );
       fireEvent.click(
         screen.getByRole("button", {
           name: locale === "th" ? "มุมมองกริด" : "Grid view",
