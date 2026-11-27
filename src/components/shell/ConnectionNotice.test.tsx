@@ -30,6 +30,12 @@ vi.mock("convex/react", () => ({
 import { registerNavigationGuardOwner } from "@/lib/navigationGuard";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { RouteLoading } from "@/components/system/RouteLoading";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import {
   ConnectionNotice,
@@ -210,10 +216,10 @@ describe("ConnectionNotice", () => {
       advance(FIRST_CONNECTION_GRACE_MS);
       setLink({ inflightMutations: 1 });
 
-      const button = screen.getByRole("button", { name: "Reload page" });
+      const button = screen.getByRole("button", { name: "Save pending" });
       expect(button).toHaveAttribute("aria-disabled", "true");
       expect(button).toHaveAccessibleDescription(
-        "Available once your save is confirmed",
+        "You can reload after your save is confirmed.",
       );
       fireEvent.click(button);
       expect(reload).not.toHaveBeenCalled();
@@ -221,7 +227,7 @@ describe("ConnectionNotice", () => {
       setLink({ inflightMutations: 0 });
       expect(button).not.toHaveAttribute("aria-disabled");
       expect(
-        screen.queryByText("Available once your save is confirmed"),
+        screen.queryByText("You can reload after your save is confirmed."),
       ).toBeNull();
       fireEvent.click(button);
       expect(reload).toHaveBeenCalledOnce();
@@ -300,6 +306,28 @@ describe("ConnectionNotice", () => {
     });
     expect(notice()).toBeNull();
     expect(document.getElementById("fallback")).toHaveFocus();
+  });
+
+  it("announces a new outage while a dialog owns focus and keeps reload behind it", () => {
+    renderWithIntl(
+      <ConnectionStallProvider>
+        <ConnectionNotice />
+        <Dialog open>
+          <DialogContent>
+            <DialogTitle>Active editor</DialogTitle>
+            <DialogDescription>Its draft is still open.</DialogDescription>
+            <button type="button">Keep working</button>
+          </DialogContent>
+        </Dialog>
+      </ConnectionStallProvider>,
+      { locale: "en" },
+    );
+    expect(screen.getByRole("dialog")).toBeVisible();
+    const live = screen.getByRole("status");
+    advance(FIRST_CONNECTION_GRACE_MS);
+    expect(screen.getByRole("status")).toBe(live);
+    expect(live).toHaveTextContent("Connecting to the server");
+    expect(screen.queryByRole("button", { name: "Reload page" })).toBeNull();
   });
 
   it("lets loading presenters wait without motion while stalled, under one announcement, and load again on reconnect", () => {

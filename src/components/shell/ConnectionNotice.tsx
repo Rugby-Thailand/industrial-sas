@@ -156,6 +156,7 @@ export function ConnectionNotice({
     >
       <div
         role="status"
+        aria-live="polite"
         className={
           shown
             ? "flex min-w-0 flex-[1_1_12rem] items-start gap-2 py-0.5 text-sm leading-5"
@@ -183,7 +184,10 @@ export function ConnectionNotice({
           </>
         ) : null}
       </div>
-      {shown ? <ReloadAction focusFallbackId={focusFallbackId} /> : null}
+      {/* An open modal can hide this slot before the action appears. */}
+      <div>
+        {shown ? <ReloadAction focusFallbackId={focusFallbackId} /> : null}
+      </div>
     </div>
   );
 }
@@ -215,7 +219,7 @@ function ReloadAction({
   if (offline)
     return <p className="py-1.5 text-sm text-muted">{t("reloadOffline")}</p>;
   return (
-    <div className="flex flex-wrap items-center gap-x-2">
+    <>
       <Button
         ref={keepFocus}
         type="button"
@@ -231,13 +235,13 @@ function ReloadAction({
           });
         }}
       >
-        {t("reloadPage")}
+        {t(writesPending ? "reloadPending" : "reloadPage")}
       </Button>
       {writesPending ? (
-        <span id={reasonId} className="py-1 text-xs leading-5 text-muted">
+        <span id={reasonId} className="sr-only">
           {t("reloadWaitForSave")}
         </span>
       ) : null}
-    </div>
+    </>
   );
 }

@@ -80,7 +80,7 @@ const show = (label = "Today") =>
 const saveButton = () => screen.getByRole("button", { name: "Save" });
 const cancelButton = () => screen.getByRole("button", { name: "Cancel" });
 
-function Harness({ shellScrolls }: { shellScrolls: boolean }) {
+function Harness({ shellScrolls = false }: { shellScrolls?: boolean }) {
   return (
     <DraftGuardProvider>
       <div

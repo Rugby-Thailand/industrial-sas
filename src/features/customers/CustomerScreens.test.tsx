@@ -168,7 +168,10 @@ vi.mock("@/i18n/navigation", () => ({
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { api } from "../../../convex/_generated/api";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
-import { ConnectionStallContext } from "@/components/system/connectionStall";
+import {
+  ConnectionStallContext,
+  type ConnectionStall,
+} from "@/components/system/connectionStall";
 import { WorkspaceAccessBoundary } from "@/components/providers/WorkspaceAccessBoundary";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import { CustomerCatalogue } from "./CustomerList";
@@ -1998,8 +2001,9 @@ describe("customer v2 linking, detail activity and review queue", () => {
       hasMore: false,
     };
     mocks.queries.set(REVIEW_SUMMARY, { ok: true, value: summary });
-    mocks.queries.set(LIST, {
+    const empty = {
       ok: true,
+      requestId: "last-empty-read",
       value: {
         status: "ready",
         page: [],
@@ -2007,13 +2011,19 @@ describe("customer v2 linking, detail activity and review queue", () => {
         continueCursor: "",
         scanned: 0,
       },
-    });
-    const catalogue = (
-      <ConnectionStallContext value="dropped">
-        <CustomerCatalogue />
-      </ConnectionStallContext>
+    };
+    mocks.queries.set(LIST, empty);
+    const catalogue = (stall: ConnectionStall) => (
+      <DraftGuardProvider>
+        <ConnectionStallContext value={stall}>
+          <CustomerCatalogue />
+        </ConnectionStallContext>
+      </DraftGuardProvider>
     );
-    const view = render(catalogue);
+    const view = renderWithIntl(catalogue("dropped"), {
+      locale: "en",
+      preserveProviders: true,
+    });
     expect(
       screen.getByRole("link", { name: /View unlinked job-ticket names/ }),
     ).toHaveTextContent("55 names · 102 tickets");
@@ -2022,15 +2032,14 @@ describe("customer v2 linking, detail activity and review queue", () => {
     expect(screen.queryByText("No customers yet")).not.toBeInTheDocument();
     expect(lastResult.closest('[role="status"]')).toBeNull();
 
+    view.rerender(catalogue(null));
+    expect(lastResult).toBeVisible();
+    mocks.queries.set(LIST, { ...empty, requestId: "fresh-empty-read" });
     mocks.queries.set(REVIEW_SUMMARY, {
       ok: true,
       value: { ...summary, canViewWarehouseData: false },
     });
-    view.rerender(
-      <ConnectionStallContext value={null}>
-        <CustomerCatalogue />
-      </ConnectionStallContext>,
-    );
+    view.rerender(catalogue(null));
     expect(
       screen.queryByTestId("customer-review-banner"),
     ).not.toBeInTheDocument();

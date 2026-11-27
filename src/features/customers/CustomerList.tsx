@@ -4,6 +4,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { ChevronRight, Link2, Plus } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { CollectionToolbar } from "@/components/system/CollectionToolbar";
 import { CursorPagination } from "@/components/system/CursorPagination";
@@ -136,6 +137,23 @@ function CatalogueContent() {
   const ready = outcome?.ok && outcome.value.status === "ready";
   const failed = outcome?.ok === true && outcome.value.status === "reset";
   const customers = ready ? outcome.value.page : [];
+  const emptyRead =
+    ready && customers.length === 0
+      ? JSON.stringify([scope, outcome.requestId])
+      : null;
+  const [staleEmptyRead, setStaleEmptyRead] = useState<string | null>(null);
+  // Reopening the socket does not refresh the last query response.
+  if (stalled && emptyRead !== null && staleEmptyRead !== emptyRead)
+    setStaleEmptyRead(emptyRead);
+  else if (
+    !stalled &&
+    ready &&
+    staleEmptyRead !== null &&
+    staleEmptyRead !== emptyRead
+  )
+    setStaleEmptyRead(null);
+  const lastResult =
+    stalled || (emptyRead !== null && staleEmptyRead === emptyRead);
   const filtered = settled.trim() !== "" || filters.status !== "ACTIVE";
   const clear = () => update({ search: "", status: "ACTIVE" });
   const canViewWarehouseData = Boolean(
@@ -222,12 +240,16 @@ function CatalogueContent() {
       ) : customers.length === 0 ? (
         <EmptyState
           compact
-          announce={!stalled}
+          announce={!lastResult}
           title={t(
-            stalled ? "lastResultEmpty" : filtered ? "noMatches" : "emptyTitle",
+            lastResult
+              ? "lastResultEmpty"
+              : filtered
+                ? "noMatches"
+                : "emptyTitle",
           )}
           body={
-            stalled
+            lastResult
               ? undefined
               : t(
                   filtered
