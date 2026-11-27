@@ -4050,7 +4050,7 @@
     "inboxTitle": "LINE groups",
     "inboxFilteredTitle": "Customer LINE groups",
     "inboxSummary": "Connect a customer company's LINE group once. Staff review and approve every group reply before sending.",
-    "inboxFilteredSummary": "Showing LINE groups linked to this customer. New bot joins appear in the full group inbox for approval.",
+    "inboxFilteredSummary": "View the LINE groups linked to this customer.",
     "loading": "Loading LINE groups…",
     "loadingGroup": "Loading LINE group…",
     "loadingSettings": "Loading LINE settings…",
