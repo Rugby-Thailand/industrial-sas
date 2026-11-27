@@ -253,8 +253,8 @@ test.describe("workspace map and table (English, desktop)", () => {
       .click();
     await expect(page.getByRole("table")).toBeVisible();
     await page.getByRole("button", { name: "Filter locations" }).click();
-    await page.getByRole("button", { name: "Stored", exact: true }).click();
-    await page.keyboard.press("Escape");
+    await page.getByRole("checkbox", { name: "Stored", exact: true }).check();
+    await page.getByRole("button", { name: "Apply", exact: true }).click();
     const rows = page.locator("tbody tr[data-location-row]");
     await expect(rows).toHaveCount(1);
     await page.getByRole("searchbox").fill("DEMO-P-7");

@@ -204,53 +204,101 @@ export function readCatalogueState(search: string): CatalogueState {
     return fallback;
   }
 }
-export function columnCount(f: CatalogueFilters, column: FilterColumn) {
-  if (column === "record" || column === "lot")
-    return Number(Boolean(f[column].trim()));
-  if (column === "quantity")
-    return (
-      Number(Boolean(f.unit)) +
-      Number(Boolean(f.quantity.min || f.quantity.max))
-    );
-  if (column === "format") return f.formats.length;
-  if (column === "progress") return f.progress.length;
-  if (column === "status") return f.statuses.length;
-  return (
-    Number(Boolean(f.measurement)) +
-    [f.length, f.width, f.height].filter((r) => r.min || r.max).length
-  );
+/** One independently editable and removable filter condition. */
+export type FilterCondition =
+  | "record"
+  | "quantity"
+  | "format"
+  | "progress"
+  | "status"
+  | "measurement"
+  | "length"
+  | "width"
+  | "height"
+  | "lot";
+const columnConditions: Record<FilterColumn, FilterCondition[]> = {
+  record: ["record"],
+  quantity: ["quantity"],
+  format: ["format"],
+  progress: ["progress"],
+  status: ["status"],
+  dimensions: ["measurement", "length", "width", "height"],
+  lot: ["lot"],
+};
+const conditionFields: Record<FilterCondition, (keyof CatalogueFilters)[]> = {
+  record: ["record"],
+  quantity: ["unit", "quantity"],
+  format: ["formats"],
+  progress: ["progress"],
+  status: ["statuses"],
+  measurement: ["measurement"],
+  length: ["length"],
+  width: ["width"],
+  height: ["height"],
+  lot: ["lot"],
+};
+export const conditionsOf = (column: FilterColumn) => columnConditions[column];
+export const conditions = (tab: CatalogueTab) =>
+  columns(tab).flatMap(conditionsOf);
+const hasRange = (r: Range) => Boolean(r.min || r.max);
+export function conditionActive(f: CatalogueFilters, c: FilterCondition) {
+  if (c === "record" || c === "lot" || c === "measurement")
+    return Boolean(f[c].trim());
+  // The counting unit and its quantity span form one condition.
+  if (c === "quantity") return Boolean(f.unit) || hasRange(f.quantity);
+  if (c === "format") return f.formats.length > 0;
+  if (c === "progress") return f.progress.length > 0;
+  if (c === "status") return f.statuses.length > 0;
+  return hasRange(f[c]);
 }
-export function hasFilters(f: CatalogueFilters, tab: CatalogueTab) {
-  return columns(tab).some((c) => columnCount(f, c)) || Boolean(f.sort);
+export const activeConditions = (f: CatalogueFilters, tab: CatalogueTab) =>
+  conditions(tab).filter((c) => conditionActive(f, c));
+export const columnCount = (f: CatalogueFilters, column: FilterColumn) =>
+  conditionsOf(column).filter((c) => conditionActive(f, c)).length;
+/** Sorting is ordering, not a filter condition. */
+export const hasFilters = (f: CatalogueFilters, tab: CatalogueTab) =>
+  activeConditions(f, tab).length > 0;
+export function clearCondition(
+  f: CatalogueFilters,
+  condition: FilterCondition,
+): CatalogueFilters {
+  const empty = newFilters();
+  const next = { ...f };
+  for (const key of conditionFields[condition])
+    Object.assign(next, { [key]: empty[key] });
+  return next;
 }
+/** Clears every filter condition while keeping the chosen sort. */
+export const clearConditions = (f: CatalogueFilters): CatalogueFilters => ({
+  ...newFilters(),
+  sort: f.sort,
+});
+/** Resets a table column's shortcut: its conditions and its own sort. */
 export function clearColumn(
   f: CatalogueFilters,
   column: FilterColumn,
 ): CatalogueFilters {
-  const keys: Record<FilterColumn, (keyof CatalogueFilters)[]> = {
-    record: ["record"],
-    quantity: ["unit", "quantity"],
-    format: ["formats"],
-    progress: ["progress"],
-    status: ["statuses"],
-    dimensions: ["measurement", "length", "width", "height"],
-    lot: ["lot"],
-  };
-  const next = { ...f };
-  const empty = newFilters();
-  for (const key of keys[column]) Object.assign(next, { [key]: empty[key] });
-  if (sortColumn(f.sort) === column) next.sort = "";
-  return next;
+  const next = conditionsOf(column).reduce(clearCondition, f);
+  return sortColumn(f.sort) === column ? { ...next, sort: "" } : next;
 }
-export function filtersValid(f: CatalogueFilters) {
-  const valid = (r: Range) =>
-    [r.min, r.max].every(
+export const sortOptions = (tab: CatalogueTab) =>
+  columns(tab).flatMap((c) => columnSorts(c, tab));
+export type RangeIssue = "" | "number" | "order";
+export function rangeIssue(r: Range): RangeIssue {
+  if (
+    ![r.min, r.max].every(
       (n) =>
         !n || (n.trim() !== "" && Number.isFinite(Number(n)) && Number(n) >= 0),
-    ) &&
-    (!r.min || !r.max || Number(r.min) <= Number(r.max));
+    )
+  )
+    return "number";
+  return r.min && r.max && Number(r.min) > Number(r.max) ? "order" : "";
+}
+export const quantityNeedsUnit = (f: CatalogueFilters) =>
+  hasRange(f.quantity) && !f.unit;
+export function filtersValid(f: CatalogueFilters) {
   return (
-    [f.quantity, f.length, f.width, f.height].every(valid) &&
-    (!(f.quantity.min || f.quantity.max) || Boolean(f.unit))
+    [f.quantity, f.length, f.width, f.height].every((r) => !rangeIssue(r)) &&
+    !quantityNeedsUnit(f)
   );
 }

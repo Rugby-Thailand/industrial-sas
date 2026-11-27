@@ -70,7 +70,6 @@ import {
   PencilLine,
   Plus,
   Ruler,
-  Search,
   Trash2,
   Zap,
 } from "lucide-react";
@@ -160,6 +159,10 @@ import {
   storagePlacementCorners,
 } from "@/lib/storageLayouts/storagePlacementGeometry";
 
+import {
+  StorageCatalogueSearch,
+  StorageCatalogueStatuses,
+} from "./StorageCatalogueFilterControls";
 import {
   NewBuildingAction,
   StorageLocationCatalogue,
@@ -265,7 +268,6 @@ function CatalogueContent({
   status,
   onSearchChange,
   onStatusChange,
-  onClearFilters,
 }: { readonly warehouseId: string } & CatalogueFilters) {
   const t = useTranslations("StorageLayouts");
   const locale = useLocale();
@@ -320,15 +322,7 @@ function CatalogueContent({
           // A warehouse without buildings: first-use guidance, not a mismatch.
           <EmptyState title={t("emptyTitle")} body={t("emptyBody")} />
         ) : (
-          <EmptyState
-            title={t("noMatches")}
-            body={t("noMatchesBody")}
-            action={
-              <Button type="button" variant="ghost" onClick={onClearFilters}>
-                {t("clearFilters")}
-              </Button>
-            }
-          />
+          <EmptyState title={t("noMatches")} body={t("noMatchesBody")} />
         )
       ) : (
         <div className="divide-y divide-border border-y border-border">
@@ -451,36 +445,16 @@ export function StorageCatalogueFilters({
   return (
     <div
       data-testid="storage-catalogue-filters"
-      className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]"
+      className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
     >
-      <div className="flex min-w-0 gap-2">
-        <label className="relative min-w-0 flex-1">
-          <span className="sr-only">{t("search")}</span>
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-          <Input
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={t("search")}
-            className="pl-10"
-          />
-        </label>
-        {action}
-      </div>
-      <SelectControl
-        value={status}
-        onValueChange={(value) =>
-          onStatusChange(value as StorageLayoutStatus | "ALL")
-        }
-        options={[
-          { value: "ALL", label: t("allStatuses") },
-          { value: "DRAFT", label: t("draft") },
-          { value: "ACTIVE", label: t("active") },
-          { value: "ARCHIVED", label: t("archived") },
-        ]}
-        placeholder={t("statusFilter")}
-        emptyLabel={t("allStatuses")}
-        label={t("statusFilter")}
+      <StorageCatalogueSearch
+        label={t("search")}
+        placeholder={t("search")}
+        value={search}
+        onChange={onSearchChange}
+        action={action}
       />
+      <StorageCatalogueStatuses value={status} onChange={onStatusChange} />
     </div>
   );
 }

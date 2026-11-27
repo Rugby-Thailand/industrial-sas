@@ -125,11 +125,9 @@ describe("StorageCatalogueFilters", () => {
     expect(
       screen.getByRole("textbox", { name: "Search buildings" }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("combobox", { name: "Filter by status" }),
-    ).toHaveTextContent("All statuses");
+    expect(screen.getByRole("radio", { name: "All statuses" })).toBeChecked();
     expect(screen.getByTestId("storage-catalogue-filters")).toHaveClass(
-      "sm:grid-cols-[minmax(0,1fr)_14rem]",
+      "sm:grid-cols-[minmax(0,1fr)_auto]",
     );
   });
 
@@ -146,7 +144,7 @@ describe("StorageCatalogueFilters", () => {
     );
     const input = screen.getByRole("textbox", { name: "Search buildings" });
     const action = screen.getByRole("button", { name: "Building" });
-    const field = input.closest("label")!;
+    const field = input.parentElement!;
     expect(field).not.toContainElement(action);
     expect(field.parentElement).toContainElement(action);
     expect(field.nextElementSibling).toBe(action);
@@ -169,13 +167,12 @@ describe("StorageCatalogueFilters", () => {
       return actions[0]!;
     };
     expect(
-      screen
-        .getByRole("textbox", { name: "Search buildings" })
-        .closest("label")!.nextElementSibling,
+      screen.getByRole("textbox", { name: "Search buildings" }).parentElement!
+        .nextElementSibling,
     ).toBe(only());
     fireEvent.click(screen.getByRole("button", { name: "All locations" }));
     expect(
-      screen.getByRole("textbox", { name: "Search locations" })
+      screen.getByRole("textbox", { name: "Search locations" }).parentElement!
         .nextElementSibling,
     ).toBe(only());
   });
@@ -218,7 +215,7 @@ describe("StorageBuildingCatalogue empty states", () => {
       `/en/master-data/storage-layouts?locations=${encodeURIComponent(
         JSON.stringify({
           view: "cards",
-          search: "",
+          search: "missing",
           status: "DRAFT",
           building: "ALL",
           floor: "ALL",
@@ -233,12 +230,16 @@ describe("StorageBuildingCatalogue empty states", () => {
     expect(screen.getByText(en.noMatches)).toBeVisible();
     expect(screen.queryByText(en.emptyTitle)).toBeNull();
     const before = window.history.length;
-    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
-    await waitFor(() => expect(screen.getByText(en.emptyTitle)).toBeVisible());
+    fireEvent.click(screen.getByRole("button", { name: "Clear Status" }));
     expect(
-      screen.getByRole("combobox", { name: "Filter by status" }),
-    ).toHaveTextContent("All statuses");
+      screen.getByRole("textbox", { name: "Search buildings" }),
+    ).toHaveValue("missing");
+    expect(screen.getByText(en.noMatches)).toBeVisible();
+    expect(screen.getByRole("radio", { name: "All statuses" })).toHaveFocus();
+    expect(screen.getByRole("radio", { name: "All statuses" })).toBeChecked();
     expect(window.history.length - before).toBeLessThanOrEqual(1);
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    await waitFor(() => expect(screen.getByText(en.emptyTitle)).toBeVisible());
     expect(window.location.pathname).toBe("/en/master-data/storage-layouts");
     expect(window.location.hash).toBe("#catalogue");
   });

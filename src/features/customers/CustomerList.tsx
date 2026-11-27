@@ -4,7 +4,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { ChevronRight, Link2, Plus } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { CollectionToolbar } from "@/components/system/CollectionToolbar";
 import { CursorPagination } from "@/components/system/CursorPagination";
@@ -13,7 +13,7 @@ import { useConnectionStall } from "@/components/system/connectionStall";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Notice } from "@/components/ui/Notice";
-import { SelectControl } from "@/components/ui/SelectControl";
+import { choiceTargetClassName } from "@/components/ui/CheckboxControl";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { TableScroller } from "@/components/ui/TableScroller";
 import {
@@ -32,10 +32,7 @@ import {
 } from "@/hooks/useScanContinuation";
 import { Link } from "@/i18n/navigation";
 import { customerPath, ROUTES } from "@/lib/navigation";
-import {
-  useCustomerCatalogueState,
-  type CustomerStatusFilter,
-} from "./useCustomerCatalogueState";
+import { useCustomerCatalogueState } from "./useCustomerCatalogueState";
 import { CustomerGate, useCustomerAccess } from "./customerAccess";
 
 const DASH = "—";
@@ -155,7 +152,7 @@ function CatalogueContent() {
   const lastResult =
     stalled || (emptyRead !== null && staleEmptyRead === emptyRead);
   const filtered = settled.trim() !== "" || filters.status !== "ACTIVE";
-  const clear = () => update({ search: "", status: "ACTIVE" });
+  const statusGroup = useId();
   const canViewWarehouseData = Boolean(
     review?.ok && review.value.canViewWarehouseData,
   );
@@ -185,22 +182,29 @@ function CatalogueContent() {
         actions={
           // Full width on phones wraps status and Add below a full-width
           // search, so the placeholder is never clipped.
-          <div className="flex w-full min-w-0 gap-2 sm:w-auto">
-            <SelectControl
-              value={filters.status}
-              onValueChange={(status) =>
-                update({ status: status as CustomerStatusFilter })
-              }
-              options={[
-                { value: "ACTIVE", label: t("statusActive") },
-                { value: "ARCHIVED", label: t("statusArchived") },
-                { value: "ALL", label: t("statusAll") },
-              ]}
-              label={t("statusFilter")}
-              placeholder={t("statusFilter")}
-              emptyLabel={t("statusActive")}
-              className="flex-1 sm:w-48 sm:flex-none"
-            />
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
+            <fieldset className="flex flex-wrap items-center gap-x-3">
+              <legend className="sr-only">{t("statusFilter")}</legend>
+              {(["ACTIVE", "ARCHIVED", "ALL"] as const).map((status) => (
+                <label key={status} className={choiceTargetClassName}>
+                  <input
+                    type="radio"
+                    name={statusGroup}
+                    value={status}
+                    className="size-4 accent-link focus-ring"
+                    checked={filters.status === status}
+                    onChange={() => update({ status })}
+                  />
+                  {t(
+                    {
+                      ACTIVE: "statusActive",
+                      ARCHIVED: "statusArchived",
+                      ALL: "statusAll",
+                    }[status],
+                  )}
+                </label>
+              ))}
+            </fieldset>
             {canManage ? <NewCustomerAction /> : null}
           </div>
         }
@@ -258,13 +262,6 @@ function CatalogueContent() {
                       ? "emptyBody"
                       : "emptyBodyViewOnly",
                 )
-          }
-          action={
-            filtered ? (
-              <Button type="button" variant="ghost" onClick={clear}>
-                {t("clearFilters")}
-              </Button>
-            ) : undefined
           }
         />
       ) : (

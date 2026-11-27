@@ -100,15 +100,6 @@
   gap: 2px;
   flex-shrink: 0;
 }
-.filterDot {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  height: 5px;
-  width: 5px;
-  background: var(--plan-link);
-  border-radius: 50%;
-}
 @container floor-workspace (max-width: 850px) {
   .toolbar {
     grid-template-columns: minmax(0, 1fr) auto auto;
