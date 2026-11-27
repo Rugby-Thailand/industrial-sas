@@ -227,6 +227,9 @@ const RAW_PUBLIC_OWNERS: Readonly<Record<string, string>> = {
   "convex/lib/tenantFunctions.ts#mutationWithOrg": "mutationGeneric",
   "convex/lib/tenantFunctions.ts#actionWithOrg": "actionGeneric",
   "convex/lib/clerkWebhook.ts#clerkWebhook": "httpActionGeneric",
+  "convex/customerLine/transportWebhook.ts#lineWebhook": "httpAction",
+  "convex/customerLine/transport.ts#connectPrimary": "action",
+  "convex/customerLine/transport.ts#testConnection": "action",
   "convex/finishedGoods/attachments.ts#finalizeUpload": "mutation",
 };
 

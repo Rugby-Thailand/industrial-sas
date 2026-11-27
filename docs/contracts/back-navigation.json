@@ -4,6 +4,7 @@
     "dashboard": "/dashboard",
     "storageLayouts": "/master-data/storage-layouts",
     "customers": "/master-data/customers",
+    "customerLine": "/master-data/customers/line",
     "finishedGoods": "/finished-goods",
     "jobScan": "/finished-goods/scan",
     "jobScanRecords": "/finished-goods/scan/records",
@@ -1054,6 +1055,65 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "waits for the section URL commit before opening its scope, filters or destinations"
+        }
+      ]
+    },
+    {
+      "file": "src/app/[locale]/(desktop)/master-data/customers/line/[groupId]/page.tsx",
+      "policy": "parent",
+      "parent": "/master-data/customers/line",
+      "targets": [
+        "src/features/customerLine/CustomerLineGroup#CustomerLineGroup"
+      ],
+      "expectation": "Foreground confirmation consumes its own entry. Leaving the group restores the actual filtered inbox with its locale, query and hash. Direct group entry falls back to the LINE inbox.",
+      "tests": ["src/features/customers/CustomerLineRoutes.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerLineRoutes.test.tsx",
+          "name": "the LINE group route opened directly falls back to the inbox"
+        },
+        {
+          "file": "src/features/customers/CustomerLineRoutes.test.tsx",
+          "name": "the LINE group header restores its actual localized inbox filter and hash"
+        }
+      ]
+    },
+    {
+      "file": "src/app/[locale]/(desktop)/master-data/customers/line/page.tsx",
+      "policy": "parent",
+      "parent": "/master-data/customers",
+      "targets": [
+        "src/features/customerLine/CustomerLineInbox#CustomerLineInbox"
+      ],
+      "expectation": "Back returns to the actual customer detail or list with the retained locale, query and hash. Direct inbox entry falls back to the customer list.",
+      "tests": [
+        "src/features/customers/CustomerLineRoutes.test.tsx",
+        "src/features/customers/CustomerScreens.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerLineRoutes.test.tsx",
+          "name": "the LINE inbox route opened directly falls back to the customer list"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "shows the LINE group entry for its separate grant and preserves the actual customer origin"
+        }
+      ]
+    },
+    {
+      "file": "src/app/[locale]/(desktop)/master-data/customers/line/settings/page.tsx",
+      "policy": "parent",
+      "parent": "/master-data/customers/line",
+      "targets": [
+        "src/features/customerLine/CustomerLineSettings#CustomerLineSettings"
+      ],
+      "expectation": "Back dismisses the settings confirmation before leaving. Direct settings entry falls back to the LINE inbox.",
+      "tests": ["src/features/customers/CustomerLineRoutes.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerLineRoutes.test.tsx",
+          "name": "the LINE settings route opened directly falls back to the inbox"
         }
       ]
     },
@@ -11834,6 +11894,404 @@
           "name": "restores a typed draft after native Back and reopens the localized calendar on Forward"
         }
       ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineInbox.tsx#CustomerLineInboxContent:cursors",
+      "policy": "presentation",
+      "expectation": "Previous and Next page the group list in place. Loading, empty and denial feedback stay in the same inbox and preserve its customer filter.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "li",
+            "lucide-react#ChevronRight",
+            "span",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "src/components/ui/EmptyState#EmptyState",
+            "src/components/ui/button#Button",
+            "src/features/customerLine/lineShared#GroupStateBadge",
+            "src/features/customerLine/lineShared#ProviderDepartureBadge",
+            "src/i18n/navigation#Link",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "li",
+            "lucide-react#ChevronRight",
+            "span",
+            "src/components/ui/EmptyState#EmptyState",
+            "src/components/ui/button#Button",
+            "src/features/customerLine/lineShared#GroupStateBadge",
+            "src/features/customerLine/lineShared#ProviderDepartureBadge",
+            "src/i18n/navigation#Link",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/EmptyState#EmptyState",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link"
+          ],
+          "falsy": [
+            "li",
+            "lucide-react#ChevronRight",
+            "span",
+            "src/features/customerLine/lineShared#GroupStateBadge",
+            "src/features/customerLine/lineShared#ProviderDepartureBadge",
+            "src/i18n/navigation#Link",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerLineRoutes.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerLineRoutes.test.tsx",
+          "name": "paginates the actual customer LINE inbox without changing its filter or browser entry"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#CustomerLineGroupContent:disconnectOpen",
+      "policy": "overlay",
+      "expectation": "Group disconnect uses the shared ConfirmDialog. Back cancels before leaving, and a pending disconnect protects and consumes the dialog entry on success.",
+      "integration": "confirmation",
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "group disconnect confirmation cancels cleanly so the next native Back leaves the group"
+        },
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "group disconnect confirmation blocks dismissal while pending and consumes its entry on success"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#GroupQuestionsSection:cursors",
+      "policy": "presentation",
+      "expectation": "The question cursor changes the visible slice in the group question panel, including the inline composer for an open request. It adds no browser history.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "form",
+            "h3",
+            "lucide-react#Send",
+            "p",
+            "src/components/ui/CheckboxControl#CheckboxField",
+            "src/components/ui/FormField#FormField",
+            "src/components/ui/Notice#ErrorNotice",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/button#Button",
+            "textarea"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "button",
+            "div",
+            "li",
+            "p",
+            "span",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "src/components/ui/EmptyState#EmptyState",
+            "src/features/customerLine/lineShared#QuestionStateBadge",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "button",
+            "div",
+            "li",
+            "p",
+            "span",
+            "src/components/ui/EmptyState#EmptyState",
+            "src/features/customerLine/lineShared#QuestionStateBadge",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/EmptyState#EmptyState"],
+          "falsy": [
+            "button",
+            "div",
+            "li",
+            "p",
+            "span",
+            "src/features/customerLine/lineShared#QuestionStateBadge",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerLineRoutes.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerLineRoutes.test.tsx",
+          "name": "pages LINE questions and contacts inline without pushing a browser entry"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#GroupQuestionsSection:selectedQuestionId",
+      "policy": "presentation",
+      "expectation": "Selects the question for the inline reply composer and retains each question draft in the same conversation. A separate guard protects unfinished drafts.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "form",
+            "h3",
+            "lucide-react#Send",
+            "p",
+            "src/components/ui/CheckboxControl#CheckboxField",
+            "src/components/ui/FormField#FormField",
+            "src/components/ui/Notice#ErrorNotice",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/button#Button",
+            "textarea"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerLineRoutes.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerLineRoutes.test.tsx",
+          "name": "keeps both request drafts when asking staff to review another question in the same LINE group"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#GroupContactsSection:cursors",
+      "policy": "presentation",
+      "expectation": "Previous and Next change the visible contact slice inside the group contact panel, retaining the same route and history entry.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "lucide-react#ShieldCheck",
+            "lucide-react#ShieldOff",
+            "p",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "src/components/ui/EmptyState#EmptyState",
+            "src/components/ui/button#Button",
+            "src/features/customerLine/lineShared#ContactStateBadge",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "lucide-react#ShieldCheck",
+            "lucide-react#ShieldOff",
+            "p",
+            "src/components/ui/EmptyState#EmptyState",
+            "src/components/ui/button#Button",
+            "src/features/customerLine/lineShared#ContactStateBadge",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/EmptyState#EmptyState"],
+          "falsy": [
+            "div",
+            "li",
+            "lucide-react#ShieldCheck",
+            "lucide-react#ShieldOff",
+            "p",
+            "src/components/ui/button#Button",
+            "src/features/customerLine/lineShared#ContactStateBadge",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerLineRoutes.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerLineRoutes.test.tsx",
+          "name": "pages LINE questions and contacts inline without pushing a browser entry"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#GroupContactsSection:dialogOpen",
+      "policy": "overlay",
+      "expectation": "Contact verification and revocation use the shared ConfirmDialog. Cancel consumes its entry, and a pending write protects it without changing the group link.",
+      "integration": "confirmation",
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "contact verification edits verified business name, confirms with setContact, and Cancel consumes Back before leaving"
+        },
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "contact revocation blocks dismissal while pending and revokes verified role without disconnecting group"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#GroupContactsSection:dialogTarget",
+      "policy": "presentation",
+      "expectation": "Selects the name editor field within the shared contact confirmation when verifying a person. The confirmation itself owns modal Back.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/FormField#FormField",
+            "src/components/ui/input#Input"
+          ],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "contact verification edits verified business name, confirms with setContact, and Cancel consumes Back before leaving"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#CustomerLineGroupContent:$overlay:ConfirmDialog:disconnectOpen",
+      "policy": "overlay",
+      "expectation": "Group disconnect uses the shared ConfirmDialog. Back cancels before leaving, and a pending disconnect protects and consumes the dialog entry on success.",
+      "integration": "confirmation",
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "group disconnect confirmation cancels cleanly so the next native Back leaves the group"
+        },
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "group disconnect confirmation blocks dismissal while pending and consumes its entry on success"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#GroupContactsSection:$overlay:ConfirmDialog:dialogOpen",
+      "policy": "overlay",
+      "expectation": "Contact verification and revocation use the shared ConfirmDialog. Cancel consumes its entry, and a pending write protects it without changing the group link.",
+      "integration": "confirmation",
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "contact verification edits verified business name, confirms with setContact, and Cancel consumes Back before leaving"
+        },
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "contact revocation blocks dismissal while pending and revokes verified role without disconnecting group"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineSettings.tsx#CustomerLineSettingsContent:disconnectOpen",
+      "policy": "overlay",
+      "expectation": "OA disconnect uses the shared ConfirmDialog. Close consumes its entry and the in-flight disconnect prevents dismissal.",
+      "integration": "confirmation",
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "primary OA disconnect confirmation cancels cleanly before next Back and blocks dismissal while pending"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineSettings.tsx#CustomerLineSettingsContent:$overlay:ConfirmDialog:disconnectOpen",
+      "policy": "overlay",
+      "expectation": "OA disconnect uses the shared ConfirmDialog. Close consumes its entry and the in-flight disconnect prevents dismissal.",
+      "integration": "confirmation",
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "primary OA disconnect confirmation cancels cleanly before next Back and blocks dismissal while pending"
+        }
+      ]
     }
   ],
   "overlayDelegates": [
@@ -11985,6 +12443,18 @@
         {
           "file": "src/features/finishedGoods/BatchManager.test.tsx",
           "name": "keeps edits on cancelled Storage navigation and discards to the exact chosen destination"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#runStateTransition:$task:completeTask:customerLineGroupPath",
+      "intent": "completion",
+      "expectation": "LINE group reapproval replaces the retired enrollment after the live write settles. Back restores the actual filtered inbox with its locale, query, and hash.",
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "reopens a locally disconnected LINE group and Back restores the filtered inbox"
         }
       ]
     },

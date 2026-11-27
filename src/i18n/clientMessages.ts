@@ -30,6 +30,7 @@ export const ROUTE_NAMESPACES = {
     "App",
     "Workspace",
     "Customers",
+    "CustomerLine",
     "Pagination",
     "Panel",
     "Table",

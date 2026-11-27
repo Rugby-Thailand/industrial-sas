@@ -38,6 +38,12 @@ describe("audited module parent destinations", () => {
       "/master-data/storage-layouts/building-a",
     ],
     ["/th/master-data/storage-layouts/new", "/master-data/storage-layouts"],
+    ["/th/master-data/customers/line", "/master-data/customers"],
+    [
+      "/en/master-data/customers/line/group-a?q=active",
+      "/master-data/customers/line",
+    ],
+    ["/en/master-data/customers/line/settings", "/master-data/customers/line"],
   ])("keeps %s within its module", (href, parent) => {
     expect(moduleBackFallback(href)).toBe(parent);
     expect(resolvePageBackFallback(href, parent)).toBe(parent);

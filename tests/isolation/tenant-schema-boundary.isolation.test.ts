@@ -47,11 +47,14 @@ describe("schema table classification", () => {
     expect(missingTables(facts)).toEqual([]);
   });
 
-  it("allows exactly organizations, users, and permissions to omit orgId", () => {
+  it("allows exactly organizations, users, permissions, and the LINE webhook route to omit orgId", () => {
+    // `customerLineRoutes` resolves a signed webhook to its single owning
+    // organization before any tenant row is read; it holds no tenant data.
     expect([...GLOBAL_TABLES]).toEqual([
       "organizations",
       "users",
       "permissions",
+      "customerLineRoutes",
     ]);
     expect(globalFacts.map((table) => table.name).sort()).toEqual(
       [...GLOBAL_TABLES].sort(),

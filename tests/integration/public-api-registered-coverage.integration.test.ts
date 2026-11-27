@@ -84,6 +84,15 @@ async function contextDenied(operation: Promise<unknown>, code: string) {
   throw new Error("Registered boundary unexpectedly allowed a denied caller.");
 }
 
+async function connectionDenied(operation: Promise<unknown>) {
+  await expect(operation).resolves.toMatchObject({
+    ok: false,
+    requestId: expect.any(String),
+    denial: { code: "AUTHORIZATION_DENIED" },
+  });
+  expect(transport).not.toHaveBeenCalled();
+}
+
 describe("representative registered coverage of every shipping public module", () => {
   it("matches runtime exports, includes every function kind and makes coverage gaps explicit", () => {
     const publicEntries = Object.entries(current).filter(
@@ -96,7 +105,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(45);
+    expect(coveredModules).toHaveLength(47);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -117,21 +126,24 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 54 representative functions, not every public export
+    // The inventory covers 56 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(54);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(56);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
   for (const example of PUBLIC_API_EXAMPLES) {
     describe(example.name, () => {
+      const rawLineAction =
+        example.name === "customerLine/transport:connectPrimary";
+      const denied = rawLineAction ? connectionDenied : contextDenied;
       it("denies an anonymous registered call with valid arguments", async () => {
         const world = await createPublicApiWorld(MODULES);
-        await contextDenied(invokePublicExample(world, example), "ANONYMOUS");
+        await denied(invokePublicExample(world, example), "ANONYMOUS");
       });
       it("rejects an identity that is absent from the verified mirror", async () => {
         const world = await createPublicApiWorld(MODULES);
-        await contextDenied(
+        await denied(
           invokePublicExample(world, example, {
             subject: "unknown_public_fixture",
             org_id: "org_fixture_a",
@@ -141,7 +153,7 @@ describe("representative registered coverage of every shipping public module", (
       });
       it("rejects a session without an active organization claim", async () => {
         const world = await createPublicApiWorld(MODULES);
-        await contextDenied(
+        await denied(
           invokePublicExample(world, example, {
             subject: "user_fixture_a",
           }),
@@ -159,10 +171,19 @@ describe("representative registered coverage of every shipping public module", (
         ).rejects.toThrow(/Validator error|extra field/i);
         expect(transport).not.toHaveBeenCalled();
       });
+      if (rawLineAction) {
+        it("denies an active workspace actor without the LINE connection grant", async () => {
+          const world = await createPublicApiWorld(MODULES);
+          await connectionDenied(
+            invokePublicExample(world, example, PUBLIC_API_ACTOR),
+          );
+        });
+      }
       if (
         !example.name.startsWith("hr/") &&
         !example.name.startsWith("aiUsage/") &&
         !example.name.startsWith("customers/") &&
+        !example.name.startsWith("customerLine/") &&
         !example.name.startsWith("workspace/")
       ) {
         it("denies another tenant's warehouse without leaking its owner", async () => {
@@ -191,6 +212,12 @@ describe("representative registered payloads and safe HR capability gates", () =
   it("keeps batch, product, pallet and storage detail fields used by existing clients", async () => {
     const world = await createPublicApiWorld(MODULES);
     const expected: Readonly<Record<string, object | null>> = {
+      "customerLine/groups:viewer": {
+        canRead: false,
+        canManageGroups: false,
+        canSend: false,
+        canManageConnection: false,
+      },
       "customers/catalogue:viewer": { canManage: true },
       "customers/catalogue:listCustomersPage": {
         status: "ready",

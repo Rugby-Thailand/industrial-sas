@@ -32,6 +32,7 @@ import {
 } from "@/hooks/useScanContinuation";
 import { Link } from "@/i18n/navigation";
 import { customerPath, ROUTES } from "@/lib/navigation";
+import { CustomerLineEntry } from "./CustomerLineEntry";
 import { useCustomerCatalogueState } from "./useCustomerCatalogueState";
 import { CustomerGate, useCustomerAccess } from "./customerAccess";
 
@@ -205,6 +206,7 @@ function CatalogueContent() {
                 </label>
               ))}
             </fieldset>
+            <CustomerLineEntry />
             {canManage ? <NewCustomerAction /> : null}
           </div>
         }

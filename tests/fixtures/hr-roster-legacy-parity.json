@@ -3093,7 +3093,7 @@
         }
       ],
       "code": "A07",
-      "departmentId": "0000000000000010096hrDepartments",
+      "departmentId": "department:Gone",
       "departmentName": null,
       "displayName": "Frozen Plan",
       "id": "employee:A07",

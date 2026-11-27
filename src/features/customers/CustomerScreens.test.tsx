@@ -3250,6 +3250,24 @@ describe("customer workspace navigation", () => {
   const filter = () =>
     screen.getByRole("combobox", { name: "Location status" });
 
+  it("shows the LINE group entry for its separate grant and preserves the actual customer origin", async () => {
+    const viewer = getFunctionName(api.customerLine.groups.viewer);
+    const current = `${WORKSPACE_URL}?tab=kept#customer`;
+    const view = withWorkspace(current);
+    expect(screen.queryByRole("link", { name: "LINE" })).toBeNull();
+    mocks.queries.set(viewer, { ok: true, value: { canRead: true } });
+    view.rerender(<CustomerDetail customerId="customer-a" />);
+    const link = screen.getByRole("link", { name: "LINE" });
+    expect(link).toHaveAttribute(
+      "href",
+      "/master-data/customers/line?customerId=customer-a",
+    );
+    fireEvent.click(link);
+    expect(href()).toBe("/en/master-data/customers/line?customerId=customer-a");
+    await nativeBack();
+    await waitFor(() => expect(href()).toBe(current));
+  });
+
   it("pushes a workspace section, then native Back and Forward restore the section before leaving for the localized origin", async () => {
     withWorkspace(DETAIL_URL);
     fireEvent.click(sectionTab("Job tickets"));

@@ -7,7 +7,12 @@ import type { GenericValidator } from "convex/values";
 
 import { TENANT_DISCRIMINATOR } from "./tenantTable";
 
-export const GLOBAL_TABLES = ["organizations", "users", "permissions"] as const;
+export const GLOBAL_TABLES = [
+  "organizations",
+  "users",
+  "permissions",
+  "customerLineRoutes",
+] as const;
 
 export const TENANT_TABLES = [
   "warehouses",
@@ -15,6 +20,11 @@ export const TENANT_TABLES = [
   "customerCatalogueSignals",
   "customerAliases",
   "customerWarehouseActivity",
+  "customerLineConnections",
+  "customerLineGroups",
+  "customerLineContacts",
+  "customerLineQuestions",
+  "customerLineEvents",
   "memberships",
   "membershipRoles",
   "membershipWarehouses",
@@ -333,6 +343,28 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   { table: "organizations", key: ["clerkOrganizationId"], condition: ALWAYS },
   { table: "users", key: ["clerkUserId"], condition: ALWAYS },
   { table: "permissions", key: ["code"], condition: ALWAYS },
+  { table: "customerLineRoutes", key: ["webhookKey"], condition: ALWAYS },
+  { table: "customerLineRoutes", key: ["botUserId"], condition: ALWAYS },
+  {
+    table: "customerLineConnections",
+    key: ["orgId", "webhookKey"],
+    condition: ALWAYS,
+  },
+  {
+    table: "customerLineConnections",
+    key: ["orgId", "botUserId"],
+    condition: ALWAYS,
+  },
+  {
+    table: "customerLineContacts",
+    key: ["orgId", "groupId", "lineUserId"],
+    condition: ALWAYS,
+  },
+  {
+    table: "customerLineEvents",
+    key: ["orgId", "connectionId", "eventId"],
+    condition: ALWAYS,
+  },
   { table: "warehouses", key: ["orgId", "code"], condition: ALWAYS },
   { table: "customers", key: ["orgId", "code"], condition: ALWAYS },
   {
@@ -441,6 +473,19 @@ export type LookupContract = {
 
 export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
   { table: "customerAliases", key: ["orgId", "normalizedAlias"] },
+  // Primary OA: at most one row is primary; reads take(2) and refuse ambiguity.
+  { table: "customerLineConnections", key: ["orgId", "primary"] },
+  // Enrollment history of one LINE group on one OA; latest wins.
+  {
+    table: "customerLineGroups",
+    key: ["orgId", "connectionId", "lineGroupId"],
+  },
+  { table: "customerLineQuestions", key: ["orgId", "groupId", "messageId"] },
+  { table: "customerLineQuestions", key: ["orgId", "groupId", "state"] },
+  {
+    table: "customerLineEvents",
+    key: ["orgId", "connectionId", "unsentMessageId"],
+  },
   { table: "hrDepartments", key: ["orgId", "managerEmployeeId"] },
   { table: "supportGrants", key: ["orgId", "ticketRef"] },
   { table: "storagePositions", key: ["orgId", "zoneId", "status"] },

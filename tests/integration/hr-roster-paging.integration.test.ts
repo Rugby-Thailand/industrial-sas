@@ -466,11 +466,15 @@ async function paritySite() {
   await seed.frozen(a07, date(12));
   await seed.claim(a06, date(10));
   await seed.claim(a06, date(11));
-  return { w, ids };
+  return { w, deletedDepartmentId: gone };
 }
 
 /** Replace generated IDs with stable labels so answers compare across runs. */
-async function normalized(w: ConvexTenantWorld, value: unknown) {
+async function normalized(
+  w: ConvexTenantWorld,
+  value: unknown,
+  deletedDepartmentId: Id<"hrDepartments">,
+) {
   const entries = await w.t.run(async (ctx) => {
     const map = new Map<string, string>();
     for (const row of await ctx.db.query("hrEmployees").collect())
@@ -484,6 +488,7 @@ async function normalized(w: ConvexTenantWorld, value: unknown) {
     return [...map];
   });
   const labels = new Map(entries);
+  labels.set(deletedDepartmentId, "department:Gone");
   return JSON.parse(
     JSON.stringify(value, (_key, item: unknown) =>
       typeof item === "string" && labels.has(item) ? labels.get(item) : item,
@@ -535,7 +540,7 @@ async function walk(
 
 describe("HR roster paging", () => {
   it("page 1 at 50 per page answers exactly like the unpaged roster for a site under 50 employees", async () => {
-    const { w } = await paritySite();
+    const { w, deletedDepartmentId } = await paritySite();
     const criteria = [
       {},
       { search: "  somCHAI " },
@@ -564,7 +569,7 @@ describe("HR roster paging", () => {
           ...(CAPTURE ? {} : { pageSize: 50 }),
         },
       );
-      answers[String(index)] = await normalized(w, value);
+      answers[String(index)] = await normalized(w, value, deletedDepartmentId);
     }
     type Answer = {
       employees?: { code: string }[];
@@ -642,7 +647,9 @@ describe("HR roster paging", () => {
       warehouseId: w.warehouses.alphaA,
       month: MONTH,
     });
-    expect(await normalized(w, unpaged.employees)).toEqual(legacy.employees);
+    expect(await normalized(w, unpaged.employees, deletedDepartmentId)).toEqual(
+      legacy.employees,
+    );
     // …once: the rows are not also sent as `page`.
     expect(unpaged).not.toHaveProperty("page");
   });
