@@ -3,7 +3,7 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { CheckCircle2, Clock, Copy, Send, Unlink } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
@@ -22,6 +22,7 @@ import { CustomerGate } from "@/features/customers/customerAccess";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
 import {
   customerLineRefs,
+  normalizeLineErrorCode,
   readLineWriteOutcome,
   resolveLineWebhookUrl,
   type LinePrimaryConnection,
@@ -117,12 +118,12 @@ function CustomerLineSettingsContent() {
 
   const disconnectOperation = useAsyncOperation({
     scope: "customer-line-disconnect-oa",
-    describeError: () => "UNKNOWN",
+    describeError: (code) => t(`errors.${normalizeLineErrorCode(code)}`),
     navigation: "write",
   });
   const testOperation = useAsyncOperation({
     scope: "customer-line-test-oa",
-    describeError: () => "UNKNOWN",
+    describeError: (code) => t(`errors.${normalizeLineErrorCode(code)}`),
     navigation: "write",
   });
 
@@ -137,6 +138,17 @@ function CustomerLineSettingsContent() {
   const [testError, setTestError] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
+  const webhookRef = useRef<HTMLElement>(null);
+
+  if (
+    groupsOutcome?.ok &&
+    selectedTestGroupId !== "" &&
+    !groupsOutcome.value.page.some(
+      (group) => group.state === "pending" && group._id === selectedTestGroupId,
+    )
+  ) {
+    setSelectedTestGroupId("");
+  }
 
   if (connectionOutcome === undefined) {
     return (
@@ -173,6 +185,8 @@ function CustomerLineSettingsContent() {
   }
 
   const connection = connectionOutcome.value;
+  const groupsLoading = groupsOutcome === undefined;
+  const groupsDenied = groupsOutcome !== undefined && !groupsOutcome.ok;
   const pendingGroups = (
     groupsOutcome?.ok ? groupsOutcome.value.page : []
   ).filter((group) => group.state === "pending");
@@ -180,7 +194,10 @@ function CustomerLineSettingsContent() {
     (group) => group._id === selectedTestGroupId,
   )
     ? selectedTestGroupId
-    : (pendingGroups[0]?._id ?? "");
+    : "";
+  const webhookReady =
+    typeof connection?.webhookVerifiedAt === "number" &&
+    connection.webhookVerifiedAt > 0;
   const webhookUrl = connection
     ? resolveLineWebhookUrl(connection.webhookPath, {
         convexUrl: environment.convexUrl,
@@ -198,11 +215,26 @@ function CustomerLineSettingsContent() {
         // Fall through to status hint if clipboard is unavailable.
       }
     }
-    setCopyStatus(t("copyFallbackSelected"));
+    if (webhookRef.current && typeof window !== "undefined") {
+      const selection = window.getSelection();
+      if (selection) {
+        const range = document.createRange();
+        range.selectNodeContents(webhookRef.current);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+    setCopyStatus(t("copyWebhookFallbackSelected"));
   }
 
   async function handleSendTestPing() {
-    if (testOperation.busy || !connection || !effectiveTestGroupId) return;
+    if (
+      testOperation.busy ||
+      !connection ||
+      !webhookReady ||
+      !effectiveTestGroupId
+    )
+      return;
     setTestError(null);
     setTestStatus("");
     await testOperation.run(
@@ -241,10 +273,9 @@ function CustomerLineSettingsContent() {
     );
   }
 
-  const displayedTestError =
-    testError ?? (testOperation.error ? t("errors.UNKNOWN") : null);
+  const displayedTestError = testError ?? (testOperation.error || null);
   const displayedDisconnectError =
-    disconnectError ?? (disconnectOperation.error ? t("errors.UNKNOWN") : null);
+    disconnectError ?? (disconnectOperation.error || null);
 
   return (
     <div className="space-y-4">
@@ -295,6 +326,7 @@ function CustomerLineSettingsContent() {
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <code
+                ref={webhookRef}
                 data-testid="line-webhook-url"
                 className="min-w-0 flex-1 rounded-md border border-border bg-raised px-3 py-2 font-mono text-xs wrap-anywhere text-text"
               >
@@ -355,7 +387,19 @@ function CustomerLineSettingsContent() {
                 title={t("testPingTitle")}
                 description={t("testPingDescription")}
               />
-              {pendingGroups.length === 0 ? (
+              {groupsLoading ? (
+                <LedgerPanelStatus
+                  state={{ kind: "LOADING" }}
+                  label={t("loading")}
+                />
+              ) : groupsDenied ? (
+                <LedgerPanelStatus
+                  state={{
+                    kind: "DENIED",
+                    requestId: groupsOutcome.denial.requestId,
+                  }}
+                />
+              ) : pendingGroups.length === 0 ? (
                 <p
                   className="text-sm text-muted"
                   data-testid="line-test-groups-empty"
@@ -363,40 +407,51 @@ function CustomerLineSettingsContent() {
                   {t("testGroupEmpty")}
                 </p>
               ) : (
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="min-w-56 flex-1 space-y-1.5">
-                    <span className="block text-xs font-medium text-text">
-                      {t("testGroupLabel")}
-                    </span>
-                    <SelectControl
-                      label={t("testGroupLabel")}
-                      value={effectiveTestGroupId}
-                      onValueChange={(next) => {
-                        setSelectedTestGroupId(next);
-                        if (testError) setTestError(null);
-                      }}
-                      placeholder={t("testGroupPlaceholder")}
-                      emptyLabel={t("testGroupEmpty")}
-                      disabled={testOperation.busy}
-                      options={pendingGroups.map((group) => ({
-                        value: group._id,
-                        label: group.name,
-                      }))}
-                      testId="line-test-group-select"
-                    />
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="min-w-56 flex-1 space-y-1.5">
+                      <span className="block text-xs font-medium text-text">
+                        {t("testGroupLabel")}
+                      </span>
+                      <SelectControl
+                        label={t("testGroupLabel")}
+                        value={effectiveTestGroupId}
+                        onValueChange={(next) => {
+                          setSelectedTestGroupId(next);
+                          if (testError) setTestError(null);
+                          if (testStatus) setTestStatus("");
+                        }}
+                        placeholder={t("testGroupPlaceholder")}
+                        emptyLabel={t("testGroupEmpty")}
+                        disabled={testOperation.busy}
+                        options={pendingGroups.map((group) => ({
+                          value: group._id,
+                          label: group.name,
+                        }))}
+                        testId="line-test-group-select"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!effectiveTestGroupId || !webhookReady}
+                      pending={testOperation.busy}
+                      pendingLabel={t("testPingSending")}
+                      onClick={() => void handleSendTestPing()}
+                      data-testid="line-send-test-ping"
+                    >
+                      <Send aria-hidden="true" className="size-4" />
+                      {t("testPingSubmit")}
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={!effectiveTestGroupId}
-                    pending={testOperation.busy}
-                    pendingLabel={t("testPingSending")}
-                    onClick={() => void handleSendTestPing()}
-                    data-testid="line-send-test-ping"
-                  >
-                    <Send aria-hidden="true" className="size-4" />
-                    {t("testPingSubmit")}
-                  </Button>
+                  {!webhookReady ? (
+                    <p
+                      className="text-xs text-muted"
+                      data-testid="line-test-webhook-required"
+                    >
+                      {t("testPingRequiresWebhook")}
+                    </p>
+                  ) : null}
                 </div>
               )}
               <ErrorNotice message={displayedTestError} />
@@ -480,7 +535,7 @@ function PrimaryCredentialsCard({
   const connectPrimary = useAction(customerLineRefs.connectPrimary);
   const operation = useAsyncOperation({
     scope: "customer-line-connect-oa",
-    describeError: () => "UNKNOWN",
+    describeError: (code) => t(`errors.${normalizeLineErrorCode(code)}`),
     navigation: "write",
   });
 
@@ -529,8 +584,7 @@ function PrimaryCredentialsCard({
     );
   }
 
-  const displayedError =
-    error ?? (operation.error ? t("errors.UNKNOWN") : null);
+  const displayedError = error ?? (operation.error || null);
 
   const form = (
     <form

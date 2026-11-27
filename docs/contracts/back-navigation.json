@@ -12362,6 +12362,33 @@
           "name": "cancels or completes a wrong customer correction without leaving a dead Back step"
         }
       ]
+    },
+    {
+      "id": "src/features/customerLine/CustomerLineGroup.tsx#CustomerLineGroupQuery:redirecting",
+      "policy": "presentation",
+      "expectation": "Holds the loading state while completeTask replaces a retired enrollment with its fresh pending enrollment, preventing a transient group-not-found flash and retiring any underlay reply draft for the ended enrollment.",
+      "uses": ["return"],
+      "render": [
+        {
+          "shape": "early-return",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "src/components/ui/PageHeader#PageHeader"
+          ],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customerLine/CustomerLineScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "cancels or completes a wrong customer correction without leaving a dead Back step"
+        },
+        {
+          "file": "src/features/customerLine/CustomerLineScreens.test.tsx",
+          "name": "reopens a locally disconnected LINE group and Back restores the filtered inbox"
+        }
+      ]
     }
   ],
   "overlayDelegates": [

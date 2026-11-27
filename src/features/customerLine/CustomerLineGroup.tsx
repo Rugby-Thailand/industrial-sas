@@ -37,6 +37,7 @@ import {
   CUSTOMER_LINE_SETTINGS_PATH,
   customerLineGroupPath,
   customerLineRefs,
+  normalizeLineErrorCode,
   readLineWriteOutcome,
   type LineContact,
   type LineGroup,
@@ -153,18 +154,21 @@ function CustomerLineGroupQuery({
   const setGroupState = useMutation(customerLineRefs.setGroupState);
   const stateOperation = useAsyncOperation({
     scope: `customer-line-group-state:${groupId}`,
-    describeError: () => t("errors.UNKNOWN"),
+    describeError: (code) => t(`errors.${normalizeLineErrorCode(code)}`),
     navigation: "write",
   });
   const [stateError, setStateError] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
-  // The query can lose the old enrollment while the mutation settles.
+  // The query can lose the old enrollment while the mutation settles or while
+  // completion replaces the route with the fresh enrollment.
   async function runStateTransition(
     expectedVersion: number,
     state: "active" | "paused" | "pending",
     reviewAgain = false,
+    onSettledInPlace?: () => void,
   ) {
-    if (stateOperation.busy) return;
+    if (stateOperation.busy || redirecting) return;
     setStateError(null);
     await stateOperation.run(
       () => setGroupState({ groupId, expectedVersion, state }),
@@ -184,9 +188,12 @@ function CustomerLineGroupQuery({
             outcome.value.groupId,
             reviewAgain ? suggestedCustomerId : undefined,
           );
+          setRedirecting(true);
           stateOperation.complete(() =>
             completeTask(destination, router.replace),
           );
+        } else if (onSettledInPlace) {
+          stateOperation.complete(onSettledInPlace);
         }
       },
     );
@@ -203,7 +210,9 @@ function CustomerLineGroupQuery({
 
   if (
     groupOutcome === undefined ||
-    (groupOutcome.ok && groupOutcome.value === null && stateOperation.busy)
+    (groupOutcome.ok &&
+      groupOutcome.value === null &&
+      (stateOperation.busy || redirecting))
   ) {
     return (
       <>
@@ -262,6 +271,7 @@ function CustomerLineGroupQuery({
       connection={connection}
       viewer={viewer}
       stateBusy={stateOperation.busy}
+      retired={redirecting}
       stateError={stateError ?? (stateOperation.error || null)}
       onStateTransition={runStateTransition}
       onClearStateError={() => setStateError(null)}
@@ -275,6 +285,7 @@ function CustomerLineGroupContent({
   connection,
   viewer,
   stateBusy,
+  retired,
   stateError,
   onStateTransition,
   onClearStateError,
@@ -284,20 +295,23 @@ function CustomerLineGroupContent({
   readonly connection: LinePrimaryConnectionSummary | null | undefined;
   readonly viewer: LineViewer;
   readonly stateBusy: boolean;
+  readonly retired: boolean;
   readonly stateError: string | null;
   readonly onClearStateError: () => void;
   readonly onStateTransition: (
     version: number,
     state: "active" | "paused" | "pending",
     reviewAgain?: boolean,
+    onSettledInPlace?: () => void,
   ) => Promise<void>;
 }) {
   const t = useTranslations("CustomerLine");
+  const format = useFormatter();
   const setGroupState = useMutation(customerLineRefs.setGroupState);
 
   const disconnectOperation = useAsyncOperation({
     scope: `customer-line-group-disconnect:${group._id}`,
-    describeError: () => "UNKNOWN",
+    describeError: (code) => t(`errors.${normalizeLineErrorCode(code)}`),
     navigation: "write",
   });
   const [disconnectOpen, setDisconnectOpen] = useState(false);
@@ -345,7 +359,7 @@ function CustomerLineGroupContent({
   }
 
   const displayedDisconnectError =
-    disconnectError ?? (disconnectOperation.error ? t("errors.UNKNOWN") : null);
+    disconnectError ?? (disconnectOperation.error || null);
 
   return (
     <div className="space-y-4">
@@ -373,6 +387,16 @@ function CustomerLineGroupContent({
                 <span className="font-mono">{connection.basicId}</span>
               </span>
             ) : null}
+            {group.state === "pending" ? (
+              <span className="tabular-nums">
+                {t("joinedAt", {
+                  time: format.dateTime(group.lastActivityAt, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }),
+                })}
+              </span>
+            ) : null}
           </>
         }
       >
@@ -387,7 +411,7 @@ function CustomerLineGroupContent({
             </Link>
           </Button>
         ) : null}
-        {viewer.canManageGroups && group.state === "active" ? (
+        {viewer.canManageGroups && group.state === "active" && !providerLeft ? (
           <Button
             type="button"
             variant="outline"
@@ -400,7 +424,7 @@ function CustomerLineGroupContent({
             {t("pauseGroup")}
           </Button>
         ) : null}
-        {viewer.canManageGroups && group.state === "paused" ? (
+        {viewer.canManageGroups && group.state === "paused" && !providerLeft ? (
           <Button
             type="button"
             variant="outline"
@@ -577,21 +601,24 @@ function CustomerLineGroupContent({
             />
           ) : null}
 
-          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-            {group.customerId ? (
-              <>
-                <GroupQuestionsSection
-                  group={group}
-                  oaReady={oaReady}
-                  canSend={viewer.canSend}
-                />
-                <GroupContactsSection
-                  groupId={group._id}
-                  canManageGroups={viewer.canManageGroups}
-                />
-              </>
-            ) : null}
-          </div>
+          {group.customerId ? (
+            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+              <GroupQuestionsSection
+                group={group}
+                oaReady={oaReady}
+                canSend={viewer.canSend}
+                retired={retired}
+              />
+              <GroupContactsSection
+                groupId={group._id}
+                canManageGroups={
+                  viewer.canManageGroups &&
+                  group.state !== "disconnected" &&
+                  !providerLeft
+                }
+              />
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -617,7 +644,9 @@ function CustomerLineGroupContent({
         pendingLabel={t("requestingReapproval")}
         pending={stateBusy}
         onConfirm={() =>
-          void onStateTransition(changeCustomerVersion, "pending")
+          void onStateTransition(changeCustomerVersion, "pending", false, () =>
+            setChangeCustomerOpen(false),
+          )
         }
         testId="line-group-change-customer-dialog"
       />
@@ -648,7 +677,9 @@ function CustomerLineGroupContent({
         confirmLabel={t(
           disconnectTarget.ignoreJoin ? "ignoreJoin" : "disconnectGroupConfirm",
         )}
-        pendingLabel={t("disconnectingGroup")}
+        pendingLabel={t(
+          disconnectTarget.ignoreJoin ? "ignoringJoin" : "disconnectingGroup",
+        )}
         tone="destructive"
         pending={disconnectOperation.busy}
         onConfirm={() => void confirmDisconnect()}
@@ -671,7 +702,7 @@ function PendingApprovalSection({
   const approveGroup = useMutation(customerLineRefs.approveGroup);
   const operation = useAsyncOperation({
     scope: `customer-line-approve:${group._id}`,
-    describeError: () => "UNKNOWN",
+    describeError: (code) => t(`errors.${normalizeLineErrorCode(code)}`),
     navigation: "write",
   });
   const [customerId, setCustomerId] = useState(initialCustomerId);
@@ -710,8 +741,7 @@ function PendingApprovalSection({
     );
   }
 
-  const displayedError =
-    error ?? (operation.error ? t("errors.UNKNOWN") : null);
+  const displayedError = error ?? (operation.error || null);
 
   return (
     <Panel
@@ -771,10 +801,12 @@ function GroupQuestionsSection({
   group,
   oaReady,
   canSend,
+  retired,
 }: {
   readonly group: LineGroup;
   readonly oaReady: boolean;
   readonly canSend: boolean;
+  readonly retired: boolean;
 }) {
   const t = useTranslations("CustomerLine");
   const format = useFormatter();
@@ -782,7 +814,7 @@ function GroupQuestionsSection({
   const queueReply = useMutation(customerLineRefs.queueReply);
   const replyOperation = useAsyncOperation({
     scope: `customer-line-reply:${group._id}`,
-    describeError: () => "UNKNOWN",
+    describeError: (code) => t(`errors.${normalizeLineErrorCode(code)}`),
     navigation: "write",
   });
 
@@ -805,7 +837,10 @@ function GroupQuestionsSection({
     null,
   );
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [confirmedAudience, setConfirmedAudience] = useState(false);
+  const [audienceConfirmation, setAudienceConfirmation] = useState<{
+    readonly questionId: string;
+    readonly text: string;
+  } | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [replyStatus, setReplyStatus] = useState("");
 
@@ -814,16 +849,21 @@ function GroupQuestionsSection({
     replyableQuestions[0] ??
     null;
   const currentDraft = activeQuestion ? (drafts[activeQuestion._id] ?? "") : "";
+  const confirmedAudience =
+    activeQuestion !== null &&
+    audienceConfirmation !== null &&
+    audienceConfirmation.questionId === activeQuestion._id &&
+    audienceConfirmation.text === currentDraft;
   const hasAnyDraft = Object.values(drafts).some(
     (value) => value.trim().length > 0,
   );
 
   useNavigationDraft({
-    dirty: canSend && group.state === "active" && hasAnyDraft,
+    dirty: !retired && canSend && group.state === "active" && hasAnyDraft,
     pending: replyOperation.busy,
     discard: () => {
       setDrafts({});
-      setConfirmedAudience(false);
+      setAudienceConfirmation(null);
       setReplyError(null);
     },
   });
@@ -862,14 +902,13 @@ function GroupQuestionsSection({
           delete next[targetQuestionId];
           return next;
         });
-        setConfirmedAudience(false);
+        setAudienceConfirmation(null);
         setReplyStatus(t("replyQueuedStatus"));
       },
     );
   }
 
-  const displayedReplyError =
-    replyError ?? (replyOperation.error ? t("errors.UNKNOWN") : null);
+  const displayedReplyError = replyError ?? (replyOperation.error || null);
   const canCompose =
     group.state === "active" && oaReady && canSend && activeQuestion !== null;
   const hasPrevious = cursors.length > 0;
@@ -921,6 +960,7 @@ function GroupQuestionsSection({
                 </div>
                 {(question.state === "open" || question.state === "failed") &&
                 group.state === "active" &&
+                oaReady &&
                 canSend ? (
                   <button
                     type="button"
@@ -930,7 +970,7 @@ function GroupQuestionsSection({
                     })}
                     onClick={() => {
                       setSelectedQuestionId(question._id);
-                      setConfirmedAudience(false);
+                      setAudienceConfirmation(null);
                       setReplyError(null);
                     }}
                     data-testid={`line-question-select-${question._id}`}
@@ -1036,6 +1076,7 @@ function GroupQuestionsSection({
                     ...previous,
                     [activeQuestion._id]: nextText,
                   }));
+                  setAudienceConfirmation(null);
                   if (replyError) setReplyError(null);
                   if (replyStatus) setReplyStatus("");
                 }}
@@ -1047,7 +1088,11 @@ function GroupQuestionsSection({
             checked={confirmedAudience}
             disabled={replyOperation.busy}
             onChange={(event) => {
-              setConfirmedAudience(event.target.checked);
+              setAudienceConfirmation(
+                event.target.checked
+                  ? { questionId: activeQuestion._id, text: currentDraft }
+                  : null,
+              );
               if (replyError) setReplyError(null);
             }}
             label={t("replyConfirmAudience")}
@@ -1083,7 +1128,7 @@ function GroupContactsSection({
   const setContact = useMutation(customerLineRefs.setContact);
   const contactOperation = useAsyncOperation({
     scope: `customer-line-contact:${groupId}`,
-    describeError: () => "UNKNOWN",
+    describeError: (code) => t(`errors.${normalizeLineErrorCode(code)}`),
     navigation: "write",
   });
 
@@ -1149,7 +1194,7 @@ function GroupContactsSection({
   }
 
   const displayedContactError =
-    contactError ?? (contactOperation.error ? t("errors.UNKNOWN") : null);
+    contactError ?? (contactOperation.error || null);
 
   return (
     <Panel as="section" className="space-y-4">

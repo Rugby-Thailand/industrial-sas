@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { ChevronRight, MessageSquare, Settings2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
@@ -117,6 +118,7 @@ function CustomerLineInboxBody({
 
   return (
     <CustomerLineInboxContent
+      key={customerId ?? "all"}
       viewer={viewer}
       {...(customerId === undefined ? {} : { customerId })}
     />
@@ -211,6 +213,10 @@ function CustomerLineInboxContent({
     customerLineRefs.getPrimaryConnectionSummary,
     {},
   );
+  const customerOutcome = useQuery(
+    api.customers.catalogue.getCustomer,
+    customerId ? { customerId } : "skip",
+  );
   const groupsOutcome = useQuery(customerLineRefs.listGroups, {
     ...(customerId ? { customerId } : {}),
     ...(activeCursor ? { cursor: activeCursor } : {}),
@@ -219,6 +225,14 @@ function CustomerLineInboxContent({
   const connection = connectionOutcome?.ok
     ? connectionOutcome.value
     : undefined;
+  const activeCustomer =
+    customerOutcome?.ok && customerOutcome.value?.status === "ACTIVE"
+      ? customerOutcome.value
+      : null;
+  const customerUnavailable =
+    Boolean(customerId) &&
+    customerOutcome !== undefined &&
+    activeCustomer === null;
   const loadingGroups = groupsOutcome === undefined;
   const groupsDenied = groupsOutcome !== undefined && !groupsOutcome.ok;
   const groupsPage = groupsOutcome?.ok ? groupsOutcome.value : null;
@@ -235,6 +249,17 @@ function CustomerLineInboxContent({
         title={title}
         summary={summary}
         backFallbackHref="/master-data/customers"
+        {...(activeCustomer
+          ? {
+              meta: (
+                <span data-testid="line-inbox-customer-meta">
+                  {activeCustomer.code
+                    ? `${activeCustomer.code} · ${activeCustomer.name}`
+                    : activeCustomer.name}
+                </span>
+              ),
+            }
+          : {})}
       >
         {customerId ? (
           <>
@@ -270,7 +295,16 @@ function CustomerLineInboxContent({
         canManageConnection={viewer.canManageConnection}
       />
 
-      {viewer.canManageGroups &&
+      {customerUnavailable ? (
+        <Notice
+          tone="warning"
+          title={t("customerSelectionUnavailable")}
+          testId="line-customer-unavailable-notice"
+        />
+      ) : null}
+
+      {!customerUnavailable &&
+      viewer.canManageGroups &&
       connection?.state === "active" &&
       connection.basicId ? (
         <InviteInstructions
@@ -280,6 +314,7 @@ function CustomerLineInboxContent({
       ) : null}
 
       {customerId &&
+      !customerUnavailable &&
       viewer.canManageGroups &&
       connection?.state === "active" ? (
         <PendingJoins key={customerId} customerId={customerId} />

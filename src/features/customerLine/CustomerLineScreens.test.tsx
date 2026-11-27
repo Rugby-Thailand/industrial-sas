@@ -381,6 +381,9 @@ describe("CustomerLineInbox", () => {
     });
 
     renderScreen(<CustomerLineInbox customerId="cust-7" />);
+    expect(screen.getByTestId("line-inbox-customer-meta")).toHaveTextContent(
+      "Thairungruang Packaging",
+    );
     expect(
       mocks.queryArgs.get(getFunctionName(customerLineRefs.listGroups)),
     ).toEqual({ customerId: "cust-7" });
@@ -428,6 +431,45 @@ describe("CustomerLineInbox", () => {
     );
     fireEvent.click(pending.getByRole("button", { name: "Previous page" }));
     expect(pending.getByTestId("line-group-link-grp-receiving")).toBeVisible();
+  });
+
+  it("blocks onboarding when the filtered customer is unavailable and resets pagination cursors when switching to all LINE groups", () => {
+    mocks.queryResolvers.set(
+      getFunctionName(customerLineRefs.listGroups),
+      (args) =>
+        args.cursor === "cust-cursor-2"
+          ? { ok: true, value: { page: [PENDING_GROUP], continueCursor: null } }
+          : {
+              ok: true,
+              value: { page: [ACTIVE_GROUP], continueCursor: "cust-cursor-2" },
+            },
+    );
+
+    const view = renderScreen(<CustomerLineInbox customerId="cust-7" />);
+    fireEvent.click(screen.getByTestId("line-groups-next"));
+    expect(
+      mocks.queryArgs.get(getFunctionName(customerLineRefs.listGroups)),
+    ).toEqual({ customerId: "cust-7", cursor: "cust-cursor-2" });
+
+    view.rerender(
+      <DraftGuardProvider>
+        <CustomerLineInbox />
+      </DraftGuardProvider>,
+    );
+    expect(
+      mocks.queryArgs.get(getFunctionName(customerLineRefs.listGroups)),
+    ).toEqual({});
+
+    view.rerender(
+      <DraftGuardProvider>
+        <CustomerLineInbox customerId="archived-1" />
+      </DraftGuardProvider>,
+    );
+    expect(
+      screen.getByTestId("line-customer-unavailable-notice"),
+    ).toBeVisible();
+    expect(screen.queryByTestId("line-invite-instructions")).toBeNull();
+    expect(screen.queryByTestId("line-pending-joins")).toBeNull();
   });
 });
 
@@ -626,6 +668,165 @@ describe("CustomerLineGroup", () => {
     await waitFor(() => expect(textarea).toHaveValue(""));
   });
 
+  it("clears audience confirmation when reply text is edited while keeping the draft guard active", async () => {
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/en/master-data/customers/line/grp-dispatch",
+    );
+    const queueReplySpy = vi.fn().mockResolvedValue({ ok: true, value: null });
+    registerTestMutation(customerLineRefs.queueReply, queueReplySpy);
+
+    renderScreen(<CustomerLineGroup groupId="grp-dispatch" />);
+    const textarea = screen.getByLabelText(/Reply message/i);
+    const checkbox = screen.getByTestId("line-reply-audience-checkbox");
+
+    fireEvent.change(textarea, {
+      target: { value: "Pickup tomorrow at 09:00 is confirmed." },
+    });
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+
+    fireEvent.change(textarea, {
+      target: { value: "Pickup tomorrow at 10:00 is confirmed." },
+    });
+    expect(checkbox).not.toBeChecked();
+
+    fireEvent.click(screen.getByTestId("line-reply-submit"));
+    expect(queueReplySpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Confirm the group audience before sending.",
+    );
+
+    // Draft guard remains active when attempting to leave with the edited draft.
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    const guardDialog = await screen.findByRole("dialog");
+    expect(guardDialog).toBeVisible();
+    fireEvent.click(
+      within(guardDialog).getByRole("button", { name: "Keep editing" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(textarea).toHaveValue("Pickup tomorrow at 10:00 is confirmed.");
+
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+    fireEvent.click(screen.getByTestId("line-reply-submit"));
+    await waitFor(() =>
+      expect(queueReplySpy).toHaveBeenCalledWith({
+        groupId: "grp-dispatch",
+        questionId: "q-1",
+        text: "Pickup tomorrow at 10:00 is confirmed.",
+        confirmedAudience: true,
+      }),
+    );
+  });
+
+  it("clears audience confirmation when the selected question disappears reactively and switches to a retained draft", async () => {
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/en/master-data/customers/line/grp-dispatch",
+    );
+    const queueReplySpy = vi.fn().mockResolvedValue({ ok: true, value: null });
+    registerTestMutation(customerLineRefs.queueReply, queueReplySpy);
+
+    const view = renderScreen(<CustomerLineGroup groupId="grp-dispatch" />);
+    const textarea = screen.getByLabelText(/Reply message/i);
+
+    fireEvent.change(textarea, { target: { value: "Draft for Wipa." } });
+    fireEvent.click(screen.getByTestId("line-question-select-q-2"));
+    fireEvent.change(textarea, { target: { value: "Draft for Nattaphon." } });
+    fireEvent.click(screen.getByTestId("line-reply-audience-checkbox"));
+    expect(screen.getByTestId("line-reply-audience-checkbox")).toBeChecked();
+
+    // q-2 is answered elsewhere and disappears from replyable questions.
+    setQuery(customerLineRefs.listQuestions, {
+      ok: true,
+      value: {
+        page: [
+          TWO_SENDER_QUESTIONS[0]!,
+          {
+            ...TWO_SENDER_QUESTIONS[1]!,
+            state: "accepted",
+            replyText: "Answered by another shift.",
+          },
+        ],
+        continueCursor: null,
+      },
+    });
+    view.rerender(
+      <DraftGuardProvider>
+        <CustomerLineGroup groupId="grp-dispatch" />
+      </DraftGuardProvider>,
+    );
+
+    expect(screen.getByTestId("line-replying-to")).toHaveTextContent("Wipa S.");
+    expect(textarea).toHaveValue("Draft for Wipa.");
+    expect(
+      screen.getByTestId("line-reply-audience-checkbox"),
+    ).not.toBeChecked();
+
+    fireEvent.click(screen.getByTestId("line-reply-submit"));
+    expect(queueReplySpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Confirm the group audience before sending.",
+    );
+
+    // Draft guard remains active for the retained draft.
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    const guardDialog = await screen.findByRole("dialog");
+    expect(guardDialog).toBeVisible();
+    fireEvent.click(
+      within(guardDialog).getByRole("button", { name: "Keep editing" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    fireEvent.click(screen.getByTestId("line-reply-audience-checkbox"));
+    fireEvent.click(screen.getByTestId("line-reply-submit"));
+    await waitFor(() =>
+      expect(queueReplySpy).toHaveBeenCalledWith({
+        groupId: "grp-dispatch",
+        questionId: "q-1",
+        text: "Draft for Wipa.",
+        confirmedAudience: true,
+      }),
+    );
+  });
+
+  it("hides question selection when primary OA is not ready and keeps contacts read-only on disconnected groups", () => {
+    setQuery(customerLineRefs.getPrimaryConnectionSummary, {
+      ok: true,
+      value: {
+        name: ACTIVE_OA.name,
+        basicId: ACTIVE_OA.basicId,
+        state: "setup",
+      },
+    });
+    const { unmount } = renderScreen(
+      <CustomerLineGroup groupId="grp-dispatch" />,
+    );
+    expect(screen.queryByTestId("line-reply-composer")).toBeNull();
+    expect(screen.queryByTestId("line-question-select-q-1")).toBeNull();
+    unmount();
+
+    setQuery(customerLineRefs.getPrimaryConnectionSummary, {
+      ok: true,
+      value: {
+        name: ACTIVE_OA.name,
+        basicId: ACTIVE_OA.basicId,
+        state: "active",
+      },
+    });
+    setQuery(customerLineRefs.getGroup, {
+      ok: true,
+      value: { ...ACTIVE_GROUP, state: "disconnected", version: 6 },
+    });
+    renderScreen(<CustomerLineGroup groupId="grp-dispatch" />);
+    expect(screen.getByTestId("line-contacts-list")).toBeVisible();
+    expect(screen.queryByTestId("line-contact-action-contact-1")).toBeNull();
+    expect(screen.queryByTestId("line-contact-action-contact-2")).toBeNull();
+  });
+
   it("supports pause, resume, and paused reapproval while showing local disconnect without implying LINE leave", async () => {
     const stateSpy = vi.fn().mockResolvedValue({ ok: true, value: null });
     registerTestMutation(customerLineRefs.setGroupState, stateSpy);
@@ -764,9 +965,50 @@ describe("CustomerLineGroup", () => {
     await act(async () =>
       correction.resolve({ ok: true, value: { groupId: "corrected" } }),
     );
+    expect(screen.queryByTestId("line-group-not-found")).toBeNull();
     await waitFor(() =>
       expect(mocks.replace).toHaveBeenCalledWith(
         "/master-data/customers/line/corrected",
+      ),
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(window.location.href.endsWith(source)).toBe(true),
+    );
+  });
+
+  it("retires an unsaved reply draft when wrong customer correction succeeds so redirect is never blocked", async () => {
+    stopHistory?.();
+    const source = "/en/master-data/customers/line?customerId=cust-7";
+    const oldGroup = "/en/master-data/customers/line/grp-dispatch";
+    window.history.replaceState({ appNavigationIndex: 0 }, "", source);
+    stopHistory = trackAppHistory();
+    window.history.pushState({}, "", oldGroup);
+    mocks.replace.mockImplementation((href: string) => {
+      window.history.replaceState(window.history.state, "", `/en${href}`);
+    });
+
+    const changeGroup = vi
+      .fn()
+      .mockResolvedValue({ ok: true, value: { groupId: "corrected-2" } });
+    registerTestMutation(customerLineRefs.setGroupState, changeGroup);
+
+    renderScreen(<CustomerLineGroup groupId="grp-dispatch" />);
+    fireEvent.change(screen.getByLabelText(/Reply message/i), {
+      target: { value: "Unsent reply on wrong customer group" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Change customer" }));
+    const dialog = screen.getByTestId("line-group-change-customer-dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: "End link and choose customer",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        "/master-data/customers/line/corrected-2",
       ),
     );
     act(() => window.history.back());
@@ -1194,6 +1436,11 @@ describe("CustomerLineSettings", () => {
     expect(checks).toHaveTextContent("Signed webhook received");
     expect(checks).toHaveTextContent("Neutral group test ping passed");
 
+    // Deliberate selection is required even when only one pending group exists.
+    expect(screen.getByTestId("line-send-test-ping")).toBeDisabled();
+    chooseOption("Pending test group", "Thairungruang · Receiving");
+    expect(screen.getByTestId("line-send-test-ping")).toBeEnabled();
+
     fireEvent.click(screen.getByTestId("line-send-test-ping"));
     await waitFor(() =>
       expect(testSpy).toHaveBeenCalledWith({
@@ -1203,6 +1450,139 @@ describe("CustomerLineSettings", () => {
     );
     expect(
       await screen.findByText("Neutral test ping accepted by LINE."),
+    ).toBeVisible();
+  });
+
+  it("clears test target when the selected pending group disappears and gates test ping on signed webhook readiness", () => {
+    const secondPending: LineGroup = {
+      ...PENDING_GROUP,
+      _id: "grp-other",
+      name: "Northern Freight · Test",
+    };
+    setQuery(customerLineRefs.getPrimaryConnection, {
+      ok: true,
+      value: {
+        ...ACTIVE_OA,
+        state: "setup",
+        webhookVerifiedAt: undefined,
+        testSentAt: undefined,
+      },
+    });
+    setQuery(customerLineRefs.listGroups, {
+      ok: true,
+      value: {
+        page: [ACTIVE_GROUP, PENDING_GROUP, secondPending],
+        continueCursor: null,
+      },
+    });
+    const testSpy = setAction(
+      customerLineRefs.testConnection,
+      vi.fn().mockResolvedValue({ ok: true, value: null }),
+    );
+
+    const view = renderScreen(<CustomerLineSettings />);
+    expect(screen.getByTestId("line-send-test-ping")).toBeDisabled();
+    expect(screen.getByTestId("line-test-webhook-required")).toBeVisible();
+    chooseOption("Pending test group", "Thairungruang · Receiving");
+    expect(screen.getByTestId("line-send-test-ping")).toBeDisabled();
+
+    // Once webhook is verified, the chosen group can send.
+    setQuery(customerLineRefs.getPrimaryConnection, {
+      ok: true,
+      value: { ...ACTIVE_OA, state: "setup", testSentAt: undefined },
+    });
+    view.rerender(
+      <DraftGuardProvider>
+        <CustomerLineSettings />
+      </DraftGuardProvider>,
+    );
+    expect(screen.getByTestId("line-send-test-ping")).toBeEnabled();
+
+    // Selected group disappears while another pending group remains: must clear, never fall back.
+    setQuery(customerLineRefs.listGroups, {
+      ok: true,
+      value: {
+        page: [ACTIVE_GROUP, secondPending],
+        continueCursor: null,
+      },
+    });
+    view.rerender(
+      <DraftGuardProvider>
+        <CustomerLineSettings />
+      </DraftGuardProvider>,
+    );
+    expect(screen.getByTestId("line-send-test-ping")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("line-send-test-ping"));
+    expect(testSpy).not.toHaveBeenCalled();
+
+    // Even if the removed group reappears later, it must stay cleared until deliberately re-selected.
+    setQuery(customerLineRefs.listGroups, {
+      ok: true,
+      value: {
+        page: [ACTIVE_GROUP, PENDING_GROUP, secondPending],
+        continueCursor: null,
+      },
+    });
+    view.rerender(
+      <DraftGuardProvider>
+        <CustomerLineSettings />
+      </DraftGuardProvider>,
+    );
+    expect(screen.getByTestId("line-send-test-ping")).toBeDisabled();
+  });
+
+  it("maps rejected ConvexError codes from connectPrimary and testConnection and uses webhook copy fallback copy", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: undefined,
+      configurable: true,
+    });
+    setQuery(customerLineRefs.getPrimaryConnection, {
+      ok: true,
+      value: { ...ACTIVE_OA, state: "setup", testSentAt: undefined },
+    });
+    const connectSpy = setAction(
+      customerLineRefs.connectPrimary,
+      vi.fn().mockRejectedValue(
+        Object.assign(new Error("LINE_CREDENTIALS_INVALID"), {
+          data: { code: "LINE_CREDENTIALS_INVALID" },
+        }),
+      ),
+    );
+    const testSpy = setAction(
+      customerLineRefs.testConnection,
+      vi.fn().mockRejectedValue(
+        Object.assign(new Error("LINE_TEST_FAILED"), {
+          data: { code: "LINE_TEST_FAILED" },
+        }),
+      ),
+    );
+
+    renderScreen(<CustomerLineSettings />);
+    fireEvent.click(screen.getByTestId("line-copy-webhook"));
+    expect(
+      screen.getByText("Webhook URL selected. You can copy it now."),
+    ).toBeVisible();
+
+    chooseOption("Pending test group", "Thairungruang · Receiving");
+    fireEvent.click(screen.getByTestId("line-send-test-ping"));
+    await waitFor(() => expect(testSpy).toHaveBeenCalledTimes(1));
+    expect(
+      await screen.findByText("LINE rejected the neutral test ping."),
+    ).toBeVisible();
+
+    fireEvent.click(screen.getByTestId("line-update-credentials-section"));
+    fireEvent.change(screen.getByLabelText(/Channel secret/i), {
+      target: { value: "bad-secret" },
+    });
+    fireEvent.change(screen.getByLabelText(/Channel access token/i), {
+      target: { value: "bad-token" },
+    });
+    fireEvent.click(screen.getByTestId("line-connect-oa-submit"));
+    await waitFor(() => expect(connectSpy).toHaveBeenCalledTimes(1));
+    expect(
+      await screen.findByText(
+        "LINE rejected those channel credentials. Check the channel secret and access token.",
+      ),
     ).toBeVisible();
   });
 
