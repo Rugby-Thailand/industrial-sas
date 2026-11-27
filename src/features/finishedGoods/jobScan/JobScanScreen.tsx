@@ -215,7 +215,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const acquisition = useJobScanAcquisition({
     prepare: prepareJobTicketPhoto,
     toDataUrl,
-    extract: (imageUrl) => extract({ warehouseId, imageUrl }),
+    extract: (imageUrl, images) =>
+      extract({ warehouseId, imageUrl, ...images }),
     upload: async (image) =>
       (await startUpload([image], { warehouseId }))?.[0]?.serverData,
     createObjectURL: (file) => URL.createObjectURL(file),

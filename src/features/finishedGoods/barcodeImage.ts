@@ -1,12 +1,19 @@
 import type { BarcodeCrop } from "./barcodeDecoder";
 
 export type BarcodeImageTarget =
-  "LOCATION" | "ANY" | "TICKET" | "factoryOrder" | "productBarcodeText";
+  | "LOCATION"
+  | "ANY"
+  | "TICKET"
+  | "TICKET_PHOTO"
+  | "factoryOrder"
+  | "productBarcodeText";
 export type BarcodeImageResult = {
   codes: string[];
   reviewRequired: boolean;
   attempts: number;
   elapsedMs: number;
+  detailCrop?: BarcodeCrop;
+  deliveryCrop?: BarcodeCrop;
 };
 export type BarcodeImageError =
   "TYPE" | "SIZE" | "PIXELS" | "IMAGE" | "DECODER" | "UNAVAILABLE";
@@ -56,15 +63,16 @@ export function readBarcodeImage(
     };
     const abort = () =>
       finish(undefined, new DOMException("Cancelled", "AbortError"));
+    const timeoutMs = target === "TICKET_PHOTO" ? 540 : 20_000;
     const timeout = setTimeout(
       () =>
         finish({
           codes: [],
           reviewRequired: false,
           attempts: 0,
-          elapsedMs: 20000,
+          elapsedMs: timeoutMs,
         }),
-      20000,
+      timeoutMs,
     );
     signal.addEventListener("abort", abort, { once: true });
     worker.onerror = () => finish(undefined, new ImageScanError("DECODER"));

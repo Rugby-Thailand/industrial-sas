@@ -48,13 +48,20 @@ export const JOB_TICKET_JSON_SCHEMA = {
   },
 } as const;
 
-export const JOB_TICKET_PROMPT = `You read Thai factory job tickets (form FM-PD-02, "JOB NO."). Return JSON only.
-- factory_order: the JOB NO. value, e.g. "FO69070073" or "FOM6908062".
-- product_barcode_text: the human-readable text printed under the product barcode (บาร์โค้ดสินค้า), e.g. "FBN-BXVMI004-BOX-00F".
-- delivery_date (วันที่ส่งสินค้า) and manufacturing_date (วันที่ผลิต): copy exactly as printed, keep the Thai Buddhist year, e.g. "6/7/2569".
-- part_name (ชื่อสินค้า) and customer (ชื่อลูกค้า): copy exactly, character by character. Do not correct spelling.
-- quantity (จำนวน), factory_quantity (จ.น.แผ่น/พาเลท ตอนออกจากโรงงาน), customer_quantity (จ.น.แผ่น/พาเลท ตอนลงงานให้ลูกค้า): numbers without separators.
-Use null for anything missing or unreadable. Never guess.`;
+export const JOB_TICKET_PROMPT = `Transcribe a Thai factory job ticket (FM-PD-02). The ticket may be tilted, partly covered, marked with pen, or rotated. Return only JSON. Every value must come from its own box on this ticket. Copy visible characters, including hyphens and zeros, with no spelling changes or guesses.
+- factory_order: the identifier printed beside JOB NO. above its barcode. Keep every leading zero, digit, letter, and separator; do not assume a fixed length.
+- product_barcode_text: the small text directly under the barcode labeled บาร์โค้ดสินค้า, above the inventory DATE/IN/OUT/BALANCE table. It has its own text; never substitute the JOB number or part name. Check O vs 0, I vs 1, and hyphens. If that line is covered or not legible, return null.
+- delivery_date: the date in the delivery-date box (วันที่ส่งสินค้า).
+- manufacturing_date: the date in the MFG DATE box (วันที่ผลิต), below the customer line and directly to the left of the QUANTITY field. Do not substitute the delivery date or the form's effective date. Keep the calendar year and digits as printed, whether Buddhist or Gregorian.
+- part_name: copy the entire visible value in PART NAME (ชื่อสินค้า), character for character, without completing words cut off at the edge of the box.
+- customer: copy the entire visible name in CUSTOMER (ชื่อลูกค้า), including legal suffix, branch, and parentheticals where shown. Preserve Thai spelling and diacritics. Ignore the factory letterhead.
+- quantity: the number in QUANTITY (จำนวน), to the right of MFG DATE. If a printed value is struck out and a clearly legible handwritten replacement appears in that box, use the replacement. Ignore notes, balances, and in/out numbers in other boxes.
+- factory_quantity, customer_quantity: read the next two distinct pallet-count boxes below CHECKER BY, respectively ตอนออกจากโรงงาน and ตอนลงงานให้ลูกค้า. A visibly empty box is null. A printed 0.00 is the number 0. Never use the main quantity or a value from the stock movement table as a substitute.
+Return null for missing, unreadable, or ambiguous values. Numeric results are numbers without separators.
+Use ASCII double quotes, apostrophe, and x for printed dimensions. When reading either date, read each digit in order directly from its box; even a strange printed year or date must be transcribed as written. Review the year and day glyphs once before committing. Do not infer dates from the job number. Copy any unusual-looking printed digit without trying to correct it. JOB numbers such as FO69070073 or FOM6908062 are different from product codes.`;
+
+export const LUNA_JOB_TICKET_DATE_PROMPT =
+  "For both date strings, insert a space between every digit and each slash, for example 2 9 / 1 2 / 2 5 5 3. Use this format to copy each glyph individually. Do not substitute a year just because the printed year seems unlikely.";
 
 export type JobTicketSearchCandidates = {
   factoryOrder?: string;
@@ -97,7 +104,18 @@ export function parseJobTicket(raw: unknown): Partial<JobTicketFields> {
   const fields: Partial<JobTicketFields> = {};
   for (const [key, field] of Object.entries(TEXT_FIELDS)) {
     const value = source[key] ?? source[field];
-    if (typeof value === "string" && value.trim()) fields[field] = value.trim();
+    if (typeof value !== "string" || !value.trim()) continue;
+    const text = value.trim();
+    if (field === "deliveryDate" || field === "manufacturingDate") {
+      const compactDate = text.replace(/\s+/g, "");
+      fields[field] = /^\d{1,2}[/.-]\d{1,2}[/.-](?:\d{2}|\d{4})$/.test(
+        compactDate,
+      )
+        ? compactDate
+        : text;
+    } else {
+      fields[field] = text;
+    }
   }
   for (const [key, field] of Object.entries(NUMBER_FIELDS)) {
     const value = toNumber(source[key] ?? source[field]);

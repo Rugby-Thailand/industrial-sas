@@ -216,12 +216,18 @@ export function imageProviderRequest({
   prompt,
   instruction,
   imageUrl,
+  supplements = [],
+  openAiImageDetail,
+  openAiLunaPromptSuffix,
   name,
   schema,
 }: {
   readonly prompt: string;
   readonly instruction: string;
   readonly imageUrl: string;
+  readonly supplements?: readonly { url: string; instruction: string }[];
+  readonly openAiImageDetail?: "original";
+  readonly openAiLunaPromptSuffix?: string;
   readonly name: string;
   readonly schema: object;
 }) {
@@ -241,6 +247,10 @@ export function imageProviderRequest({
     : "https://openrouter.ai/api/v1/chat/completions";
   const reasoning = { effort: "none" };
   const jsonSchema = { name, strict: true, schema };
+  const openAiLuna = useOpenAi && model === "gpt-6-luna";
+  const openAiDetail =
+    openAiLuna && openAiImageDetail ? { detail: openAiImageDetail } : {};
+
   const body = useOpenAi
     ? {
         model,
@@ -248,12 +258,22 @@ export function imageProviderRequest({
         service_tier: "default",
         reasoning,
         input: [
-          { role: "developer", content: prompt },
+          {
+            role: "developer",
+            content:
+              openAiLuna && openAiLunaPromptSuffix
+                ? `${prompt}\n${openAiLunaPromptSuffix}`
+                : prompt,
+          },
           {
             role: "user",
             content: [
               { type: "input_text", text: instruction },
-              { type: "input_image", image_url: imageUrl },
+              { type: "input_image", image_url: imageUrl, ...openAiDetail },
+              ...supplements.flatMap(({ url, instruction }) => [
+                { type: "input_text", text: instruction },
+                { type: "input_image", image_url: url, ...openAiDetail },
+              ]),
             ],
           },
         ],
@@ -270,6 +290,10 @@ export function imageProviderRequest({
             content: [
               { type: "text", text: instruction },
               { type: "image_url", image_url: { url: imageUrl } },
+              ...supplements.flatMap(({ url, instruction }) => [
+                { type: "text", text: instruction },
+                { type: "image_url", image_url: { url } },
+              ]),
             ],
           },
         ],

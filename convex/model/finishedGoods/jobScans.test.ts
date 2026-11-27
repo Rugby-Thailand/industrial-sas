@@ -49,6 +49,18 @@ describe("parseJobTicket", () => {
     expect(parseJobTicket("nope")).toEqual({});
     expect(parseJobTicket({ quantity: "abc", part_name: "  " })).toEqual({});
   });
+
+  it("compacts spaced dates while preserving printed separators and year digits", () => {
+    expect(
+      parseJobTicket({
+        delivery_date: "2 9 / 1 2 / 6 9",
+        manufacturing_date: "0 7 - 1 0 - 2 5 6 9",
+      }),
+    ).toEqual({
+      deliveryDate: "29/12/69",
+      manufacturingDate: "07-10-2569",
+    });
+  });
 });
 
 describe("classifyTicketBarcode", () => {
