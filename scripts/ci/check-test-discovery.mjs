@@ -3,9 +3,10 @@
 // runner project (T11). Catches a file silently excluded by a glob change.
 import { execFileSync } from "node:child_process";
 import { relative, resolve } from "node:path";
+import { createVitest } from "vitest/node";
 
 import { testDiscoveryProblems } from "./lib.mjs";
-import { uncoveredNavigationProjects } from "./workflow-lib.mjs";
+import { TEST_SHARDS, uncoveredNavigationProjects } from "./workflow-lib.mjs";
 
 const root = process.cwd();
 const run = (command, args) =>
@@ -17,12 +18,27 @@ const run = (command, args) =>
 
 const tracked = run("git", ["ls-files", "-z"]).split("\0").filter(Boolean);
 
-const vitest = JSON.parse(
-  run("pnpm", ["exec", "vitest", "list", "--filesOnly", "--json"]),
-).map(({ file, projectName }) => ({
-  file: relative(root, resolve(root, file)),
-  projectName,
-}));
+// Use the configured sequencer, as the CI run does. Vitest's files-only
+// listing does not apply --shard, so it cannot detect omissions or overlaps.
+const context = await createVitest("test", { run: true });
+const vitest = [];
+try {
+  const discovered = await context.getRelevantTestSpecifications();
+  const sequencer = new context.config.sequence.sequencer(context);
+  for (let index = 1; index <= TEST_SHARDS; index += 1) {
+    context.config.shard = { index, count: TEST_SHARDS };
+    const files = await sequencer.shard(discovered);
+    if (files.length === 0) throw new Error(`Vitest shard ${index} is empty`);
+    for (const file of files) {
+      vitest.push({
+        file: relative(root, file.moduleId),
+        projectName: file.project.name,
+      });
+    }
+  }
+} finally {
+  await context.close();
+}
 
 const playwright = [];
 const navigationProblems = [];
@@ -73,6 +89,6 @@ if (problems.length > 0) {
   process.exit(1);
 }
 console.log(
-  `Test discovery OK: ${vitest.length} Vitest files, ` +
+  `Test discovery OK: ${vitest.length} Vitest files across ${TEST_SHARDS} shards, ` +
     `${new Set(playwright).size} Playwright spec files.`,
 );

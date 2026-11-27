@@ -1,9 +1,21 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
+const require = createRequire(import.meta.url);
+const app = require("../../package.json");
+assert.equal(
+  require("@playwright/test/package.json").version,
+  app.devDependencies["@playwright/test"],
+  "Release smoke and app must use the same pinned Playwright version.",
+);
+assert.equal(
+  require("convex/package.json").version,
+  app.dependencies.convex,
+  "Release backup and app must use the same pinned Convex version.",
+);
+
 // Exercise the published consumers of our scoped Zod overrides. Checking the
 // validator alone would miss incompatibilities in the builders' actual schemas.
-const require = createRequire(import.meta.url);
 const vercelRequire = createRequire(require.resolve("vercel/package.json"));
 const pythonRequire = createRequire(vercelRequire.resolve("@vercel/python"));
 const analysisPath = pythonRequire.resolve("@vercel/python-analysis");

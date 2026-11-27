@@ -152,11 +152,15 @@ async function smoke({ phase, baseUrl, expectedSha, deploymentId }) {
       ? "playwright.staging.config.ts"
       : "playwright.production.config.ts";
   const reportFile = join(outputDir, `smoke-${phase}.json`);
+  const [command, ...playwrightArgs] =
+    targetName === "production"
+      ? ["tools/release/node_modules/.bin/playwright"]
+      : ["pnpm", "exec", "playwright"];
   const execute = (oidcFile, signal) =>
     new Promise((resolve) => {
       const child = spawn(
-        "pnpm",
-        ["exec", "playwright", "test", "--config", config],
+        command,
+        [...playwrightArgs, "test", "--config", config],
         {
           stdio: ["ignore", "inherit", "inherit"],
           env: {

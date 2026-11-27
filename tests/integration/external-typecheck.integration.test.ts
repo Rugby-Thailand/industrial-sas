@@ -48,7 +48,7 @@ describe("external CI TypeScript gate", () => {
       readFileSync(join(root, "package.json"), "utf8"),
     );
     expect(manifest.scripts["typecheck:ts6"]).toBe(
-      "next typegen && tsc --noEmit",
+      "next typegen && node node_modules/typescript/bin/tsc --noEmit",
     );
     expect(ts.version).toBe(manifest.devDependencies.typescript);
     const parsed = ts.getParsedCommandLineOfConfigFile(

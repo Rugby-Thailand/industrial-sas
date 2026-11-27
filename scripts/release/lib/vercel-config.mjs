@@ -7,9 +7,10 @@
 
 export const GATED_BUILD_COMMAND = [
   "node scripts/release/assert-deploy-env.mjs --phase=pre",
-  "pnpm exec convex deploy --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL" +
+  "pnpm exec convex deploy --typecheck=enable --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL" +
     // The exact source has already passed next typegen + TypeScript 6 in the
-    // mandatory quality gate. Keep Convex's separate backend typecheck.
+    // mandatory quality gate. Convex checks fresh bindings with the pinned
+    // native TypeScript compiler in @typescript/native.
     " --cmd 'node scripts/release/assert-deploy-env.mjs --phase=build && CI_EXTERNAL_TYPECHECK=1 pnpm build'",
 ].join(" && ");
 

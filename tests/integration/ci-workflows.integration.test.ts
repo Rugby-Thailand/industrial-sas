@@ -68,10 +68,10 @@ function problemsWith(
 }
 
 /** Extract an actual named step so omission/duplication tests need no YAML copy. */
-function namedStep(file: keyof typeof owned, name: string) {
+function namedStep(file: keyof typeof owned, name: string, offset = 0) {
   const text = owned[file];
   const heading = `      - name: ${name}\n`;
-  const start = text.indexOf(heading);
+  const start = text.indexOf(heading, offset);
   expect(start, `step missing: ${name}`).toBeGreaterThanOrEqual(0);
   const bodyStart = start + heading.length;
   const boundary = text.slice(bodyStart).search(/\n(?= {0,7}\S)/);
@@ -246,18 +246,18 @@ describe("workflow policy rejects regressions", () => {
   it.each([
     [
       "omitted browser shard",
-      "          - suite: workspace-2\n            shard: 2\n",
+      "          - suite: workspace-3\n            shard: 3\n",
       "",
     ],
     [
       "duplicate browser shard",
-      "          - suite: workspace-2\n            shard: 2\n",
+      "          - suite: workspace-3\n            shard: 3\n",
       "          - suite: workspace-1\n            shard: 1\n",
     ],
     [
       "wrong shard total",
-      "test:e2e:workspace --shard=${{ matrix.shard }}/2",
       "test:e2e:workspace --shard=${{ matrix.shard }}/3",
+      "test:e2e:workspace --shard=${{ matrix.shard }}/2",
     ],
     [
       "shared shard report",
@@ -648,14 +648,17 @@ describe("workflow policy rejects regressions", () => {
         "quality.yml:release: id-token: write is not allowlisted",
       ]),
     );
-    expect(
-      problemsWith("quality.yml", [
-        [
-          '          ref: ${{ github.sha }}\n          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "false"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile\n      - name: Install Playwright Chromium\n        run: |\n          pnpm exec playwright install --only-shell chromium\n          node scripts/ci/verify-playwright-browsers.mjs chromium\n      # Production',
-          '          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "true"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile --ignore-workspace\n      - name: Install Playwright Chromium\n        run: |\n          pnpm exec playwright install --only-shell chromium\n          node scripts/ci/verify-playwright-browsers.mjs chromium\n      # Production',
-        ],
-      ]),
-    ).toEqual(
+    const release = owned["quality.yml"].slice(
+      owned["quality.yml"].indexOf("\n  release:\n"),
+    );
+    const regressedRelease = release
+      .replace("          ref: ${{ github.sha }}\n", "")
+      .replace('cache: "false"', 'cache: "true"')
+      .replace(
+        "pnpm -C tools/release install --frozen-lockfile",
+        "$& --ignore-workspace",
+      );
+    expect(problemsWith("quality.yml", [[release, regressedRelease]])).toEqual(
       expect.arrayContaining([
         "quality.yml:release: checkout must use ref ${{ github.sha }}",
         'quality.yml:release: setup must pass cache: "false"',
@@ -882,10 +885,12 @@ describe("workflow policy rejects regressions", () => {
           ? "Deploy and verify staging"
           : "Release production";
       const runner = namedStep("quality.yml", title);
-      const install =
-        "      - name: Install Playwright Chromium\n        run: |\n          pnpm exec playwright install --only-shell chromium\n          node scripts/ci/verify-playwright-browsers.mjs chromium\n";
       const runnerAt = owned["quality.yml"].indexOf(runner);
-      const installAt = owned["quality.yml"].lastIndexOf(install, runnerAt);
+      const installAt = owned["quality.yml"].lastIndexOf(
+        "      - name: Install Playwright Chromium\n",
+        runnerAt,
+      );
+      const install = `${namedStep("quality.yml", "Install Playwright Chromium", installAt)}\n`;
       const block = owned["quality.yml"].slice(
         installAt,
         runnerAt + runner.length,
@@ -1038,7 +1043,8 @@ describe("workflow policy rejects regressions", () => {
       "Formatting",
       "Typecheck (cold next typegen + Bun checker)",
       "TypeScript 6 gate (cold generated route types)",
-      "Convex deployment typecheck",
+      "Convex TypeScript 6 gate",
+      "Validate the Convex deployment compiler",
       "Lint",
       "Back navigation contract and architecture fixtures",
       "Runtime dependency audit",

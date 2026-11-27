@@ -1,6 +1,8 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
+import { TimingBalancedSequencer } from "./scripts/ci/vitest-sequencer.mjs";
+
 const resolve = { tsconfigPaths: true } as const;
 
 const convexRuntimeTests = [
@@ -20,9 +22,10 @@ const domUnitTests = [
 
 export default defineConfig({
   test: {
+    sequence: { sequencer: TimingBalancedSequencer },
     // Informational combined coverage runs across the full suite in the
     // scheduled/manual Workspace matrix workflow. PR and push checks run
-    // every test in shards with native JUnit reports, without instrumentation.
+    // every test in balanced shards with native JUnit reports, without instrumentation.
     // No thresholds yet: floors follow a measured critical-path baseline.
     coverage: {
       provider: "v8",
