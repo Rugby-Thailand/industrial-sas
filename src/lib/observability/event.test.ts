@@ -111,6 +111,9 @@ describe("observability dimension allowlist", () => {
     expect(normalizeRoute("/en/finished-goods/packages/scan")).toBe(
       "en.finished-goods.packages.scan",
     );
+    expect(
+      normalizeRoute("/th/master-data/customers/line/fixture-group-id"),
+    ).toBe(`th.master-data.customers.line.${ROUTE_PLACEHOLDER}`);
     const typed = normalizeRoute(
       `th/${SENTINELS.email}/${SENTINELS.customer}/${SENTINELS.productCode}`,
     );

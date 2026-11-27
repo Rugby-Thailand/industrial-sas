@@ -9,6 +9,7 @@ import { getFunctionName } from "convex/server";
 import type { ComponentProps } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 
+import { getTestMutation } from "@tests/fixtures/convex-mutation";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import CustomerLinePage from "@/app/[locale]/(desktop)/master-data/customers/line/page";
@@ -29,7 +30,7 @@ vi.mock("convex/react", () => ({
       ? undefined
       : queryFixture(getFunctionName(reference), args),
   useAction: () => vi.fn(),
-  useMutation: () => vi.fn(),
+  useMutation: getTestMutation,
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
 }));
 vi.mock("@/components/providers/WorkspaceProvider", () => ({
