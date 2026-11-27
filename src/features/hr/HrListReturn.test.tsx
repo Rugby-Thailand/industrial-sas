@@ -1,4 +1,10 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 import {
   useSyncExternalStore,
@@ -8,7 +14,6 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { chooseOption } from "@tests/fixtures/select-control";
 
 /**
  * K-UX-HR-03: History period/status and Requests status/page survive the
@@ -83,6 +88,8 @@ vi.mock("@/i18n/navigation", () => {
   };
 });
 
+import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
+import { trackAppHistory } from "@/lib/browser/appHistory";
 import { hrRefs } from "@/lib/convex/hrApi";
 import { HrHistoryScreen } from "./HistoryScreen";
 import { HrRequestsScreen } from "./RequestsScreen";
@@ -409,13 +416,78 @@ describe("Requests keep their status and page across a request visit", () => {
     );
   });
 
+  it("Request filter native Back and Forward reopen only the applied draft before returning to the localized origin", async () => {
+    window.history.replaceState({ appNavigationIndex: 0 }, "", "/en/hr/today");
+    const stop = trackAppHistory();
+    window.history.pushState({}, "", "/en/hr/requests?from=2026-10-01#mine");
+    try {
+      renderWithIntl(
+        <DraftGuardProvider>
+          <HrRequestsScreen />
+        </DraftGuardProvider>,
+        { locale: "en", workspace: false },
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Request filters (1)" }),
+      );
+      const sheet = () =>
+        screen.getByRole("dialog", { name: "Request filters" });
+      fireEvent.click(
+        within(sheet()).getByRole("button", {
+          name: "Choose date for From date",
+        }),
+      );
+      const calendar = screen.getByRole("dialog", { name: "From date" });
+      fireEvent.click(
+        within(calendar).getByRole("button", { name: /October 2, 2026/ }),
+      );
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", { name: "From date" }),
+        ).not.toBeInTheDocument(),
+      );
+      await waitFor(() =>
+        expect(within(sheet()).getByLabelText("From date")).toHaveValue(
+          "2026-10-02",
+        ),
+      );
+      expect(lastArgs(requestsName)?.from).toBe("2026-10-01");
+      fireEvent.change(within(sheet()).getByLabelText("To date"), {
+        target: { value: "2026-09-01" },
+      });
+      expect(within(sheet()).getByRole("status")).toHaveTextContent(
+        "The end date must be on or after the start date.",
+      );
+      expect(
+        within(sheet()).getByRole("button", { name: "Apply filters" }),
+      ).toBeDisabled();
+      expect(lastArgs(requestsName)?.to).toBeUndefined();
+      await nativeBack();
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+      );
+      expect(window.location.search).toBe("?from=2026-10-01");
+      await nativeForward();
+      expect(within(sheet()).getByLabelText("To date")).toHaveValue("");
+      fireEvent.click(within(sheet()).getByRole("button", { name: "Cancel" }));
+      await waitFor(() =>
+        expect(window.location.search).toBe("?from=2026-10-01"),
+      );
+      expect(window.location.hash).toBe("#mine");
+      await nativeBack();
+      expect(window.location.pathname).toBe("/en/hr/today");
+    } finally {
+      stop();
+    }
+  });
+
   it("Requests status and older page -> request -> native Back restores the same page", async () => {
     window.history.pushState({}, "", "/en/hr/requests#mine");
     renderWithIntl(<App list={() => <HrRequestsScreen />} />, {
       locale: "en",
       workspace: false,
     });
-    chooseOption("Status", "Returned");
+    fireEvent.click(screen.getByRole("radio", { name: "Returned" }));
     expect(new URLSearchParams(window.location.search).get("status")).toBe(
       "RETURNED",
     );
@@ -440,6 +512,6 @@ describe("Requests keep their status and page across a request visit", () => {
       status: "RETURNED",
       cursor: "page-2",
     });
-    expect(screen.getByLabelText("Status")).toHaveTextContent("Returned");
+    expect(screen.getByRole("radio", { name: "Returned" })).toBeChecked();
   });
 });

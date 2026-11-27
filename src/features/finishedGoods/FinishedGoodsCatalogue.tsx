@@ -14,13 +14,12 @@ import {
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { StatusReason } from "@/components/ui/StatusReason";
-import { CollectionToolbar } from "@/components/system/CollectionToolbar";
 import { IconButton } from "@/components/ui/IconButton";
 import { ScanIcon } from "@/components/ui/ScanIcon";
 import { Link } from "@/i18n/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
-import { CatalogueFiltersButton, FilterChips } from "./CatalogueFilterControls";
-import { hasFilters, newFilters } from "./catalogueFilters";
+import { CatalogueFilterBar, CatalogueSort } from "./CatalogueFilterControls";
+import { hasFilters } from "./catalogueFilters";
 import { useCatalogueState } from "./useCatalogueState";
 import { FinishedGoodsTable } from "./FinishedGoodsTable";
 import { unitNextAction } from "./unitNextAction";
@@ -111,7 +110,7 @@ function Catalogue({
   const { tab, search, layout } = state;
   const mobile = useIsMobile();
   const filters = state[tab];
-  const clearFilters = () => updateState({ search: "", [tab]: newFilters() });
+  // Clearing filters keeps the search, sort, layout and the other tab.
   const settledSearch = useDebouncedSearch(search);
   const paging = useCursorPagination({
     scope: `${viewKey}:${tab}`,
@@ -184,7 +183,9 @@ function Catalogue({
     units: [...(summary?.units ?? [])],
     onChange: (next: typeof filters) => updateState({ [tab]: next }),
   };
-  const filtered = Boolean(search.trim()) || hasFilters(filters, tab);
+  const searched = Boolean(search.trim());
+  const conditioned = hasFilters(filters, tab);
+  const filtered = searched || conditioned;
   return (
     <>
       {summaryOutcome?.ok &&
@@ -255,17 +256,17 @@ function Catalogue({
           </Button>
         ))}
       </div>
-      <CollectionToolbar
-        className="mb-4"
-        searchType="text"
-        value={search}
-        onValueChange={(value) => updateState({ search: value })}
-        searchLabel={t("copy.search-finished-goods")}
-        placeholder={t("copy.search-sku-name-or-storage-unit")}
-        clearLabel={t("copy.clear-search-414314")}
+      <CatalogueFilterBar
+        {...filterControls}
+        search={search}
+        onSearchChange={(value) => updateState({ search: value })}
         actions={
           <>
-            <CatalogueFiltersButton {...filterControls} />
+            <CatalogueSort
+              tab={tab}
+              value={filters.sort}
+              onChange={(sort) => updateState({ [tab]: { ...filters, sort } })}
+            />
             <div
               className="hidden gap-1 lg:flex"
               role="group"
@@ -294,12 +295,6 @@ function Catalogue({
           </>
         }
       />
-      <FilterChips
-        {...filterControls}
-        search={search}
-        onClearSearch={() => updateState({ search: "" })}
-        onClearAll={clearFilters}
-      />
       {!canManage && (
         <div className="mb-3">
           <ViewOnlyNotice />
@@ -312,9 +307,10 @@ function Catalogue({
       )}
       {ready && (
         <p role="status" className="mb-3 text-xs text-muted">
-          {t("copy.showing")}{" "}
-          {tab === "products" ? shownProducts.length : shownPallets.length}{" "}
-          {t("copy.records")}
+          {t("copy.page-count", {
+            count:
+              tab === "products" ? shownProducts.length : shownPallets.length,
+          })}
         </p>
       )}
       {outcome?.ok && outcome.value.status === "not_ready" ? (
@@ -347,24 +343,24 @@ function Catalogue({
           </h2>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted">
             {filtered
-              ? t("copy.try-a-different-search-or-clear-the-filters")
+              ? [
+                  searched && t("copy.try-a-different-search-term"),
+                  conditioned &&
+                    t("copy.remove-a-condition-to-broaden-the-results"),
+                ]
+                  .filter(Boolean)
+                  .join(" ")
               : canManage
                 ? t(
                     "copy.create-a-product-then-prepare-a-batch-to-pack-scan-and-store",
                   )
                 : t("copy.no-records-are-available-in-this-warehouse-yet")}
           </p>
-          {!filtered ? (
-            canManage ? (
-              <Button asChild className="mt-5">
-                <Link href={`${FG_PATH}/new`}>
-                  {t("copy.create-finished-good")}
-                </Link>
-              </Button>
-            ) : null
-          ) : (
-            <Button variant="outline" className="mt-5" onClick={clearFilters}>
-              {t("copy.clear-filters")}
+          {!filtered && canManage && (
+            <Button asChild className="mt-5">
+              <Link href={`${FG_PATH}/new`}>
+                {t("copy.create-finished-good")}
+              </Link>
             </Button>
           )}
         </div>

@@ -1,9 +1,8 @@
 import { getFunctionName } from "convex/server";
-import { cleanup } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { selectOptionLabels } from "@tests/fixtures/select-control";
 
 const state = vi.hoisted(() => ({ query: vi.fn() }));
 
@@ -56,6 +55,7 @@ describe("historical site filtering", () => {
         <HrSiteSelect
           id="historical-site"
           surface="historical-site-audit"
+          filter
           value=""
           onChange={() => {}}
           placeholder="All sites"
@@ -67,9 +67,9 @@ describe("historical site filtering", () => {
       { locale: "en" },
     );
 
-    expect(selectOptionLabels("Historical site")).toContain(
-      "OLD · Closed branch",
-    );
+    expect(
+      screen.getByRole("radio", { name: "OLD · Closed branch" }),
+    ).toBeVisible();
     expect(state.query).toHaveBeenCalledWith("hr/access:sitesPage", {
       includeInactive: true,
       pageSize: 20,

@@ -101,10 +101,8 @@ describe("canvas first workspace", () => {
   it("shares status filters and search across map and table without opening an inspector", () => {
     const view = show();
     fireEvent.click(screen.getByRole("button", { name: "Filter locations" }));
-    fireEvent.click(screen.getByRole("button", { name: "Empty" }));
-    fireEvent.keyDown(screen.getByRole("button", { name: "Empty" }), {
-      key: "Escape",
-    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Empty" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     fireEvent.click(screen.getByRole("button", { name: "Table view" }));
     expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(
       2,

@@ -7,3 +7,4 @@ export const useAuth = () => ({
   isSignedIn: false,
   getToken: async () => null,
 });
+export const useUser = () => ({ isLoaded: true, user: null });

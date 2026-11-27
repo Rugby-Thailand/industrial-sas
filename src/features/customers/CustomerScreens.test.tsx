@@ -486,8 +486,7 @@ describe("customer list", () => {
   it("asks for archived customers only through the status filter and badges them", async () => {
     mocks.queries.set(LIST, page([{ ...summary, status: "ARCHIVED" }]));
     render(<CustomerCatalogue />);
-    fireEvent.click(screen.getByRole("combobox", { name: "Status" }));
-    fireEvent.click(await screen.findByRole("option", { name: "Archived" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Archived" }));
     await waitFor(() =>
       expect(mocks.queryArgs.get(LIST)).toMatchObject({ status: "ARCHIVED" }),
     );
@@ -503,8 +502,7 @@ describe("customer list", () => {
   it("sends All as no status filter", async () => {
     mocks.queries.set(LIST, page([summary]));
     render(<CustomerCatalogue />);
-    fireEvent.click(screen.getByRole("combobox", { name: "Status" }));
-    fireEvent.click(await screen.findByRole("option", { name: "All" }));
+    fireEvent.click(screen.getByRole("radio", { name: "All" }));
     await waitFor(() =>
       expect(mocks.queryArgs.get(LIST)).not.toHaveProperty("status"),
     );
@@ -543,7 +541,7 @@ describe("customer list", () => {
     mocks.queries.set(LIST, page([]));
     render(<CustomerCatalogue />);
     expect(await screen.findByText("No customers match")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
     await waitFor(() =>
       expect(
         screen.getByRole("searchbox", {
@@ -576,8 +574,7 @@ describe("customer list", () => {
       }),
       { target: { value: "0105553012341" } },
     );
-    fireEvent.click(screen.getByRole("combobox", { name: "Status" }));
-    fireEvent.click(await screen.findByRole("option", { name: "Archived" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Archived" }));
     await waitFor(() =>
       expect(JSON.stringify({ ...window.localStorage })).toContain("ARCHIVED"),
     );
@@ -3474,14 +3471,16 @@ describe("customer workspace navigation", () => {
     fireEvent.click(pallet);
     expect(href()).toBe(`/en${destination}`);
     await nativeBack();
-    expect(href()).toBe(
-      `${WORKSPACE_URL}?section=stock&warehouse=wh-1#product`,
+    await waitFor(() =>
+      expect(href()).toBe(
+        `${WORKSPACE_URL}?section=stock&warehouse=wh-1#product`,
+      ),
     );
     expect(
       screen.getByRole("heading", { name: "Stored pallets" }),
     ).toBeVisible();
     await nativeBack();
-    expect(href()).toBe(scoped);
+    await waitFor(() => expect(href()).toBe(scoped));
   });
 
   it("waits for activity beyond the warehouse selector before presenting totals and latest jobs", () => {

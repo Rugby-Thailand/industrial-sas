@@ -106,7 +106,7 @@ it.each([false, true])(
     if (pageIntermediate)
       fireEvent.click(screen.getByRole("button", { name: "Next page" }));
     fireEvent.click(
-      screen.getByRole("button", { name: "Remove filter Status: Ready" }),
+      screen.getByRole("button", { name: "Remove filter Status" }),
     );
     expect(history.state.appNavigationIndex).toBe(2);
     expect(location.search).toBe("?other=keep");
@@ -168,9 +168,7 @@ it("restores each filter entry's page through Back, Forward and a cold remount",
   chooseReady();
   fireEvent.click(screen.getByRole("button", { name: "Next page" }));
   expect(screen.getByText("Page 2")).toBeVisible();
-  fireEvent.click(
-    screen.getByRole("button", { name: "Remove filter Status: Ready" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Remove filter Status" }));
   expect(screen.getByText("Page 1")).toBeVisible();
 
   await traverse("back");
@@ -198,4 +196,76 @@ it("restores each filter entry's page through Back, Forward and a cold remount",
   expect(screen.getByText("Paged product 20")).toBeVisible();
   expect(location.search).toBe("?other=keep");
   expect(location.hash).toBe("#records");
+});
+
+async function nativeBack() {
+  await act(async () => {
+    history.back();
+    await new Promise<void>((resolve) => setTimeout(resolve, 30));
+  });
+}
+
+it("a chip editor closes on native Back without applying, and Cancel then Back restores the earlier entry", async () => {
+  renderWithIntl(<FinishedGoodsCatalogue />, {
+    locale: "en",
+    workspace: false,
+  });
+  chooseReady();
+  const filtered = history.state.appNavigationIndex;
+  const edit = () => screen.getByRole("button", { name: "Edit Status: Ready" });
+
+  fireEvent.click(edit());
+  const editor = screen.getByRole("dialog", { name: "Status" });
+  fireEvent.click(within(editor).getByRole("checkbox", { name: "Draft" }));
+  await nativeBack();
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog", { name: "Status" })).toBeNull(),
+  );
+  expect(edit()).toBeVisible();
+  expect(history.state.appNavigationIndex).toBe(filtered);
+
+  fireEvent.click(edit());
+  fireEvent.click(
+    within(screen.getByRole("dialog", { name: "Status" })).getByRole("button", {
+      name: "Cancel",
+    }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog", { name: "Status" })).toBeNull(),
+  );
+  await waitFor(() => expect(history.state.appNavigationIndex).toBe(filtered));
+  await nativeBack();
+  expect(history.state.appNavigationIndex).toBe(0);
+  expect(
+    screen.queryByRole("button", { name: "Edit Status: Ready" }),
+  ).toBeNull();
+  expect(location.search).toBe("?other=keep");
+  expect(location.hash).toBe("#records");
+});
+
+it("applies a sheet draft to a new catalogue entry after consuming the editor", async () => {
+  renderWithIntl(<FinishedGoodsCatalogue />, {
+    locale: "en",
+    workspace: false,
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+  const editor = screen.getByRole("dialog", { name: "Filters" });
+  fireEvent.click(within(editor).getByRole("checkbox", { name: "Ready" }));
+  fireEvent.click(within(editor).getByRole("button", { name: "Apply" }));
+  await screen.findByRole("button", { name: "Edit Status: Ready" });
+  expect(
+    [...new URLSearchParams(location.search).keys()].some((key) =>
+      key.startsWith("overlay"),
+    ),
+  ).toBe(false);
+  await traverse("back");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Edit Status: Ready" }),
+  ).toBeNull();
+  await traverse("forward");
+  expect(
+    await screen.findByRole("button", { name: "Edit Status: Ready" }),
+  ).toBeVisible();
+  expect(screen.queryByRole("dialog")).toBeNull();
 });

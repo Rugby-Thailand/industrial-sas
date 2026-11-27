@@ -4,21 +4,12 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  SlidersHorizontal,
   LayoutGrid,
   List,
-  X,
 } from "lucide-react";
 import { useStorageLayoutMobile } from "./useStorageLayoutMobile";
 import { useLocale, useTranslations } from "next-intl";
-import {
-  memo,
-  useId,
-  useMemo,
-  useState,
-  useEffect,
-  type ReactNode,
-} from "react";
+import { memo, useMemo, useState, useEffect, type ReactNode } from "react";
 
 import { PaginationFooter } from "@/components/system/PaginationFooter";
 import { CollectionToolbar } from "@/components/system/CollectionToolbar";
@@ -29,7 +20,7 @@ import {
   LOCAL_PAGE_SIZES,
 } from "@/components/system/PageSizeSelect";
 
-import { Button } from "@/components/ui/button";
+import { LocationFilters, type LocationFilter } from "./LocationFilters";
 import {
   locationInventory,
   matchingStorageLocations,
@@ -70,12 +61,10 @@ function LocationTable({
   const locale = useLocale();
   const mobile = useStorageLayoutMobile();
   const thai = locale === "th";
-  const filtersId = useId();
   const [localSearch, setLocalSearch] = useState("");
   const query = search ?? localSearch;
   const [layout, setLayout] = useState<"table" | "grid">("table");
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [filters, setFilters] = useState<string[]>([]);
+  const [filters, setFilters] = useState<readonly LocationFilter[]>([]);
   const [pageSize, setPageSize] = useState(25);
   const [pagination, setPagination] = useState({ page: 0, revealKey: "" });
   const [sort, setSort] = useState<LocationSort>({
@@ -242,98 +231,42 @@ function LocationTable({
           }}
           actions={
             <>
-              <IconButton
-                type="button"
-                variant={filters.length ? "active" : "ghost"}
-                label={labels.filters}
-                aria-expanded={filtersOpen}
-                aria-controls={filtersId}
-                onClick={() => setFiltersOpen(!filtersOpen)}
+              <LocationFilters
+                filters={filters}
+                onFilters={(next) => {
+                  setFilters(next);
+                  setPage(0);
+                }}
+              />
+              <div
+                className="hidden gap-1 min-[581px]:flex"
+                role="group"
+                aria-label={thai ? "รูปแบบรายการ" : "Location view"}
               >
-                <SlidersHorizontal aria-hidden="true" />
-              </IconButton>
+                <IconButton
+                  type="button"
+                  variant={layout === "table" ? "active" : "ghost"}
+                  label={labels.table}
+                  aria-pressed={layout === "table"}
+                  onClick={() => setLayout("table")}
+                >
+                  <List aria-hidden="true" />
+                </IconButton>
+                <IconButton
+                  type="button"
+                  variant={layout === "grid" ? "active" : "ghost"}
+                  label={labels.grid}
+                  aria-pressed={layout === "grid"}
+                  onClick={() => setLayout("grid")}
+                >
+                  <LayoutGrid aria-hidden="true" />
+                </IconButton>
+              </div>
               {actions}
             </>
           }
         />
       }
-      {filtersOpen || filters.length ? (
-        <div
-          id={filtersId}
-          role="group"
-          aria-label={labels.filters}
-          className="flex flex-wrap gap-2"
-        >
-          {filtersOpen && (
-            <div
-              className="hidden gap-1 min-[581px]:flex"
-              role="group"
-              aria-label={thai ? "รูปแบบรายการ" : "Location view"}
-            >
-              <IconButton
-                type="button"
-                variant={layout === "table" ? "active" : "ghost"}
-                label={labels.table}
-                aria-pressed={layout === "table"}
-                onClick={() => setLayout("table")}
-              >
-                <List aria-hidden="true" />
-              </IconButton>
-              <IconButton
-                type="button"
-                variant={layout === "grid" ? "active" : "ghost"}
-                label={labels.grid}
-                aria-pressed={layout === "grid"}
-                onClick={() => setLayout("grid")}
-              >
-                <LayoutGrid aria-hidden="true" />
-              </IconButton>
-            </div>
-          )}
-          {(
-            [
-              ["empty", labels.vacant],
-              ["stored", labels.stored],
-              ["reserved", labels.reserved],
-              ["unmeasured", labels.unmeasured],
-            ] as const
-          )
-            .filter(([key]) => filtersOpen || filters.includes(key))
-            .map(([key, label]) => (
-              <Button
-                key={key}
-                type="button"
-                size="sm"
-                variant={filters.includes(key) ? "active" : "outline"}
-                aria-pressed={filters.includes(key)}
-                onClick={() => {
-                  setFilters((current) =>
-                    current.includes(key)
-                      ? current.filter((item) => item !== key)
-                      : [...current, key],
-                  );
-                  setPage(0);
-                }}
-              >
-                {label}
-              </Button>
-            ))}
-          {filters.length ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setFilters([]);
-                setPage(0);
-              }}
-            >
-              <X aria-hidden="true" />
-              {labels.clear}
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
       <div>
         {mobile ? (
           <>

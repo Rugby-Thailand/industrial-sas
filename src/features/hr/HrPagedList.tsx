@@ -11,6 +11,7 @@
  * the same page, while any criteria or page-size change starts at page 1.
  * Records always come from the live, authorized query.
  */
+import { ClearFilterButton } from "@/components/system/FilterActions";
 import { useHrQuery } from "@/hooks/useHrQuery";
 import type {
   FunctionArgs,
@@ -467,6 +468,9 @@ export function HrSearchField({
   onSettled,
   placeholder,
   className,
+  clearLabel,
+  pause = false,
+  searchOnEnter = false,
 }: {
   readonly id: string;
   readonly label: string;
@@ -474,6 +478,9 @@ export function HrSearchField({
   readonly onSettled: (value: string) => void;
   readonly placeholder?: string;
   readonly className?: string;
+  readonly clearLabel?: string;
+  readonly pause?: boolean;
+  readonly searchOnEnter?: boolean;
 }) {
   const [state, setState] = useState({ external: value, text: value });
   let text = state.text;
@@ -488,24 +495,52 @@ export function HrSearchField({
     settle.current = onSettled;
   });
   useEffect(() => {
-    if (text.trim() === value) return;
+    if (pause || text.trim() === value) return;
     const timer = window.setTimeout(() => settle.current(text.trim()), 250);
     return () => window.clearTimeout(timer);
-  }, [text, value]);
+  }, [pause, text, value]);
   return (
     <div className={className ?? "grid w-full gap-2 sm:w-64"}>
       <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type="search"
-        value={text}
-        maxLength={100}
-        autoComplete="off"
-        placeholder={placeholder}
-        onChange={(event) =>
-          setState({ external: value, text: event.target.value })
-        }
-      />
+      <div className="relative min-w-0">
+        <Input
+          id={id}
+          type="search"
+          value={text}
+          maxLength={100}
+          autoComplete="off"
+          className={
+            clearLabel
+              ? "pr-10 [&::-webkit-search-cancel-button]:appearance-none"
+              : undefined
+          }
+          placeholder={placeholder}
+          onChange={(event) =>
+            setState({ external: value, text: event.target.value })
+          }
+          onKeyDown={(event) => {
+            if (
+              !searchOnEnter ||
+              event.key !== "Enter" ||
+              event.nativeEvent.isComposing
+            )
+              return;
+            event.preventDefault();
+            if (!pause) onSettled(text.trim());
+          }}
+        />
+        {clearLabel && text !== "" ? (
+          <ClearFilterButton
+            className="absolute inset-y-0 right-0"
+            label={clearLabel}
+            onClick={() => {
+              setState({ external: value, text: "" });
+              onSettled("");
+              document.getElementById(id)?.focus();
+            }}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

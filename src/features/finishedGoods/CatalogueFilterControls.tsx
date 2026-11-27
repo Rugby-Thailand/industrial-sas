@@ -3,34 +3,55 @@ import {
   cloneElement,
   isValidElement,
   useId,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { Popover } from "radix-ui";
-import { ArrowDown, ArrowUp, Filter, SlidersHorizontal, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
 import { SelectControl } from "@/components/ui/SelectControl";
-import { CheckboxControl } from "@/components/ui/CheckboxControl";
-import { Sheet, SheetTrigger } from "@/components/ui/sheet";
+import {
+  CheckboxControl,
+  choiceTargetClassName,
+} from "@/components/ui/CheckboxControl";
+import {
+  Sheet,
+  SheetTrigger,
+  type SheetCompletionHandle,
+} from "@/components/ui/sheet";
 import { DetailsPanel } from "@/components/ui/DetailsPanel";
+import { CollectionToolbar } from "@/components/system/CollectionToolbar";
+import {
+  AppliedFilterChip,
+  ClearFilterButton,
+  FilterTrigger,
+} from "@/components/system/FilterActions";
 import { useFGText } from "./shared";
 import {
+  activeConditions,
   clearColumn,
-  columnCount,
+  clearCondition,
+  clearConditions,
   columns,
+  columnCount,
   columnSorts,
+  conditionsOf,
   filtersValid,
   formatOptions,
-  newFilters,
   productStatuses,
   progressOptions,
+  quantityNeedsUnit,
+  rangeIssue,
   sortColumn,
+  sortOptions,
   unitStatuses,
   type CatalogueFilters,
   type CatalogueTab,
   type FilterColumn,
+  type FilterCondition,
   type Range,
 } from "./catalogueFilters";
 
@@ -47,6 +68,7 @@ export function filterLabel(key: string, tab: CatalogueTab, tr: Tr): string {
     status: ["Status", "สถานะ"],
     dimensions: ["Dimensions (m)", "ขนาด (ม.)"],
     lot: ["Lot", "ล็อต"],
+    measurement: ["Measurement", "การวัดขนาด"],
     name: ["Product name", "ชื่อสินค้า"],
     sku: ["SKU", "รหัสสินค้า"],
     code: ["Storage unit code", "รหัสหน่วยจัดเก็บ"],
@@ -89,7 +111,10 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
         isValidElement(children)
           ? cloneElement(
               children as React.ReactElement<Record<string, unknown>>,
-              field,
+              // Keep the control's own error wiring when the field has none.
+              Object.fromEntries(
+                Object.entries(field).filter(([, v]) => v !== undefined),
+              ),
             )
           : children
       }
@@ -99,13 +124,16 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function RangeFields({
   label,
   value,
+  error,
   onChange,
 }: {
   label: string;
   value: Range;
+  error?: string | undefined;
   onChange: (value: Range) => void;
 }) {
   const { t } = useFGText();
+  const errorId = useId();
   return (
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium">{label}</legend>
@@ -120,35 +148,49 @@ function RangeFields({
               type="number"
               min="0"
               step="any"
+              inputMode="decimal"
               value={value[k]}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
               onChange={(e) => onChange({ ...value, [k]: e.target.value })}
             />
           </Field>
         ))}
       </div>
+      {error && (
+        <p id={errorId} role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      )}
     </fieldset>
   );
 }
-function FilterFields({
-  column,
+function ConditionFields({
+  condition,
   tab,
   filters: f,
   units,
   onChange,
-}: FilterControlsProps & { column: FilterColumn }) {
+}: FilterControlsProps & { condition: FilterCondition }) {
   const { t, tr } = useFGText();
+  const name = useId();
   const update = (value: Partial<CatalogueFilters>) =>
     onChange({ ...f, ...value });
+  const rangeError = (r: Range) => {
+    const issue = rangeIssue(r);
+    return issue === "number"
+      ? t("copy.enter-zero-or-a-positive-number")
+      : issue === "order"
+        ? t("copy.maximum-must-be-at-least-the-minimum")
+        : undefined;
+  };
   const choices = (
     key: "formats" | "progress" | "statuses",
     options: string[],
   ) => (
-    <div className="grid gap-2">
+    <div className="grid gap-1">
       {options.map((value) => (
-        <label
-          key={value}
-          className="flex min-h-touch cursor-pointer items-center gap-2 text-sm"
-        >
+        <label key={value} className={choiceTargetClassName}>
           <CheckboxControl
             className="accent-primary"
             checked={f[key].includes(value)}
@@ -165,189 +207,233 @@ function FilterFields({
       ))}
     </div>
   );
-  return (
-    <div className="space-y-4">
-      {column === "record" && (
-        <Field label={t("copy.name-or-sku")}>
-          <Input
-            value={f.record}
-            maxLength={200}
-            onChange={(e) => update({ record: e.target.value })}
-          />
-        </Field>
-      )}
-      {column === "quantity" && (
-        <>
-          <Field label={t("copy.counting-unit")}>
-            <SelectControl
-              label={t("copy.counting-unit")}
-              value={f.unit}
-              onValueChange={(unit) =>
-                update({
-                  unit,
-                  ...(!unit ? { quantity: { min: "", max: "" } } : {}),
-                })
-              }
-              options={[
-                { value: "", label: t("copy.all-units") },
-                ...[...new Set([...units, ...(f.unit ? [f.unit] : [])])].map(
-                  (unit) => ({ value: unit, label: unit }),
-                ),
-              ]}
-              placeholder={t("copy.all-units")}
-              emptyLabel={t("copy.no-units-available")}
-            />
-          </Field>
-          <RangeFields
-            label={t("copy.quantity")}
-            value={f.quantity}
-            onChange={(quantity) => update({ quantity })}
-          />
-          <p className="text-xs text-muted">
-            {t(
-              "copy.choose-a-counting-unit-before-setting-a-range-sorting-groups-different-u",
-            )}
-          </p>
-        </>
-      )}
-      {column === "format" && choices("formats", formatOptions)}
-      {column === "progress" && (
-        <>
-          {choices("progress", progressOptions)}
-          <p className="text-xs text-muted">
-            {t(
-              "copy.matches-products-with-at-least-one-unit-in-any-selected-state",
-            )}
-          </p>
-        </>
-      )}
-      {column === "status" &&
-        choices(
-          "statuses",
-          tab === "products" ? productStatuses : unitStatuses,
-        )}
-      {column === "lot" && (
-        <Field label={t("copy.lot-contains")}>
-          <Input
-            value={f.lot}
-            maxLength={200}
-            onChange={(e) => update({ lot: e.target.value })}
-          />
-        </Field>
-      )}
-      {column === "dimensions" && (
-        <>
-          <Field label={t("copy.measurement")}>
-            <SelectControl
-              label={t("copy.measurement")}
-              value={f.measurement}
-              onValueChange={(measurement) => update({ measurement })}
-              options={[
-                { value: "", label: t("copy.all") },
-                ...["measured", "unmeasured"].map((value) => ({
-                  value,
-                  label: filterLabel(value, tab, tr),
-                })),
-              ]}
-              placeholder={t("copy.all")}
-              emptyLabel={t("copy.no-measurements-available")}
-            />
-          </Field>
-          {(["length", "width", "height"] as const).map((key) => (
-            <RangeFields
-              key={key}
-              label={filterLabel(key, tab, tr)}
-              value={f[key]}
-              onChange={(range) => update({ [key]: range })}
-            />
-          ))}
-        </>
-      )}
-      <Field label={t("copy.sort-by")}>
-        <SelectControl
-          label={t("copy.sort-by")}
-          value={sortColumn(f.sort) === column ? f.sort : ""}
-          onValueChange={(sort) => update({ sort })}
-          options={[
-            { value: "", label: t("copy.default-order") },
-            ...columnSorts(column, tab).flatMap((key) =>
-              (["asc", "desc"] as const).map((direction) => ({
-                value: `${key}:${direction}`,
-                label: `${filterLabel(key, tab, tr)} · ${
-                  direction === "asc"
-                    ? t("copy.ascending")
-                    : t("copy.descending")
-                }`,
-              })),
-            ),
-          ]}
-          placeholder={t("copy.default-order")}
-          emptyLabel={t("copy.no-sort-options-available")}
+  if (condition === "record")
+    return (
+      <Field
+        label={
+          tab === "products"
+            ? t("copy.name-or-sku")
+            : t("copy.storage-unit-code-product-or-sku")
+        }
+      >
+        <Input
+          value={f.record}
+          maxLength={200}
+          onChange={(e) => update({ record: e.target.value })}
         />
       </Field>
-    </div>
+    );
+  if (condition === "quantity")
+    return (
+      <div className="space-y-4">
+        <Field label={t("copy.counting-unit")}>
+          <SelectControl
+            label={t("copy.counting-unit")}
+            value={f.unit}
+            onValueChange={(unit) =>
+              update({
+                unit,
+                ...(!unit ? { quantity: { min: "", max: "" } } : {}),
+              })
+            }
+            options={[
+              { value: "", label: t("copy.all-units") },
+              ...[...new Set([...units, ...(f.unit ? [f.unit] : [])])].map(
+                (unit) => ({ value: unit, label: unit }),
+              ),
+            ]}
+            placeholder={t("copy.all-units")}
+            emptyLabel={t("copy.no-units-available")}
+          />
+        </Field>
+        <RangeFields
+          label={t("copy.quantity")}
+          value={f.quantity}
+          error={
+            rangeError(f.quantity) ??
+            (quantityNeedsUnit(f)
+              ? t("copy.choose-a-counting-unit-to-apply-this-range")
+              : undefined)
+          }
+          onChange={(quantity) => update({ quantity })}
+        />
+        <p className="text-xs text-muted">
+          {t(
+            "copy.choose-a-counting-unit-before-setting-a-range-sorting-groups-different-u",
+          )}
+        </p>
+      </div>
+    );
+  if (condition === "format") return choices("formats", formatOptions);
+  if (condition === "progress")
+    return (
+      <div className="space-y-2">
+        {choices("progress", progressOptions)}
+        <p className="text-xs text-muted">
+          {t(
+            "copy.matches-products-with-at-least-one-unit-in-any-selected-state",
+          )}
+        </p>
+      </div>
+    );
+  if (condition === "status")
+    return choices(
+      "statuses",
+      tab === "products" ? productStatuses : unitStatuses,
+    );
+  if (condition === "lot")
+    return (
+      <Field label={t("copy.lot-contains")}>
+        <Input
+          value={f.lot}
+          maxLength={200}
+          onChange={(e) => update({ lot: e.target.value })}
+        />
+      </Field>
+    );
+  if (condition === "measurement")
+    return (
+      <fieldset className="space-y-1">
+        <legend className="text-sm font-medium">{t("copy.measurement")}</legend>
+        {["", "measured", "unmeasured"].map((value) => (
+          <label key={value} className={choiceTargetClassName}>
+            <input
+              type="radio"
+              name={name}
+              className="size-4 shrink-0 accent-primary focus-ring"
+              checked={f.measurement === value}
+              onChange={() => update({ measurement: value })}
+            />
+            {value ? filterLabel(value, tab, tr) : t("copy.all")}
+          </label>
+        ))}
+      </fieldset>
+    );
+  return (
+    <RangeFields
+      label={filterLabel(condition, tab, tr)}
+      value={f[condition]}
+      error={rangeError(f[condition])}
+      onChange={(range) => update({ [condition]: range })}
+    />
   );
 }
-function FilterEditor({
+function SortSelect({
+  label,
+  tab,
   column,
+  value,
+  onChange,
+}: {
+  label: string;
+  tab: CatalogueTab;
+  /** A table column limits the choices to that column's own sorts. */
+  column?: FilterColumn;
+  value: string;
+  onChange: (sort: string) => void;
+}) {
+  const { t, tr } = useFGText();
+  return (
+    <SelectControl
+      label={label}
+      value={value}
+      onValueChange={onChange}
+      options={[
+        { value: "", label: t("copy.default-order") },
+        ...(column ? columnSorts(column, tab) : sortOptions(tab)).flatMap(
+          (key) =>
+            (["asc", "desc"] as const).map((direction) => ({
+              value: `${key}:${direction}`,
+              label: `${filterLabel(key, tab, tr)} · ${
+                direction === "asc" ? t("copy.ascending") : t("copy.descending")
+              }`,
+            })),
+        ),
+      ]}
+      placeholder={t("copy.default-order")}
+      emptyLabel={t("copy.no-sort-options-available")}
+    />
+  );
+}
+/** The table column shortcut keeps that column's own sort beside its filters. */
+type EditorScope =
+  { column: FilterColumn } | { condition: FilterCondition } | "all";
+function FilterEditor({
+  scope,
   tab,
   filters,
   units,
   onChange,
   onClose,
-}: FilterControlsProps & { column?: FilterColumn; onClose: () => void }) {
+}: FilterControlsProps & { scope: EditorScope; onClose: () => void }) {
   const { t, tr } = useFGText();
   const [draft, setDraft] = useState(filters);
   const invalid = !filtersValid(draft);
+  const fields = (c: FilterCondition) => (
+    <ConditionFields
+      condition={c}
+      tab={tab}
+      filters={draft}
+      units={units}
+      onChange={setDraft}
+    />
+  );
   return (
     <form
       className="flex min-h-0 flex-1 flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!invalid) {
-          onChange(draft);
-          onClose();
-        }
+        if (!invalid) onChange(draft);
       }}
     >
       <div className="min-h-0 space-y-4 overflow-y-auto">
-        {(column ? [column] : columns(tab)).map((c) => (
-          <fieldset
-            key={c}
-            className={
-              column
-                ? "min-w-0"
-                : "min-w-0 space-y-3 rounded-lg border border-border p-3"
-            }
-          >
-            {!column && (
+        {scope === "all" ? (
+          columns(tab).map((c) => (
+            <fieldset
+              key={c}
+              className="min-w-0 space-y-3 rounded-lg border border-border p-3"
+            >
               <legend className="px-1 text-sm font-semibold">
                 {filterLabel(c, tab, tr)}
               </legend>
-            )}
-            <FilterFields
-              column={c}
-              tab={tab}
-              filters={draft}
-              units={units}
-              onChange={setDraft}
-            />
-          </fieldset>
-        ))}
+              {conditionsOf(c).map((condition) => (
+                <div key={condition}>{fields(condition)}</div>
+              ))}
+            </fieldset>
+          ))
+        ) : "condition" in scope ? (
+          fields(scope.condition)
+        ) : (
+          <div className="min-w-0 space-y-4">
+            {conditionsOf(scope.column).map((condition) => (
+              <div key={condition}>{fields(condition)}</div>
+            ))}
+            <Field label={t("copy.sort-by")}>
+              <SortSelect
+                label={t("copy.sort-by")}
+                tab={tab}
+                column={scope.column}
+                value={
+                  sortColumn(draft.sort) === scope.column ? draft.sort : ""
+                }
+                onChange={(sort) => setDraft({ ...draft, sort })}
+              />
+            </Field>
+          </div>
+        )}
       </div>
-      {invalid && (
-        <p role="alert" className="text-sm text-danger">
-          {t(
-            "copy.use-non-negative-numbers-minimum-maximum-and-choose-a-counting-unit-for-",
-          )}
-        </p>
-      )}
       <div className="flex shrink-0 flex-wrap justify-between gap-2 border-t border-border bg-popover pt-3">
         <Button
           type="button"
           variant="ghost"
           onClick={() =>
-            setDraft(column ? clearColumn(draft, column) : newFilters())
+            setDraft(
+              scope === "all"
+                ? clearConditions(draft)
+                : "condition" in scope
+                  ? clearCondition(draft, scope.condition)
+                  : clearColumn(draft, scope.column),
+            )
           }
         >
           {t("copy.reset")}
@@ -413,7 +499,11 @@ export function ColumnFilter({
             </h2>
             <FilterEditor
               {...props}
-              column={column}
+              scope={{ column }}
+              onChange={(next) => {
+                props.onChange(next);
+                setOpen(false);
+              }}
               onClose={() => setOpen(false)}
             />
           </Popover.Content>
@@ -422,118 +512,187 @@ export function ColumnFilter({
     </div>
   );
 }
-export function CatalogueFiltersButton(props: FilterControlsProps) {
-  const { t } = useFGText();
-  const [open, setOpen] = useState(false);
-  const count = columns(props.tab).reduce(
-    (n, c) => n + columnCount(props.filters, c),
-    0,
-  );
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="outline" className={count ? "text-link" : ""}>
-          <SlidersHorizontal className="size-4" aria-hidden="true" />
-          {t("copy.filters")}
-          {count > 0 ? ` (${count})` : ""}
-        </Button>
-      </SheetTrigger>
-      <DetailsPanel
-        title={t("copy.filters-and-sorting")}
-        description={t(
-          "copy.different-columns-combine-select-any-matching-value-within-a-column",
-        )}
-        closeLabel={t("copy.close")}
-      >
-        <FilterEditor {...props} onClose={() => setOpen(false)} />
-      </DetailsPanel>
-    </Sheet>
-  );
+function conditionText(
+  f: CatalogueFilters,
+  c: FilterCondition,
+  tab: CatalogueTab,
+  tr: Tr,
+) {
+  const range = (r: Range) =>
+    r.min && r.max
+      ? `${r.min}–${r.max}`
+      : r.min
+        ? `≥ ${r.min}`
+        : r.max
+          ? `≤ ${r.max}`
+          : "";
+  const names = (values: string[]) =>
+    values.map((v) => filterLabel(v, tab, tr)).join(", ");
+  if (c === "record" || c === "lot") return f[c];
+  if (c === "quantity") return `${range(f.quantity)} ${f.unit}`.trim();
+  if (c === "format") return names(f.formats);
+  if (c === "progress") return names(f.progress);
+  if (c === "status") return names(f.statuses);
+  if (c === "measurement") return filterLabel(f.measurement, tab, tr);
+  return `${range(f[c])} m`;
 }
-export function FilterChips({
+/**
+ * The catalogue toolbar: search with its own clear action, the condition
+ * count, a collective clear for two or more conditions, and one chip per
+ * applied condition. Clearing filters keeps search, sort and layout.
+ */
+export function CatalogueFilterBar({
   search,
-  onClearSearch,
-  onClearAll,
+  onSearchChange,
+  actions,
   ...props
 }: FilterControlsProps & {
   search: string;
-  onClearSearch: () => void;
-  onClearAll: () => void;
+  onSearchChange: (search: string) => void;
+  /** Sort and layout controls, which are not filter conditions. */
+  actions?: ReactNode;
 }) {
   const { t, tr } = useFGText();
-  const f = props.filters;
-  const chip = (label: string, remove: () => void) => (
-    <Button
-      type="button"
-      variant="ghost"
-      size="touch"
-      key={label}
-      onClick={remove}
-      className="inline-flex min-h-touch max-w-full items-center gap-2 rounded-full border border-border-strong bg-selected px-3 py-2 text-left text-xs text-selected-foreground outline-none hover:border-link focus-visible:ring-2 focus-visible:ring-ring"
-      aria-label={`${t("copy.remove-filter")} ${label}`}
-    >
-      <span className="break-words">{label}</span>
-      <X className="size-3 shrink-0" aria-hidden="true" />
-    </Button>
-  );
-  const rangeText = (r: Range) => `${r.min || "0"}–${r.max || "∞"}`;
-  const content = (c: FilterColumn) =>
-    c === "record"
-      ? f.record
-      : c === "quantity"
-        ? `${f.quantity.min || f.quantity.max ? rangeText(f.quantity) + " " : ""}${f.unit}`
-        : c === "lot"
-          ? f.lot
-          : c === "format"
-            ? f.formats.map((v) => filterLabel(v, props.tab, tr)).join(", ")
-            : c === "progress"
-              ? f.progress.map((v) => filterLabel(v, props.tab, tr)).join(", ")
-              : c === "status"
-                ? f.statuses
-                    .map((v) => filterLabel(v, props.tab, tr))
-                    .join(", ")
-                : [
-                    f.measurement
-                      ? filterLabel(f.measurement, props.tab, tr)
-                      : "",
-                    ...(["length", "width", "height"] as const)
-                      .filter((k) => f[k].min || f[k].max)
-                      .map(
-                        (k) =>
-                          `${filterLabel(k, props.tab, tr)} ${rangeText(f[k])}`,
-                      ),
-                  ]
-                    .filter(Boolean)
-                    .join(", ");
-  if (!search && !columns(props.tab).some((c) => columnCount(f, c)) && !f.sort)
-    return null;
+  const [editing, setEditing] = useState<FilterCondition | "all" | null>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const completion = useRef<SheetCompletionHandle>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const { tab, filters: f } = props;
+  const applied = activeConditions(f, tab);
+  const remove = (next: CatalogueFilters) => {
+    props.onChange(next);
+    trigger.current?.focus();
+  };
   return (
-    <div
-      className="mb-4 flex flex-wrap items-center gap-2"
-      aria-label={t("copy.active-filters")}
-      role="group"
-    >
-      {search && chip(`${t("copy.search")}: ${search}`, onClearSearch)}
-      {columns(props.tab)
-        .filter((c) => columnCount(f, c))
-        .map((c) =>
-          chip(`${filterLabel(c, props.tab, tr)}: ${content(c)}`, () =>
-            props.onChange(clearColumn(f, c)),
-          ),
-        )}
-      {f.sort &&
-        chip(
-          `${t("copy.sort")}: ${filterLabel(f.sort.split(":")[0] ?? "", props.tab, tr)} ${f.sort.endsWith(":desc") ? "↓" : "↑"}`,
-          () => props.onChange({ ...f, sort: "" }),
-        )}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="min-h-11 lg:min-h-7"
-        onClick={onClearAll}
-      >
-        {t("copy.clear-all")}
-      </Button>
+    <>
+      <CollectionToolbar
+        className="mb-4"
+        searchType="text"
+        value={search}
+        onValueChange={onSearchChange}
+        searchLabel={t("copy.search-finished-goods")}
+        placeholder={
+          tab === "products"
+            ? t("copy.search-name-or-sku")
+            : t("copy.search-unit-code-product-sku-or-lot")
+        }
+        clearLabel={t("copy.clear-search-414314")}
+        actions={
+          <>
+            <div className="flex items-center gap-1">
+              <Sheet
+                completionRef={completion}
+                open={editing !== null}
+                onOpenChange={(open) => {
+                  if (open) {
+                    returnFocus.current = null;
+                    setEditing("all");
+                  } else setEditing(null);
+                }}
+              >
+                <SheetTrigger asChild>
+                  <FilterTrigger
+                    ref={trigger}
+                    label={t("copy.filters")}
+                    count={applied.length}
+                  />
+                </SheetTrigger>
+                <DetailsPanel
+                  title={
+                    editing && editing !== "all"
+                      ? filterLabel(editing, tab, tr)
+                      : t("copy.filters")
+                  }
+                  description={t(
+                    "copy.different-columns-combine-select-any-matching-value-within-a-column",
+                  )}
+                  closeLabel={t("copy.close")}
+                  onCloseAutoFocus={(event) => {
+                    if (returnFocus.current?.isConnected) {
+                      event.preventDefault();
+                      returnFocus.current.focus();
+                    }
+                  }}
+                >
+                  {editing !== null && (
+                    <FilterEditor
+                      {...props}
+                      scope={editing === "all" ? "all" : { condition: editing }}
+                      onChange={(next) =>
+                        completion.current?.complete(() => props.onChange(next))
+                      }
+                      onClose={() =>
+                        completion.current?.complete(() => setEditing(null))
+                      }
+                    />
+                  )}
+                </DetailsPanel>
+              </Sheet>
+              {applied.length > 1 && (
+                <ClearFilterButton
+                  label={t("copy.clear-all-filters")}
+                  onClick={() => remove(clearConditions(f))}
+                />
+              )}
+            </div>
+            {actions}
+          </>
+        }
+      />
+      {applied.length > 0 && (
+        <div
+          className="mb-4 flex flex-wrap items-center gap-2"
+          aria-label={t("copy.active-filters")}
+          role="group"
+        >
+          {applied.map((c) => {
+            const label = filterLabel(c, tab, tr);
+            const value = conditionText(f, c, tab, tr);
+            return (
+              <AppliedFilterChip
+                key={c}
+                label={
+                  <>
+                    <span className="font-medium">{label}:</span> {value}
+                  </>
+                }
+                editLabel={t("copy.edit-filter-value", { label, value })}
+                removeLabel={t("copy.remove-filter", { label })}
+                onEdit={() => {
+                  returnFocus.current =
+                    document.activeElement instanceof HTMLElement
+                      ? document.activeElement
+                      : null;
+                  setEditing(c);
+                }}
+                onRemove={() => remove(clearCondition(f, c))}
+              />
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+/** One sort for the whole tab; table column shortcuts offer their own. */
+export function CatalogueSort({
+  tab,
+  value,
+  onChange,
+}: {
+  tab: CatalogueTab;
+  value: string;
+  onChange: (sort: string) => void;
+}) {
+  const { t } = useFGText();
+  return (
+    <div className="w-56 max-w-full">
+      <SortSelect
+        label={t("copy.sort-order")}
+        tab={tab}
+        value={value}
+        onChange={onChange}
+      />
     </div>
   );
 }

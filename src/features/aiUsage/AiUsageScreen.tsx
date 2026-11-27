@@ -17,16 +17,21 @@ import { AutomaticEstimate } from "./AutomaticEstimate";
 import { useUsageFormat } from "./format";
 import { RecentActivity } from "./RecentActivity";
 import {
-  activeFilterCount,
+  activeConditionCount,
   NO_FILTERS,
+  presetDateRange,
   summaryRef,
+  type DateRange,
+  type Period,
+  type Report,
+  type UsageCriteria,
   type UsageFilters,
 } from "./report";
 import { downloadCsv } from "@/lib/csv";
 import { useEstimateRefresh } from "./useEstimateRefresh";
 import { UsageBreakdown } from "./UsageBreakdown";
 import { FeatureStrip, UsageStatement } from "./UsageOverview";
-import { UsageToolbar, type DateRange, type Period } from "./UsageToolbar";
+import { UsageToolbar } from "./UsageToolbar";
 import {
   attemptsRef,
   exportUsage,
@@ -124,6 +129,9 @@ function UsageReport({
   const [period, setPeriod] = useState<Period>("month");
   const [dates, setDates] = useState<DateRange | null>(null);
   const [filters, setFilters] = useState<UsageFilters>(NO_FILTERS);
+  // Filter choices and org timezone outlive a reload, so selected names and
+  // timezone-aware presets stay stable while the next answer loads.
+  const [options, setOptions] = useState<Report | null>(null);
   const [exporting, setExporting] = useState(false),
     [exportError, setExportError] = useState(false);
   const exportLife = useRef({ generation: 0 });
@@ -142,16 +150,31 @@ function UsageReport({
     ...(requestedModel ? { requestedModel } : {}),
     ...(environment ? { environment } : {}),
   };
-  const criteriaArgs = {
-    ...filter,
-    ...(period === "custom" && dates
-      ? dates
+  const now = refreshKey * 1800000;
+  const knownTimezone = options?.range.timezone ?? null;
+  const weekRange =
+    period === "week" ? presetDateRange("week", knownTimezone, now) : null;
+  const criteriaArgs =
+    period === "week" && !weekRange
+      ? null
       : {
-          period: period === "today" ? ("today" as const) : ("month" as const),
-        }),
-  };
+          ...filter,
+          ...(period === "custom" && dates
+            ? dates
+            : period === "week" && weekRange
+              ? weekRange
+              : {
+                  period:
+                    period === "today"
+                      ? ("today" as const)
+                      : ("month" as const),
+                }),
+        };
   const criteria = JSON.stringify(criteriaArgs);
-  const answer = useQuery(summaryRef, { refreshKey, ...criteriaArgs });
+  const answer = useQuery(
+    summaryRef,
+    criteriaArgs ? { refreshKey, ...criteriaArgs } : "skip",
+  );
   // Keep the mounted report through clock-only subscription reloads. A change
   // to the requested period or filters must still discard the previous answer.
   const [retained, setRetained] = useState({ criteria, answer });
@@ -164,10 +187,12 @@ function UsageReport({
     answer ?? (retained.criteria === criteria ? retained.answer : undefined);
   const data =
     outcome?.ok && !("error" in outcome.value) ? outcome.value : null;
-  // Filter choices outlive a reload, so a selected user or warehouse keeps
-  // its name while the next answer loads.
-  const [options, setOptions] = useState<typeof data>(null);
   if (data && data !== options) setOptions(data);
+  const applyCriteria = (next: UsageCriteria) => {
+    setPeriod(next.period);
+    setDates(next.dates);
+    setFilters(next.filters);
+  };
   const loadedEstimate = useEstimate(source);
   useEstimateRefresh(loadedEstimate);
   // A page left open past a source's refresh window shows it as stale; the
@@ -215,12 +240,12 @@ function UsageReport({
     <div className="min-w-0 space-y-8">
       <UsageToolbar
         period={period}
-        onPeriod={setPeriod}
+        dates={dates}
         range={data?.range ?? null}
-        timezone={data?.range.timezone ?? null}
-        onDates={setDates}
+        timezone={data?.range.timezone ?? knownTimezone}
+        now={now}
         filters={filters}
-        onFilters={setFilters}
+        onApply={applyCriteria}
         options={data ?? options}
         featureLabel={label}
       />
@@ -262,7 +287,7 @@ function UsageReport({
             <UsageStatement
               report={data}
               features={shownFeatures}
-              filterCount={activeFilterCount(filters)}
+              filterCount={activeConditionCount(period, filters)}
               estimate={estimate}
               format={format}
             />
@@ -290,7 +315,7 @@ function UsageReport({
             csvExport={{
               canExport: estimate !== undefined,
               exporting,
-              filtered: activeFilterCount(filters) > 0,
+              filtered: activeConditionCount(period, filters) > 0,
               onExport: () => void exportCsv(),
             }}
           />

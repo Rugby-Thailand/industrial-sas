@@ -1,9 +1,10 @@
 "use client";
 
+import { FilterRadios } from "@/components/system/FilterRadios";
 import { useHrQuery } from "@/hooks/useHrQuery";
 import { ArrowLeft, ArrowRight, ClipboardList, Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useId } from "react";
+import { useId, useRef, useState } from "react";
 
 import { OutcomeGate } from "@/components/system/DataGate";
 import { Button } from "@/components/ui/button";
@@ -14,11 +15,15 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
 import { Notice } from "@/components/ui/Notice";
 import { DescriptionList } from "@/components/ui/DescriptionList";
-import { SelectControl } from "@/components/ui/SelectControl";
+import {
+  AppliedFilterChip,
+  ClearFilterButton,
+  FilterTrigger,
+} from "@/components/system/FilterActions";
+import { SheetTrigger } from "@/components/ui/sheet";
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import { Link } from "@/i18n/navigation";
-import { useUrlBackedState } from "@/lib/deepLink";
 import { hrRefs } from "@/lib/convex/hrApi";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { HR_CODES, ROUTES, hrDayPath } from "@/lib/navigation";
@@ -35,6 +40,8 @@ import {
 import { HrActionCard } from "./HrActionCard";
 import { useHrListCriteria } from "./HrListCriteria";
 import { HrToolbar } from "./HrUi";
+import { HrFilterSheet } from "./HrFilterSheet";
+import { filterRangeIssue, HrFilterRange } from "./HrFilterRange";
 
 export function HrRequestsScreen() {
   const t = useTranslations("Hr.requests");
@@ -65,6 +72,8 @@ const LIST_DEFAULTS = { status: "", from: "", to: "", text: "" } as const;
 
 function RequestsContent() {
   const t = useTranslations("Hr.requests");
+  const filterText = useTranslations("Hr.filterControls");
+  const locale = useLocale();
   const access = useHrAccess();
   // Filters live in the URL and the page position in history metadata, so
   // returning from a request (Back) or reloading shows the same page.
@@ -78,7 +87,20 @@ function RequestsContent() {
     ? (criteria.status as RequestStatus)
     : "ALL";
   const filters = { from: criteria.from, to: criteria.to, text: criteria.text };
-  const [draft, setDraft] = useUrlBackedState(JSON.stringify(filters), filters);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const sheetOpen = useRef(false);
+  const [draft, setDraft] =
+    useState<Readonly<Record<keyof typeof LIST_DEFAULTS, string>>>(
+      LIST_DEFAULTS,
+    );
+  const id = useId();
+  const focus = useRef(`${id}-from`);
+  const changeOpen = (next: boolean) => {
+    if (sheetOpen.current === next) return;
+    sheetOpen.current = next;
+    if (next) setDraft({ status, ...filters });
+    setFiltersOpen(next);
+  };
   const paging = useCursorPagination({
     scope: `hr:requests:${access.identityKey ?? "anonymous"}`,
     criteria: { status, ...filters, entry },
@@ -92,74 +114,149 @@ function RequestsContent() {
     ...(status === "ALL" ? {} : { status }),
     ...(cursor === undefined ? {} : { cursor }),
   });
-  const setStatus = (value: RequestStatus) =>
-    setCriteria({ status: value === "ALL" ? "" : value });
-  const setFilters = (next: typeof filters) => setCriteria(next);
-  const id = useId();
+  const statusOptions = STATUSES.map((value) => ({
+    value,
+    label: t(`filter.${value}`),
+  }));
+  const statusPatch = (value: string) => (value === "ALL" ? "" : value);
+  const dateLabel = [filters.from, filters.to]
+    .filter(Boolean)
+    .map((date) => formatBusinessDate(date, locale))
+    .join(" – ");
+  const chips = [
+    {
+      key: "status",
+      active: status !== "ALL",
+      label: t(`filter.${status}`),
+      remove: () => setCriteria({ status: "" }),
+    },
+    {
+      key: filters.from === "" ? "to" : "from",
+      active: dateLabel !== "",
+      label:
+        filters.from !== "" && filters.to !== ""
+          ? dateLabel
+          : `${t(filters.from === "" ? "to" : "from")} ${dateLabel}`,
+      remove: () => setCriteria({ from: "", to: "" }),
+    },
+    {
+      key: "text",
+      active: filters.text !== "",
+      label: filters.text,
+      remove: () => setCriteria({ text: "" }),
+    },
+  ].filter(({ active }) => active);
+  const clearFilters = () => setCriteria(LIST_DEFAULTS);
   return (
     <div className="space-y-group">
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          setFilters(draft);
-        }}
-      >
-        <HrToolbar label={t("filters")}>
-          <FormField id={id} label={t("status")}>
-            {(field) => (
-              <SelectControl
-                id={field.id}
-                value={status}
-                options={STATUSES.map((value) => ({
-                  value,
-                  label: t(`filter.${value}`),
-                }))}
-                placeholder={t("status")}
-                emptyLabel={t("filter.ALL")}
-                onValueChange={(value) => {
-                  if ((STATUSES as readonly string[]).includes(value))
-                    setStatus(value as RequestStatus);
-                }}
-                className="sm:w-52"
-              />
-            )}
-          </FormField>
-          {["from", "to", "text"].map((key) => (
-            <FormField key={key} id={`${id}-${key}`} label={t(key)}>
+      <HrToolbar label={t("filters")} className="items-center justify-between">
+        <FilterRadios
+          id={`${id}-quick-status`}
+          label={t("status")}
+          value={status}
+          options={statusOptions}
+          onChange={(value) => setCriteria({ status: statusPatch(value) })}
+          wrap
+        />
+        <div className="flex items-center gap-1">
+          <HrFilterSheet
+            open={filtersOpen}
+            onOpenChange={changeOpen}
+            title={t("filters")}
+            focus={focus}
+            trigger={
+              <SheetTrigger asChild>
+                <FilterTrigger
+                  label={t("filters")}
+                  count={chips.length}
+                  onClick={() => {
+                    focus.current = `${id}-from`;
+                  }}
+                />
+              </SheetTrigger>
+            }
+            applyDisabled={filterRangeIssue(draft) !== undefined}
+            onApply={() =>
+              setCriteria({
+                ...draft,
+                status: statusPatch(draft.status),
+                text: draft.text.trim(),
+              })
+            }
+          >
+            <HrFilterRange
+              id={id}
+              from={draft.from}
+              to={draft.to}
+              fromLabel={t("from")}
+              toLabel={t("to")}
+              onChange={(next, changed) =>
+                setDraft((current) => ({
+                  ...current,
+                  [changed]: next[changed],
+                }))
+              }
+            />
+            <FormField id={`${id}-text`} label={t("text")}>
               {(field) => (
                 <Input
-                  id={field.id}
-                  type={key === "text" ? "search" : "date"}
-                  maxLength={key === "text" ? 100 : undefined}
-                  value={draft[key as keyof typeof draft]}
-                  onChange={(event) =>
-                    setDraft({ ...draft, [key]: event.target.value })
-                  }
+                  {...field}
+                  type="search"
+                  maxLength={100}
+                  value={draft.text}
+                  onChange={(event) => {
+                    const text = event.currentTarget.value;
+                    setDraft((current) => ({ ...current, text }));
+                  }}
                 />
               )}
             </FormField>
-          ))}
-          <Button type="submit" variant="outline">
-            {t("applyFilters")}
-          </Button>
-          <p className="text-xs text-muted">{t("pageFilter")}</p>
-        </HrToolbar>
-      </form>
+            <section className="space-y-2">
+              <h3 className="font-semibold text-text">{t("status")}</h3>
+              <FilterRadios
+                id={`${id}-status`}
+                label={t("status")}
+                value={draft.status}
+                options={statusOptions}
+                onChange={(status) =>
+                  setDraft((current) => ({ ...current, status }))
+                }
+              />
+            </section>
+          </HrFilterSheet>
+          {chips.length > 1 ? (
+            <ClearFilterButton
+              label={t("clearFilter")}
+              onClick={clearFilters}
+            />
+          ) : null}
+        </div>
+        {chips.length > 0 ? (
+          <ul className="flex w-full flex-wrap items-center gap-2">
+            {chips.map(({ key, label, remove }) => (
+              <li key={key} className="max-w-full">
+                <AppliedFilterChip
+                  label={label}
+                  editLabel={filterText("edit", { label })}
+                  removeLabel={filterText("remove", { label })}
+                  onEdit={() => {
+                    focus.current = `${id}-${key}`;
+                    changeOpen(true);
+                  }}
+                  onRemove={remove}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </HrToolbar>
       <OutcomeGate outcome={outcome}>
         {({ value }) => (
           <RequestsPage
             result={value}
-            status={
-              status === "ALL" &&
-              Object.values(filters).every((value) => value === "")
-                ? "ALL"
-                : "FILTERED"
-            }
+            status={chips.length === 0 ? "ALL" : "FILTERED"}
             page={paging.page}
-            clear={() => {
-              setCriteria(LIST_DEFAULTS);
-              setDraft({ from: "", to: "", text: "" });
-            }}
+            clear={clearFilters}
             previous={paging.canPrevious ? paging.previous : undefined}
             next={(nextCursor) => paging.next(nextCursor)}
           />

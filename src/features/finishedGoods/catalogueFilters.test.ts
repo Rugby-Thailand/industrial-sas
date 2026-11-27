@@ -9,7 +9,10 @@ import {
 } from "@tests/fixtures/finished-goods-ui";
 import { catalogueRows } from "@tests/fixtures/paginationTestAdapter";
 import {
+  activeConditions,
   clearColumn,
+  clearCondition,
+  clearConditions,
   filtersValid,
   newCatalogueState,
   newFilters,
@@ -287,6 +290,34 @@ describe("catalogue column filtering", () => {
     expect(cleared.record).toBe("abc");
     expect(cleared.statuses).toEqual([]);
     expect(cleared.sort).toBe("");
+  });
+  it("counts each condition once and removes it without its sort", () => {
+    const f = {
+      ...newFilters(),
+      formats: ["PALLET", "BOX"],
+      unit: "pieces",
+      quantity: { min: "1", max: "" },
+      sort: "format:asc",
+    };
+    expect(activeConditions(f, "products")).toEqual(["quantity", "format"]);
+    expect(clearCondition(f, "format")).toEqual({ ...f, formats: [] });
+    expect(clearCondition(f, "quantity")).toEqual({
+      ...f,
+      unit: "",
+      quantity: { min: "", max: "" },
+    });
+    expect(clearConditions(f)).toEqual({ ...newFilters(), sort: "format:asc" });
+    expect(
+      activeConditions(
+        {
+          ...newFilters(),
+          measurement: "measured",
+          length: { min: "1", max: "" },
+          height: { min: "", max: "2" },
+        },
+        "pallets",
+      ),
+    ).toEqual(["measurement", "length", "height"]);
   });
   it("round trips both tabs and layout through the URL", () => {
     const state = {

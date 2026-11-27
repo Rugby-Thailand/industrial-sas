@@ -5,6 +5,7 @@ import {
   renderHook,
   screen,
   within,
+  waitFor,
 } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 import type { ComponentProps } from "react";
@@ -610,8 +611,47 @@ describe("bounded cursor stack floor", () => {
   });
 });
 
+it("Review holds an invalid date draft locally and applies a preset without removing other criteria", () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/en/hr/review?from=2026-10-01&to=2026-10-09&site=w2&q=Som#queue",
+  );
+  state.query.mockImplementation((name: string) =>
+    name === "hr/review:queuePage"
+      ? envelope({ ...ready([]), today: "2026-10-09", tab: "OPEN" })
+      : undefined,
+  );
+  renderWithIntl(<HrReviewScreen />, { locale: "en" });
+  expect(callsOf("hr/review:queuePage").at(-1)).toMatchObject({
+    from: "2026-10-01",
+    to: "2026-10-09",
+    warehouseId: "w2",
+    search: "Som",
+  });
+  fireEvent.change(screen.getByLabelText("To"), {
+    target: { value: "2026-09-30" },
+  });
+  expect(
+    screen.getByText("The end date must be on or after the start date."),
+  ).toHaveAttribute("role", "status");
+  expect(callsOf("hr/review:queuePage").at(-1)).toMatchObject({
+    to: "2026-10-09",
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Last 7 days" }));
+  expect(callsOf("hr/review:queuePage").at(-1)).toMatchObject({
+    from: "2026-10-03",
+    to: "2026-10-09",
+    warehouseId: "w2",
+    search: "Som",
+  });
+  expect(screen.getByLabelText("To")).toHaveValue("2026-10-09");
+  expect(window.location.hash).toBe("#queue");
+});
+
 describe("site choices beyond the preloaded list", () => {
-  it("pages the employee site filter and keeps a late site's label", () => {
+  it("pages the employee site filter and keeps a late site's label", async () => {
+    vi.useRealTimers();
     state.access.sitesComplete = false;
     state.query.mockImplementation((name: string, args: Args) => {
       if (name === EMPLOYEES) return envelope(ready([employee(0)]));
@@ -628,6 +668,7 @@ describe("site choices beyond the preloaded list", () => {
       return undefined;
     });
     renderWithIntl(<HrEmployeesScreen />, { locale: "en" });
+    fireEvent.click(screen.getByRole("button", { name: "Employee filters" }));
     fireEvent.click(
       within(
         screen.getByRole("navigation", { name: "Workplace choices" }),
@@ -636,8 +677,24 @@ describe("site choices beyond the preloaded list", () => {
     expect(callsOf("hr/access:sitesPage").at(-1)).toMatchObject({
       cursor: "more",
     });
-    chooseOption("Workplace", "ZZ-51 · Late site");
-    expect(window.location.search).toBe("?site=w51");
+    fireEvent.click(screen.getByRole("radio", { name: "ZZ-51 · Late site" }));
+    const search = screen.getByLabelText("Find a workplace");
+    fireEvent.change(search, { target: { value: "HQ" } });
+    expect(fireEvent.keyDown(search, { key: "Enter" })).toBe(false);
+    await waitFor(() =>
+      expect(callsOf("hr/access:sitesPage").at(-1)).toMatchObject({
+        search: "HQ",
+      }),
+    );
+    expect(
+      screen.getByRole("radio", { name: "ZZ-51 · Late site" }),
+    ).toBeChecked();
+    expect(new URLSearchParams(window.location.search).has("site")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
+    await waitFor(() => expect(window.location.search).toBe("?site=w51"));
+    expect(
+      screen.getByRole("button", { name: "Edit ZZ-51 · Late site" }),
+    ).toBeVisible();
     expect(callsOf(EMPLOYEES).at(-1)).toEqual({
       pageSize: 20,
       warehouseId: "w51",

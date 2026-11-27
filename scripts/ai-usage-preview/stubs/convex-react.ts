@@ -4,7 +4,7 @@
  * network request, no identity and no write. Mutations and actions refuse.
  */
 import { getFunctionName, type FunctionReference } from "convex/server";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import { answer } from "./fixtureData";
 
@@ -18,7 +18,13 @@ export const useConvexAuth = () => ({
 });
 
 export function useQuery(reference: unknown, args: unknown) {
-  return args === "skip" ? undefined : answer(name(reference), args);
+  const queryName = name(reference);
+  const serialized = JSON.stringify(args ?? {});
+  // Mirror Convex's stable result until the subscription arguments change.
+  return useMemo(() => {
+    const parameters: unknown = JSON.parse(serialized);
+    return parameters === "skip" ? undefined : answer(queryName, parameters);
+  }, [queryName, serialized]);
 }
 
 export function useQuery_experimental({
@@ -28,12 +34,15 @@ export function useQuery_experimental({
   readonly query: unknown;
   readonly args: unknown;
 }) {
-  return args === "skip"
+  const data = useQuery(query, args);
+  return data === undefined
     ? { status: "pending" as const }
-    : { status: "success" as const, data: answer(name(query), args) };
+    : { status: "success" as const, data };
 }
 
 const client = Object.freeze({
+  connectionState: () => ({ isWebSocketConnected: true, inflightMutations: 0 }),
+  subscribeToConnectionState: () => () => undefined,
   query: async (reference: unknown, args: unknown) => {
     // A short delay keeps loading states real without stalling captures.
     await new Promise((resolve) => setTimeout(resolve, 60));

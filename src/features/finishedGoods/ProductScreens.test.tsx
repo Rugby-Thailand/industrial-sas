@@ -116,7 +116,7 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { chooseOption } from "@tests/fixtures/select-control";
+import { chooseOption, selectedLabel } from "@tests/fixtures/select-control";
 import {
   finishedGoodsWorkspace,
   measuredPalletDetail,
@@ -131,7 +131,7 @@ import {
 import { FinishedGoodsCatalogue, ProductScreen } from "./ProductScreens";
 import { ProductBatches } from "./ProductBatches";
 
-function chooseStatus(label: string) {
+async function chooseStatus(label: string) {
   fireEvent.click(screen.getByRole("button", { name: /^Filters(?: \(|$)/ }));
   const dialog = screen.getByRole("dialog");
   const status = within(dialog).getByRole("group", { name: "Status" });
@@ -140,6 +140,7 @@ function chooseStatus(label: string) {
   }
   fireEvent.click(within(status).getByRole("checkbox", { name: label }));
   fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+  await screen.findByRole("button", { name: `Edit Status: ${label}` });
 }
 const renderProduct = (productId?: string) =>
   renderWithIntl(<ProductScreen {...(productId ? { productId } : {})} />, {
@@ -725,7 +726,7 @@ describe("finished goods catalogue", () => {
       locale: "en",
       workspace: false,
     });
-  it("restores search, status, tab and table layout after returning to the catalogue", () => {
+  it("restores search, status, tab and table layout after returning to the catalogue", async () => {
     const first = renderCatalogue();
     fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
     fireEvent.click(screen.getByRole("button", { name: "Table view" }));
@@ -733,7 +734,7 @@ describe("finished goods catalogue", () => {
       screen.getByRole("textbox", { name: "Search finished goods" }),
       { target: { value: "Packaging cartons" } },
     );
-    chooseStatus("Awaiting measurement");
+    await chooseStatus("Awaiting measurement");
     first.unmount();
     renderCatalogue();
     expect(
@@ -748,7 +749,7 @@ describe("finished goods catalogue", () => {
     );
     expect(
       screen.getByRole("button", {
-        name: "Remove filter Status: Awaiting measurement",
+        name: "Edit Status: Awaiting measurement",
       }),
     ).toBeVisible();
     expect(
@@ -816,30 +817,40 @@ describe("finished goods catalogue", () => {
       "true",
     );
     expect(
-      screen.queryByRole("button", { name: /^Remove filter Status:/ }),
+      screen.queryByRole("button", { name: /^Remove filter Status/ }),
     ).not.toBeInTheDocument();
   });
 
-  it("persists cleared filters while preserving the chosen tab and layout", () => {
+  it("persists cleared filters while preserving the chosen tab and layout", async () => {
     const first = renderCatalogue();
     fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
     fireEvent.click(screen.getByRole("button", { name: "Table view" }));
-    chooseStatus("Stored");
+    await chooseStatus("Stored");
     fireEvent.change(
       screen.getByRole("textbox", { name: "Search finished goods" }),
       {
         target: { value: "No such unit" },
       },
     );
-    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    // Clear filters keeps the search; its own action clears it separately.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove filter Status" }),
+    );
     first.unmount();
     renderCatalogue();
     expect(
       screen.getByRole("textbox", { name: "Search finished goods" }),
-    ).toHaveValue("");
+    ).toHaveValue("No such unit");
     expect(
-      screen.queryByRole("button", { name: /^Remove filter Status:/ }),
+      screen.queryByRole("button", { name: /^Remove filter Status/ }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Clear filters" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(
+      screen.getByRole("button", { name: "Storage units" }),
+    ).toHaveAttribute("aria-pressed", "true");
     expect(
       screen.getByRole("table", { name: "Storage units table" }),
     ).toBeVisible();
@@ -888,7 +899,10 @@ describe("finished goods catalogue", () => {
       expect(
         screen.getByRole("heading", { name: "No matching records" }),
       ).toBeVisible();
-      fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+      expect(
+        screen.queryByRole("button", { name: "Clear filters" }),
+      ).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
       expect(
         screen.getByRole("link", { name: "Packaging cartons" }),
       ).toBeVisible();
@@ -915,7 +929,7 @@ describe("finished goods catalogue", () => {
     ).toBeVisible();
   });
 
-  it("filters product names and statuses and can clear no-match results", () => {
+  it("filters product names and statuses and can clear no-match results", async () => {
     renderCatalogue();
     fireEvent.change(
       screen.getByRole("textbox", { name: "Search finished goods" }),
@@ -924,15 +938,19 @@ describe("finished goods catalogue", () => {
     expect(
       screen.getByRole("heading", { name: "No matching records" }),
     ).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByText("Try a different search term.")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
     expect(
       screen.getByRole("link", { name: "Packaging cartons" }),
     ).toBeVisible();
-    chooseStatus("Draft");
+    await chooseStatus("Draft");
+    expect(
+      screen.getByText("Remove a condition to broaden the results."),
+    ).toBeVisible();
     expect(
       screen.getByRole("heading", { name: "No matching records" }),
     ).toBeVisible();
-    chooseStatus("Ready");
+    await chooseStatus("Ready");
     expect(
       screen.getByRole("link", { name: "Packaging cartons" }),
     ).toBeVisible();
@@ -1087,7 +1105,7 @@ describe("catalogue table view", () => {
     expect(
       screen.getByRole("heading", { name: "No matching records" }),
     ).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
     expect(screen.getByRole("table")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
     expect(
@@ -1123,7 +1141,7 @@ describe("catalogue table view", () => {
 });
 
 describe("pallet relocation in catalogue", () => {
-  it("shows moving pallets separately from stored stock in cards, tables and filters", () => {
+  it("shows moving pallets separately from stored stock in cards, tables and filters", async () => {
     const pallet = finishedGoodsList.pallets[0]!;
     mocks.query.mockReturnValue(
       querySuccess({
@@ -1143,11 +1161,11 @@ describe("pallet relocation in catalogue", () => {
     expect(screen.getByText("Moving", { exact: true })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Table view" }));
     expect(within(screen.getByRole("table")).getByText("Moving")).toBeVisible();
-    chooseStatus("Stored");
+    await chooseStatus("Stored");
     expect(
       screen.getByRole("heading", { name: "No matching records" }),
     ).toBeVisible();
-    chooseStatus("Moving");
+    await chooseStatus("Moving");
     expect(screen.getByRole("table")).toBeVisible();
   });
 });
@@ -1433,17 +1451,56 @@ describe("column filter interactions", () => {
     ).toHaveAttribute("aria-sort", "descending");
     fireEvent.click(screen.getByRole("button", { name: "Card view" }));
     expect(
-      screen.getByRole("button", { name: "Remove filter Product: FG-001" }),
+      screen.getByRole("button", { name: "Edit Product: FG-001" }),
     ).toBeVisible();
     expect(
       screen.getByRole("heading", { name: "Packaging cartons" }),
     ).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove filter Product" }),
+    );
     expect(
       screen.queryByRole("group", { name: "Active filters" }),
     ).not.toBeInTheDocument();
+    // Removing a condition keeps the column's sort.
+    expect(selectedLabel("Sort order")).toBe("SKU · Descending");
   });
-  it("blocks invalid quantity ranges and applies valid ranges from the shared sheet", () => {
+  it("Clear all filters keeps the search, sort, layout and the other tab", async () => {
+    catalogue();
+    fireEvent.click(screen.getByRole("button", { name: "Card view" }));
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
+    await chooseStatus("Stored");
+    fireEvent.click(screen.getByRole("button", { name: "Products" }));
+    chooseOption("Sort order", "SKU · Descending");
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search finished goods" }),
+      { target: { value: "Packaging" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+    const sheet = screen.getByRole("dialog", { name: "Filters" });
+    fireEvent.click(within(sheet).getByRole("checkbox", { name: "Ready" }));
+    fireEvent.click(within(sheet).getByRole("checkbox", { name: "Boxes" }));
+    fireEvent.click(within(sheet).getByRole("checkbox", { name: "Pallets" }));
+    fireEvent.click(within(sheet).getByRole("button", { name: "Apply" }));
+    // Pallets and Boxes together are one Format condition.
+    expect(
+      await screen.findByRole("button", { name: "Filters (2)" }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Clear all filters" }));
+    expect(
+      screen.queryByRole("group", { name: "Active filters" }),
+    ).not.toBeInTheDocument();
+    const saved = JSON.parse(
+      new URLSearchParams(window.location.search).get("fg")!,
+    );
+    expect(saved).toEqual({
+      layout: "cards",
+      search: "Packaging",
+      products: { sort: "sku:desc" },
+      pallets: { statuses: ["STORED"] },
+    });
+  });
+  it("blocks invalid quantity ranges and applies valid ranges from the shared sheet", async () => {
     catalogue();
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     fireEvent.change(
@@ -1463,11 +1520,11 @@ describe("column filter interactions", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     expect(
-      screen.getByRole("link", { name: "Packaging cartons" }),
+      await screen.findByRole("link", { name: "Packaging cartons" }),
     ).toBeVisible();
     expect(
       screen.getByRole("button", {
-        name: "Remove filter Quantity: 100–500 pieces",
+        name: "Edit Quantity: 100–500 pieces",
       }),
     ).toBeVisible();
   });
@@ -1487,7 +1544,7 @@ describe("column filter interactions", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("button", {
-        name: "Remove filter Status: Awaiting measurement",
+        name: "Edit Status: Awaiting measurement",
       }),
     ).toBeVisible();
     fireEvent.change(
@@ -1779,7 +1836,7 @@ it("continues a bounded scan without displaying an empty result", () => {
     screen.queryByRole("heading", { name: "No matching records" }),
   ).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
-  expect(screen.queryByText("Showing 0 records")).not.toBeInTheDocument();
+  expect(screen.queryByText("0 records on this page")).not.toBeInTheDocument();
   expect(mocks.query).toHaveBeenCalledWith(
     expect.stringContaining("catalogue:page"),
     expect.objectContaining({ scanCursor: "scan-next" }),

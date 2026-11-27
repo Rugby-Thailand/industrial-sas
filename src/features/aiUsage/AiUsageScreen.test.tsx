@@ -9,7 +9,7 @@ import { getFunctionName } from "convex/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { chooseOption, selectedLabel } from "@tests/fixtures/select-control";
+import { trackAppHistory } from "@/lib/browser/appHistory";
 
 const state = vi.hoisted(() => ({
   access: { status: "READY", permissions: ["aiUsage.read"] } as {
@@ -275,6 +275,8 @@ describe("AiUsageScreen access", () => {
   );
 });
 
+const statement = () => screen.getByRole("region", { name: "Period total" });
+
 describe("AiUsageScreen statement and feature strip", () => {
   const withReport = (value: Record<string, unknown>) => {
     state.summary = {
@@ -283,7 +285,6 @@ describe("AiUsageScreen statement and feature strip", () => {
       value: { ...report, ...value },
     };
   };
-  const statement = () => screen.getByRole("region", { name: "Period total" });
   const entry = (kind: string) => screen.getByTestId(`usage-feature-${kind}`);
   const breakdown = () =>
     within(
@@ -576,15 +577,29 @@ describe("AiUsageScreen statement and feature strip", () => {
     // Pressing the selected entry shows every feature again.
     fireEvent.click(entry("AI_SEARCH"));
     expect(state.summaryArgs.at(-1)).not.toHaveProperty("feature");
+    await screen.findByTestId("usage-estimate");
+    const callsBeforeOpen = state.summaryArgs.length;
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));
-    chooseOption("Feature", "Location label photos");
+    const dialog = await screen.findByRole("dialog");
     fireEvent.click(
-      await screen.findByRole("button", { name: "Show results" }),
+      within(dialog).getByRole("radio", { name: "Location label photos" }),
     );
+    // Draft changes do not update the report until Apply.
+    expect(state.summaryArgs.slice(callsBeforeOpen)).not.toContainEqual(
+      expect.objectContaining({ feature: "LOCATION_LABEL_SCAN" }),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(state.summaryArgs.at(-1)).toMatchObject({
+      feature: "LOCATION_LABEL_SCAN",
+    });
     expect(screen.getByRole("button", { name: "Filters (1)" })).toBeVisible();
-    expect(screen.getByText("Filtered by Location label photos")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(
+      screen.getByRole("button", {
+        name: "Edit Feature: Location label photos",
+      }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Remove Feature" }));
     expect(entry("JOB_TICKET_SCAN")).toBeInTheDocument();
   });
 
@@ -623,7 +638,7 @@ describe("AiUsageScreen statement and feature strip", () => {
     expect(screen.getByText(/These totals are incomplete/)).toBeInTheDocument();
     expect(screen.getByText(/^Tracking began Oct 2, 2026/)).toBeInTheDocument();
     expect(screen.getByTestId("usage-range")).toHaveTextContent(
-      "2026-10-01 – 2026-10-15·Asia/Bangkok",
+      "Oct 1, 2026 – Oct 15, 2026·Asia/Bangkok",
     );
   });
 
@@ -1046,31 +1061,51 @@ describe("AI usage dimensions beyond the report's label lookup", () => {
     };
     renderWithIntl(<AiUsageScreen />, { locale: "en" });
     fireEvent.click(await screen.findByRole("button", { name: "Filters" }));
-    const pages = await screen.findByRole("navigation", {
+    const dialog = await screen.findByRole("dialog");
+    const pages = await within(dialog).findByRole("navigation", {
       name: "User choice pages",
     });
     fireEvent.click(within(pages).getByRole("button", { name: "Next page" }));
     expect(calls.at(-1)).toMatchObject({ cursor: "users-2" });
-    chooseOption("User", "Operator 235");
-    expect(state.summaryArgs.at(-1)).toMatchObject({
-      actorUserId: "user-235",
-    });
-    // Back on the first page the chosen user is still the selection.
+    const argsBeforePick = state.summaryArgs.length;
+    fireEvent.click(
+      await within(dialog).findByRole("radio", { name: "Operator 235" }),
+    );
+    // Selection stays in draft until Apply.
+    expect(state.summaryArgs).toHaveLength(argsBeforePick);
+    // Back on the first page the chosen user is still visible and checked.
     fireEvent.click(
       within(
-        screen.getByRole("navigation", { name: "User choice pages" }),
+        within(dialog).getByRole("navigation", { name: "User choice pages" }),
       ).getByRole("button", { name: "Previous page" }),
     );
-    expect(selectedLabel("User")).toContain("Operator 235");
-    fireEvent.change(screen.getByRole("searchbox", { name: "Search users" }), {
-      target: { value: "240" },
-    });
+    expect(
+      within(dialog).getByRole("radio", { name: "Operator 235" }),
+    ).toBeChecked();
+    // Searching for another user shows inline matches while retaining the chosen user.
+    fireEvent.change(
+      within(dialog).getByRole("searchbox", { name: "Search users" }),
+      {
+        target: { value: "240" },
+      },
+    );
     await waitFor(() =>
       expect(calls.at(-1)).toMatchObject({ search: "240", cursor: null }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+    expect(
+      await within(dialog).findByRole("radio", { name: "Operator 240" }),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("radio", { name: "Operator 235" }),
+    ).toBeChecked();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Filtered by Operator 235")).toBeVisible();
+    expect(state.summaryArgs.at(-1)).toMatchObject({
+      actorUserId: "user-235",
+    });
+    expect(
+      screen.getByRole("button", { name: "Edit User: Operator 235" }),
+    ).toBeVisible();
   });
 
   it("names breakdown actors the report did not label", () => {
@@ -1173,7 +1208,368 @@ describe("AI usage dimensions beyond the report's label lookup", () => {
     expect(new Set(calls.map((args) => JSON.stringify(args))).size).toBe(1);
     fireEvent.click(within(alert).getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(calls.at(-1)).toMatchObject({ attempt: 1 }));
-    chooseOption("Warehouse", "Warehouse Late · W999");
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(
+      await within(dialog).findByRole("radio", {
+        name: "Warehouse Late · W999",
+      }),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(state.summaryArgs.at(-1)).toMatchObject({ warehouseId: "wh-late" });
+    expect(
+      screen.getByRole("button", {
+        name: "Edit Warehouse: Warehouse Late · W999",
+      }),
+    ).toBeVisible();
+  });
+});
+
+describe("AiUsageScreen filter workflows", () => {
+  const ok = (value: unknown) => ({ ok: true, requestId: "q", value });
+
+  it("drafts compound edits until Apply and discards on Cancel, Escape, and browser Back", async () => {
+    window.history.replaceState({ appNavigationIndex: 0 }, "", "/en/home");
+    const stop = trackAppHistory();
+    window.history.pushState({}, "", "/en/ai-usage?tab=overview#top");
+    try {
+      state.summary = ok({
+        ...report,
+        models: ["openai/gpt-6-luna", "anthropic/claude-4"],
+        environments: ["production", "local"],
+      });
+      renderWithIntl(<AiUsageScreen />, { locale: "en" });
+      await screen.findByTestId("usage-estimate");
+      const expectUnchanged = () => {
+        expect(state.summaryArgs.at(-1)).toMatchObject({ period: "month" });
+        expect(state.summaryArgs.at(-1)).not.toHaveProperty("feature");
+        expect(state.summaryArgs.at(-1)).not.toHaveProperty("requestedModel");
+        expect(state.summaryArgs.at(-1)).not.toHaveProperty("from");
+      };
+
+      // Edit multiple fields, then Cancel: nothing commits.
+      fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+      let dialog = await screen.findByRole("dialog");
+      fireEvent.click(within(dialog).getByRole("radio", { name: "Today" }));
+      fireEvent.click(
+        within(dialog).getByRole("radio", { name: "Location label photos" }),
+      );
+      fireEvent.click(
+        within(dialog).getByRole("radio", { name: "openai/gpt-6-luna" }),
+      );
+      expectUnchanged();
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await waitFor(() =>
+        expect(
+          window.location.pathname +
+            window.location.search +
+            window.location.hash,
+        ).toBe("/en/ai-usage?tab=overview#top"),
+      );
+      expectUnchanged();
+      expect(screen.getByRole("button", { name: "Filters" })).toBeVisible();
+
+      // Reopen, edit, then press Escape: nothing commits and draft resets.
+      fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+      dialog = await screen.findByRole("dialog");
+      expect(
+        within(dialog).getByRole("radio", { name: "This month" }),
+      ).toBeChecked();
+      fireEvent.click(within(dialog).getByRole("radio", { name: "AI Search" }));
+      fireEvent.keyDown(dialog, { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await waitFor(() =>
+        expect(
+          window.location.pathname +
+            window.location.search +
+            window.location.hash,
+        ).toBe("/en/ai-usage?tab=overview#top"),
+      );
+      expectUnchanged();
+
+      // Reopen, edit, then trigger browser Back: closes Sheet and discards draft.
+      fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+      dialog = await screen.findByRole("dialog");
+      fireEvent.click(
+        within(dialog).getByRole("radio", { name: "Last 7 days" }),
+      );
+      act(() => window.history.back());
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await waitFor(() =>
+        expect(
+          window.location.pathname +
+            window.location.search +
+            window.location.hash,
+        ).toBe("/en/ai-usage?tab=overview#top"),
+      );
+      expectUnchanged();
+
+      // The next browser Back leaves the page instead of hitting a dead step.
+      act(() => window.history.back());
+      await waitFor(() => expect(window.location.pathname).toBe("/en/home"));
+    } finally {
+      stop();
+    }
+  });
+
+  it("counts one condition per non-default filter, edits and removes chips individually, and shows clear-all only above one", async () => {
+    state.summary = ok({
+      ...report,
+      models: ["openai/gpt-6-luna", "anthropic/claude-4"],
+      environments: ["production", "local"],
+    });
+    renderWithIntl(<AiUsageScreen />, { locale: "en" });
+
+    // Default period is visible explicitly and counts as 0 active conditions.
+    expect(
+      screen.getByRole("button", { name: "Report period · This month" }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Filters" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Clear all filters" }),
+    ).toBeNull();
+    expect(screen.queryByRole("group", { name: "Active filters" })).toBeNull();
+
+    // Override only period -> count 1, one chip, no clear-all X.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Report period · This month" }),
+    );
+    let dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("radio", { name: "Today" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(state.summaryArgs.at(-1)).toMatchObject({ period: "today" });
+    expect(screen.getByRole("button", { name: "Filters (1)" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Edit Report period: Today" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Clear all filters" }),
+    ).toBeNull();
+
+    // Add Feature and Requested model -> count 3, clear-all X appears.
+    fireEvent.click(screen.getByRole("button", { name: "Filters (1)" }));
+    dialog = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("radio", { name: "Location label photos" }),
+    );
+    fireEvent.click(
+      within(dialog).getByRole("radio", { name: "openai/gpt-6-luna" }),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(state.summaryArgs.at(-1)).toMatchObject({
+      period: "today",
+      feature: "LOCATION_LABEL_SCAN",
+      requestedModel: "openai/gpt-6-luna",
+    });
+    expect(screen.getByRole("button", { name: "Filters (3)" })).toBeVisible();
+    expect(
+      within(statement()).getByText("Filtered total · 3 filters"),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Clear all filters" }),
+    ).toBeVisible();
+
+    // Edit one chip directly -> scoped dialog updates only Feature, keeping Period and Model.
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Edit Feature: Location label photos",
+      }),
+    );
+    dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByRole("heading", { name: "Feature" }),
+    ).toBeVisible();
+    fireEvent.click(within(dialog).getByRole("radio", { name: "AI Search" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(state.summaryArgs.at(-1)).toMatchObject({
+      period: "today",
+      feature: "AI_SEARCH",
+      requestedModel: "openai/gpt-6-luna",
+    });
+
+    // Remove one chip -> removes only Feature; count drops to 2 and clear-all stays visible.
+    fireEvent.click(screen.getByRole("button", { name: "Remove Feature" }));
+    expect(state.summaryArgs.at(-1)).toMatchObject({
+      period: "today",
+      requestedModel: "openai/gpt-6-luna",
+    });
+    expect(state.summaryArgs.at(-1)).not.toHaveProperty("feature");
+    expect(screen.getByRole("button", { name: "Filters (2)" })).toBeVisible();
+
+    // Clear all -> resets Period back to default month and clears all dimensions.
+    fireEvent.click(screen.getByRole("button", { name: "Clear all filters" }));
+    expect(state.summaryArgs.at(-1)).toMatchObject({ period: "month" });
+    expect(state.summaryArgs.at(-1)).not.toHaveProperty("requestedModel");
+    expect(screen.getByRole("button", { name: "Filters" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Clear all filters" }),
+    ).toBeNull();
+  });
+
+  it("uses direct period shortcut with Last 7 days and custom dates in the organization timezone", async () => {
+    // 2026-10-11 18:00 UTC is 2026-10-12 01:00 in Asia/Bangkok (+07:00).
+    vi.mocked(Date.now).mockReturnValue(Date.parse("2026-10-11T18:00:00Z"));
+    renderWithIntl(<AiUsageScreen />, { locale: "en" });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Report period · This month" }),
+    );
+    let dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByRole("heading", { name: "Report period" }),
+    ).toBeVisible();
+    fireEvent.click(within(dialog).getByRole("radio", { name: "Last 7 days" }));
+    expect(within(dialog).getByLabelText("From")).toHaveValue("2026-10-06");
+    expect(within(dialog).getByLabelText("To")).toHaveValue("2026-10-12");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(state.summaryArgs.at(-1)).toMatchObject({
+      from: "2026-10-06",
+      to: "2026-10-12",
+    });
+    expect(
+      screen.getByRole("button", { name: "Edit Report period: Last 7 days" }),
+    ).toBeVisible();
+
+    // Open direct shortcut again, test validation + manual input + calendar picker.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit Report period: Last 7 days" }),
+    );
+    dialog = await screen.findByRole("dialog");
+    const fromInput = within(dialog).getByLabelText("From");
+    const toInput = within(dialog).getByLabelText("To");
+    const apply = within(dialog).getByRole("button", { name: "Apply" });
+
+    // Reversed dates show inline alert and disable Apply.
+    fireEvent.change(fromInput, { target: { value: "2026-10-20" } });
+    expect(
+      within(dialog).getByRole("radio", { name: "Custom dates" }),
+    ).toBeChecked();
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "End date must be on or after the start date.",
+    );
+    expect(apply).toBeDisabled();
+
+    // >93 inclusive calendar days is rejected.
+    fireEvent.change(fromInput, { target: { value: "2026-07-01" } });
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "Choose up to 93 calendar days, including both dates.",
+    );
+    expect(apply).toBeDisabled();
+
+    // Invalid calendar date is rejected.
+    fireEvent.change(fromInput, { target: { value: "2026-02-30" } });
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "Enter a valid date as YYYY-MM-DD.",
+    );
+    expect(apply).toBeDisabled();
+
+    // Valid manual range + calendar dialog selection for To.
+    fireEvent.change(fromInput, { target: { value: "2026-10-01" } });
+    fireEvent.change(toInput, { target: { value: "2026-10-10" } });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Choose date for To" }),
+    );
+    const calendarDialog = await screen.findByRole("dialog", { name: "To" });
+    fireEvent.click(
+      within(calendarDialog).getByRole("button", { name: /October 8, 2026/ }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "To" })).toBeNull(),
+    );
+    await waitFor(() => expect(toInput).toHaveValue("2026-10-08"));
+    expect(apply).toBeEnabled();
+
+    fireEvent.click(apply);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(state.summaryArgs.at(-1)).toMatchObject({
+      from: "2026-10-01",
+      to: "2026-10-08",
+    });
+    expect(screen.getByRole("button", { name: "Filters (1)" })).toBeVisible();
+    expect(
+      screen.getAllByText("Report period · Oct 1, 2026 – Oct 8, 2026"),
+    ).toHaveLength(1);
+    expect(
+      screen.getByRole("button", {
+        name: "Edit Report period: Oct 1, 2026 – Oct 8, 2026",
+      }),
+    ).toBeVisible();
+  });
+
+  it("keeps Last 7 days unavailable until the organization timezone is known", async () => {
+    state.summary = undefined;
+    renderWithIntl(<AiUsageScreen />, { locale: "en" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Report period · This month" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByRole("radio", { name: "Last 7 days" }),
+    ).toBeDisabled();
+    // Period never commits a wrong month as Last 7 days before timezone loads.
+    expect(state.summaryArgs.at(-1)).toMatchObject({ period: "month" });
+  });
+
+  it("searches long model lists inline while keeping the selected model visible", async () => {
+    state.summary = ok({
+      ...report,
+      models: Array.from({ length: 8 }, (_, n) => `model/v${n + 1}`),
+      environments: ["production", "local"],
+    });
+    renderWithIntl(<AiUsageScreen />, { locale: "en" });
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const dialog = await screen.findByRole("dialog");
+
+    // Short environment list has radios and no searchbox.
+    expect(
+      within(dialog).queryByRole("searchbox", { name: "Search environments" }),
+    ).toBeNull();
+    expect(
+      within(dialog).getByRole("radio", { name: "production" }),
+    ).toBeVisible();
+
+    // Long model list has searchbox + inline radio matches.
+    const modelSearch = within(dialog).getByRole("searchbox", {
+      name: "Search models",
+    });
+    fireEvent.click(within(dialog).getByRole("radio", { name: "model/v2" }));
+    fireEvent.change(modelSearch, { target: { value: "v7" } });
+    expect(
+      within(dialog).getByRole("radio", { name: "model/v7" }),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("radio", { name: "model/v2" }),
+    ).toBeChecked();
+    fireEvent.change(modelSearch, { target: { value: "missing-model" } });
+    expect(
+      within(dialog).getByText("No matches. Try another name."),
+    ).toBeVisible();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(state.summaryArgs.at(-1)).toMatchObject({
+      requestedModel: "model/v2",
+    });
+  });
+
+  it("renders reporting filter workflows in Thai", async () => {
+    renderWithIntl(<AiUsageScreen />, { locale: "th" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "ช่วงรายงาน · เดือนนี้" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("radio", { name: "7 วันที่ผ่านมา" }),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "ใช้ตัวกรอง" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(
+      screen.getByRole("button", { name: "แก้ไขช่วงรายงาน: 7 วันที่ผ่านมา" }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "ตัวกรอง (1)" })).toBeVisible();
   });
 });

@@ -485,7 +485,12 @@ it("filters employees by department through the URL and lists Department and Pos
     screen.getAllByRole("columnheader").map((cell) => cell.textContent),
   ).toEqual(expect.arrayContaining(["Department", "Position"]));
   expect(screen.getAllByText("General staff").length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByRole("button", { name: "Employee filters" }));
   chooseOption("Department", "Recruitment (inactive)");
+  expect(new URLSearchParams(window.location.search).get("q")).toBe("Som");
+  expect(new URLSearchParams(window.location.search).has("dept")).toBe(false);
+  expect(new URLSearchParams(window.location.search).has("status")).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
   await waitFor(() =>
     expect(new URLSearchParams(window.location.search).get("dept")).toBe("d2"),
   );
@@ -531,3 +536,92 @@ it.each(["loading", "unknown", "refused"] as const)(
       );
   },
 );
+
+it("Employee filter Cancel consumes the sheet entry before Back returns to the localized origin", async () => {
+  window.history.pushState({}, "", "/en/hr/employees?q=Som#registry");
+  renderWithIntl(
+    <DraftGuardProvider>
+      <HrEmployeesScreen />
+    </DraftGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Employee filters" }));
+  fireEvent.click(screen.getAllByRole("radio", { name: "Inactive" }).at(-1)!);
+  expect(new URLSearchParams(window.location.search).get("q")).toBe("Som");
+  expect(new URLSearchParams(window.location.search).has("dept")).toBe(false);
+  expect(new URLSearchParams(window.location.search).has("status")).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  expect(
+    screen.getByRole("radio", { name: "Current employees" }),
+  ).toBeChecked();
+  await waitFor(() =>
+    expect(snapshot().url).toBe("/en/hr/employees?q=Som#registry"),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/en/hr/today"));
+});
+
+it("Employee status chips edit and remove their own condition without clearing search", async () => {
+  window.history.pushState({}, "", "/en/hr/employees?q=Som#registry");
+  renderWithIntl(
+    <DraftGuardProvider>
+      <HrEmployeesScreen />
+    </DraftGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  fireEvent.click(
+    screen.getByRole("radio", { name: "Active (incl. probation)" }),
+  );
+  await waitFor(() =>
+    expect(snapshot().url).toBe(
+      "/en/hr/employees?q=Som&status=ACTIVE#registry",
+    ),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Edit Active (incl. probation)" }),
+  );
+  const dialog = screen.getByRole("dialog");
+  await waitFor(() =>
+    expect(dialog.contains(document.activeElement)).toBe(true),
+  );
+  fireEvent.click(screen.getAllByRole("radio", { name: "Inactive" }).at(-1)!);
+  fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
+  await waitFor(() =>
+    expect(snapshot().url).toBe(
+      "/en/hr/employees?q=Som&status=INACTIVE#registry",
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Remove Inactive" }));
+  await waitFor(() =>
+    expect(snapshot().url).toBe("/en/hr/employees?q=Som#registry"),
+  );
+  expect(screen.getByLabelText("Search employees")).toHaveValue("Som");
+  fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+  await waitFor(() => expect(snapshot().url).toBe("/en/hr/employees#registry"));
+});
+
+it("Employee search typing stays pending while the filter sheet owns the foreground", async () => {
+  window.history.pushState({}, "", "/en/hr/employees?q=Som#registry");
+  renderWithIntl(
+    <DraftGuardProvider>
+      <HrEmployeesScreen />
+    </DraftGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  fireEvent.change(screen.getByLabelText("Search employees"), {
+    target: { value: "EMP-007" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Employee filters" }));
+  await act(async () => {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 300));
+  });
+  expect(new URLSearchParams(window.location.search).get("q")).toBe("Som");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() =>
+    expect(snapshot().url).toBe("/en/hr/employees?q=EMP-007#registry"),
+  );
+  expect(screen.getByLabelText("Search employees")).toHaveValue("EMP-007");
+});
