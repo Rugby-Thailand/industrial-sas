@@ -5,13 +5,25 @@ import {
   MAX_JOB_TICKET_UPLOAD_BYTES,
   type prepareJobTicketPhoto,
 } from "./prepareJobTicketPhoto";
-import { mergeExtracted, newTicket, type TicketDraft } from "./ticketDraft";
+import {
+  classifyTicketBarcode,
+  mergeExtracted,
+  newTicket,
+  type TicketDraft,
+} from "./ticketDraft";
+
+type TicketImages = {
+  detailImageUrl?: string;
+  datesImageUrl?: string;
+  deliveryImageUrl?: string;
+};
 
 export type AcquisitionPorts = {
   prepare: typeof prepareJobTicketPhoto;
   toDataUrl: (file: File) => Promise<string>;
   extract: (
     imageUrl: string,
+    images?: TicketImages,
   ) => Promise<FunctionReturnType<typeof fgRefs.extractJobTicket>>;
   upload: (file: File) => Promise<{ url: string; assetId: string } | undefined>;
   createObjectURL: (file: File) => string;
@@ -54,17 +66,41 @@ export class JobScanAcquisition {
     let reading: Promise<
       Awaited<ReturnType<AcquisitionPorts["extract"]>> | undefined
     > = Promise.resolve(undefined);
+    let codes: readonly string[] = [];
     try {
       this.ports.addTicket(ticket);
       const image = await this.ports.prepare(file, {
         signal: photo.controller.signal,
-        onAiReady: async (aiFile) => {
+        onAiReady: async (aiFile, evidence) => {
           if (!current()) return;
+          codes = evidence?.codes ?? [];
           // Dispatch before optional WebP encoding, without awaiting the action.
           try {
             const imageUrl = await this.ports.toDataUrl(aiFile);
-            if (current() && imageUrl.length <= MAX_JOB_TICKET_AI_DATA_URL)
-              reading = this.ports.extract(imageUrl).catch(() => undefined);
+            if (!current() || imageUrl.length > MAX_JOB_TICKET_AI_DATA_URL)
+              return;
+            const images: TicketImages = {};
+            let imageBytes = imageUrl.length;
+            for (const [output, input] of [
+              ["detailImageUrl", evidence?.detailImage],
+              ["datesImageUrl", evidence?.datesImage],
+              ["deliveryImageUrl", evidence?.deliveryImage],
+            ] as const) {
+              if (!input) continue;
+              const url = await this.ports
+                .toDataUrl(input)
+                .catch(() => undefined);
+              if (!current()) return;
+              if (!url || imageBytes + url.length > MAX_JOB_TICKET_AI_DATA_URL)
+                continue;
+              images[output] = url;
+              imageBytes += url.length;
+            }
+            reading = (
+              Object.keys(images).length
+                ? this.ports.extract(imageUrl, images)
+                : this.ports.extract(imageUrl)
+            ).catch(() => undefined);
           } catch {
             // AI input failure must not prevent storing the photo.
           }
@@ -83,8 +119,14 @@ export class JobScanAcquisition {
       if (!current()) return;
       const imageUrl = attachment?.url;
       const result = outcome?.ok ? outcome.value : undefined;
+      const barcodeFields = Object.fromEntries(
+        codes.map((code) => [classifyTicketBarcode(code), code]),
+      );
       this.ports.updateTicket(ticket.key, (row) => ({
-        ...(result?.ok ? mergeExtracted(row, result.fields) : row),
+        ...mergeExtracted(
+          codes.length ? mergeExtracted(row, barcodeFields) : row,
+          result?.ok ? result.fields : {},
+        ),
         status: "ready",
         ...(imageUrl && attachment?.assetId
           ? { imageUrl, imageAssetId: attachment.assetId }

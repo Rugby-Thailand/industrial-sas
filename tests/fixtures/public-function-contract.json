@@ -10659,6 +10659,24 @@
             "type": "string"
           },
           "optional": false
+        },
+        "detailImageUrl": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "datesImageUrl": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "deliveryImageUrl": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
         }
       }
     },

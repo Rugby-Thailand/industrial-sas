@@ -5,6 +5,7 @@ import {
 } from "zxing-wasm/reader";
 import type { BarcodeImageTarget, BarcodeImageResult } from "./barcodeImage";
 import { classifyTicketBarcode } from "../../../convex/model/finishedGoods/jobScans";
+import { inspectJobTicketPhoto } from "./jobTicketPhotoEvidence";
 import { linearBarcodeRegions } from "./barcodeRegions";
 import { createBarcodeReader, decodeBarcodeCanvas } from "./barcodeDecoder";
 
@@ -70,6 +71,7 @@ export async function decodeBarcodeBitmap(
     overrides: { locateFile: () => wasmUrl },
     fireImmediately: true,
   });
+  if (target === "TICKET_PHOTO") return inspectJobTicketPhoto(image);
   if (target === "LOCATION") {
     // Preserve the established location geometry and scale inside the owned worker.
     const started = performance.now();

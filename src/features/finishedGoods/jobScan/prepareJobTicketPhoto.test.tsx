@@ -1,6 +1,14 @@
 import { waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { prepareJobTicketPhoto } from "./prepareJobTicketPhoto";
+import {
+  prepareJobTicketPhoto,
+  type JobTicketPhotoEvidence,
+} from "./prepareJobTicketPhoto";
+import { readBarcodeImage } from "../barcodeImage";
+
+vi.mock("../barcodeImage", () => ({
+  readBarcodeImage: vi.fn(),
+}));
 import { prepareLocationImage } from "./prepareLocationImage";
 
 const jpeg = new Blob([new Uint8Array(100)], { type: "image/jpeg" });
@@ -9,7 +17,9 @@ const webp = new Blob([new Uint8Array(60)], { type: "image/webp" });
 const file = () => new File(["photo"], "ticket.png", { type: "image/png" });
 const close = vi.fn();
 const drawImage = vi.fn();
-const onAiReady = vi.fn(async (_image: File) => {});
+const onAiReady = vi.fn(
+  async (_image: File, _evidence?: JobTicketPhotoEvidence) => {},
+);
 let bitmap: { width: number; height: number; close: typeof close };
 let encodings: { canvas: HTMLCanvasElement; type: string | undefined }[];
 
@@ -17,6 +27,14 @@ beforeEach(() => {
   close.mockReset();
   drawImage.mockReset();
   onAiReady.mockClear();
+  vi.mocked(readBarcodeImage)
+    .mockReset()
+    .mockResolvedValue({
+      codes: ["FO12345", "BOX-A"],
+      reviewRequired: false,
+      attempts: 1,
+      elapsedMs: 60,
+    });
   encodings = [];
   bitmap = { width: 4032, height: 3024, close };
   vi.stubGlobal(
@@ -45,7 +63,14 @@ function prepare(signal = new AbortController().signal) {
   return prepareJobTicketPhoto(file(), { signal, onAiReady });
 }
 
-it("dispatches a 1280 px JPEG before encoding the 2000 px upload and decodes once", async () => {
+it("dispatches a 1280 px JPEG and a barcode-anchored close-up before encoding the 2000 px upload", async () => {
+  vi.mocked(readBarcodeImage).mockResolvedValue({
+    codes: ["FO12345", "BOX-A"],
+    detailCrop: { x: 0, y: 0.2, width: 1, height: 0.5 },
+    reviewRequired: false,
+    attempts: 1,
+    elapsedMs: 60,
+  });
   let finishWebp!: BlobCallback;
   const sizes: [string | undefined, number, number][] = [];
   vi.mocked(HTMLCanvasElement.prototype.toBlob).mockImplementation(function (
@@ -58,7 +83,7 @@ it("dispatches a 1280 px JPEG before encoding the 2000 px upload and decodes onc
     sizes.push([type, this.width, this.height]);
     if (type === "image/jpeg") {
       expect(quality).toBe(0.85);
-      if (this.width === 1280) callback(aiJpeg);
+      if (this.width === 1280 || this.width === 1600) callback(aiJpeg);
       else {
         expect(onAiReady).toHaveBeenCalledOnce();
         callback(jpeg);
@@ -75,8 +100,13 @@ it("dispatches a 1280 px JPEG before encoding the 2000 px upload and decodes onc
   expect(ai.name).toBe("ticket.jpg");
   expect(ai.type).toBe("image/jpeg");
   expect(ai.size).toBe(40);
+  expect(onAiReady.mock.calls[0]?.[1]).toMatchObject({
+    codes: ["FO12345", "BOX-A"],
+    detailImage: { type: "image/jpeg" },
+  });
   expect(sizes).toEqual([
     ["image/jpeg", 1280, 960],
+    ["image/jpeg", 1600, 600],
     ["image/jpeg", 2000, 1500],
     ["image/webp", 2000, 1500],
   ]);
@@ -115,7 +145,7 @@ it.each([
       type,
     ) {
       callback(
-        type === "image/jpeg" ? (this.width === 1280 ? aiJpeg : jpeg) : blob,
+        type === "image/jpeg" ? (this.width === 2300 ? aiJpeg : jpeg) : blob,
       );
     });
     const stored = await prepare();
@@ -289,4 +319,15 @@ it("does not return an upload after cancellation during encoding", async () => {
   controller.abort();
   finishWebp(webp);
   await rejected;
+});
+
+it("keeps a larger whole-ticket AI image when barcode inspection is unavailable", async () => {
+  vi.mocked(readBarcodeImage).mockRejectedValue(new Error("Unavailable"));
+  await prepare();
+  expect(drawImage).toHaveBeenNthCalledWith(1, bitmap, 0, 0, 2300, 1725);
+  expect(drawImage).toHaveBeenNthCalledWith(2, bitmap, 0, 0, 2000, 1500);
+  expect(onAiReady.mock.calls[0]?.[1]).toMatchObject({
+    codes: [],
+    datesImage: { type: "image/jpeg" },
+  });
 });
