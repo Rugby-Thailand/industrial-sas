@@ -12,6 +12,7 @@ interface ActionCardContent {
   readonly label: string;
   readonly description?: ReactNode;
   readonly value?: ReactNode;
+  readonly compactOnMobile?: boolean;
 }
 
 type ActionCardProps = ActionCardContent &
@@ -39,6 +40,7 @@ export function HrActionCard({
   label,
   description,
   value,
+  compactOnMobile,
   href,
   onClick,
   selected,
@@ -47,6 +49,7 @@ export function HrActionCard({
   const classes = cn(
     panelClassName({ padding: "compact" }),
     "flex min-h-touch w-full items-center gap-3 text-left",
+    compactOnMobile && "max-sm:gap-1.5 max-sm:p-2",
     interactive && "focus-ring transition-colors hover:bg-raised",
     selected &&
       "bg-accent-surface text-selected-foreground hover:bg-accent-surface",
@@ -55,12 +58,22 @@ export function HrActionCard({
     <>
       <span
         aria-hidden="true"
-        className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-raised text-link"
+        className={cn(
+          "flex size-12 shrink-0 items-center justify-center rounded-xl bg-raised text-link",
+          compactOnMobile && "max-sm:size-7 max-[24rem]:hidden",
+        )}
       >
-        <Icon className="size-6" />
+        <Icon className={cn("size-6", compactOnMobile && "max-sm:size-4")} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-text">{label}</span>
+        <span
+          className={cn(
+            "block text-sm font-semibold text-text",
+            compactOnMobile && "wrap-anywhere",
+          )}
+        >
+          {label}
+        </span>
         {description === undefined ? null : (
           <span className="block text-xs leading-relaxed wrap-anywhere text-muted">
             {description}
@@ -68,7 +81,12 @@ export function HrActionCard({
         )}
       </span>
       {value === undefined ? null : (
-        <span className="shrink-0 text-lg font-semibold text-text tabular-nums">
+        <span
+          className={cn(
+            "shrink-0 text-lg font-semibold text-text tabular-nums",
+            compactOnMobile && "max-sm:text-base",
+          )}
+        >
           {value}
         </span>
       )}
