@@ -575,6 +575,7 @@
     "moveSpotPallet": "ย้ายพาเลท {lpn}",
     "continueSpotPalletMove": "ดำเนินการย้าย {lpn} ต่อ",
     "mapTitle": "แผนผังชั้นแบบโต้ตอบ",
+    "mapSkipToLocations": "ข้ามไปยังจุดจัดเก็บบนแผนผัง",
     "mapReturn": "กลับไปแผนผังจุดจัดเก็บ",
     "mapPartialFootprint": "พื้นที่ใช้เฉพาะหน่วยที่วัดขนาดแล้ว: {percent}% ยังไม่ทราบพื้นที่ใช้ทั้งหมด",
     "mapUnmeasuredInventory": "บางหน่วยยังไม่ได้วัดขนาด ดูสินค้าทั้งหมดได้ในรายละเอียดจุดจัดเก็บ",

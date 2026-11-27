@@ -46,6 +46,7 @@ function SceneDrawing({
   showPackages,
   selectedId,
   selectedUnit,
+  locationEntryId,
   matchIds,
   searching,
   onSelect,
@@ -76,12 +77,17 @@ function SceneDrawing({
   showPackages: boolean;
   selectedId: string | undefined;
   selectedUnit: string | undefined;
+  locationEntryId?: string;
   matchIds: string[];
   searching: boolean;
   onSelect: (id: string, palletId?: string) => void;
   children: ReactNode;
 }) {
   const t = useTranslations("StorageLayouts");
+  const entryZoneId =
+    searching && matchIds.length > 0 && !matchIds.includes(selectedId ?? "")
+      ? matchIds[0]
+      : (selectedId ?? props.zones[0]?.zoneId);
   const incompletePatternId = `${useId()}-incomplete`;
   const {
     svg: viewportSvg,
@@ -667,11 +673,8 @@ function SceneDrawing({
                 key={zone.zoneId}
                 role="button"
                 data-map-zone-id={zone.zoneId}
-                tabIndex={
-                  zone.zoneId === (selectedId ?? props.zones[0]?.zoneId)
-                    ? 0
-                    : -1
-                }
+                id={zone.zoneId === entryZoneId ? locationEntryId : undefined}
+                tabIndex={zone.zoneId === entryZoneId ? 0 : -1}
                 aria-label={t("mapSelectLocation", { name: zone.label })}
                 aria-pressed={active}
                 style={{ outline: "none" }}
@@ -788,9 +791,7 @@ function SceneDrawing({
                         data-floor-zone-state={state}
                         strokeWidth={active ? 1.5 : 0.75}
                         vectorEffect="non-scaling-stroke"
-                        className={
-                          active ? undefined : "group-focus-visible:stroke-text"
-                        }
+                        className={styles.zonePerimeter}
                       />
                       {(active || showLocationLabels || zoom >= labelZoom) &&
                         labelFontSize && (
@@ -869,6 +870,7 @@ function SceneDrawing({
                         </polygon>
                       ))}
                       <polygon
+                        className={styles.zonePerimeter}
                         points={pts(base)}
                         fill="none"
                         stroke={active ? sceneColors.selected : "#263640"}

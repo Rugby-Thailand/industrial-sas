@@ -2320,6 +2320,28 @@
       ]
     },
     {
+      "id": "src/components/storageLayouts/FloorMap.tsx#FloorMap:filters",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "The inline status filters determine whether a matching floor location can receive keyboard focus. The link moves focus within the current map and preserves the selected location and browser history.",
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "src/components/shell/SkipToContentLink#SkipToContentLink"
+          ],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/components/storageLayouts/FloorMap.workspace.test.tsx"],
+      "cases": [
+        {
+          "file": "src/components/storageLayouts/FloorMap.workspace.test.tsx",
+          "name": "shares status filters and search across map and table without opening an inspector"
+        }
+      ]
+    },
+    {
       "id": "src/components/storageLayouts/FloorMap.tsx#FloorMap:floorsOpen",
       "policy": "presentation",
       "uses": ["open"],
@@ -2379,6 +2401,28 @@
           "shape": "and",
           "truthy": ["div", "src/features/storageKit/QrCode#QrCode"],
           "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/components/storageLayouts/FloorMap.tsx#FloorMap:search",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "The search text determines whether the map has a matching location for its keyboard shortcut. Activating the link focuses the matching marker within the current map and preserves the selected location and browser history.",
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "src/components/shell/SkipToContentLink#SkipToContentLink"
+          ],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/components/storageLayouts/FloorMap.workspace.test.tsx"],
+      "cases": [
+        {
+          "file": "src/components/storageLayouts/FloorMap.workspace.test.tsx",
+          "name": "skips to the matching or selected location in its own map without changing history or selection"
         }
       ]
     },

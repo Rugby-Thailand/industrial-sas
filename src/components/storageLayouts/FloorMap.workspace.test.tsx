@@ -19,6 +19,74 @@ const show = () =>
     workspace: false,
   });
 describe("canvas first workspace", () => {
+  it("skips to the matching or selected location in its own map without changing history or selection", () => {
+    const demo = floorMapDemo(false, false);
+    const selection = vi.fn();
+    renderWithIntl(
+      <>
+        <FloorMap {...demo} />
+        <FloorMap
+          {...demo}
+          selectedZoneId="DEMO-Z02"
+          onSelectionChange={selection}
+        />
+      </>,
+      { locale: "en", workspace: false },
+    );
+    const shortcuts = screen.getAllByRole("link", {
+      name: "Skip to map locations",
+    });
+    const initialUrl = location.href;
+    const initialHistory = history.length;
+    const secondCanvas = screen.getAllByRole("group", {
+      name: "Interactive floor map",
+    })[1]!;
+    const target = (id: string) =>
+      secondCanvas.querySelector(`[data-map-zone-id="${id}"]`);
+    fireEvent.click(shortcuts[1]!);
+    expect(target("DEMO-Z02")).toHaveFocus();
+    fireEvent.change(screen.getAllByRole("searchbox")[1]!, {
+      target: { value: "Z04" },
+    });
+    selection.mockClear();
+    fireEvent.click(shortcuts[1]!);
+    expect(target("DEMO-Z04")).toHaveFocus();
+    expect(target("DEMO-Z02")).toHaveAttribute("aria-pressed", "true");
+    expect(target("DEMO-Z04")).toHaveAttribute("aria-pressed", "false");
+    expect(location.href).toBe(initialUrl);
+    expect(history.length).toBe(initialHistory);
+    expect(selection).not.toHaveBeenCalled();
+  });
+
+  it("offers the location shortcut only when the visible map has matching locations", () => {
+    const demo = floorMapDemo(false, false);
+    const wrapper = renderWithIntl(<FloorMap {...demo} zones={[]} />, {
+      locale: "en",
+      workspace: false,
+    });
+    const shortcut = () =>
+      screen.queryByRole("link", { name: "Skip to map locations" });
+    expect(shortcut()).not.toBeInTheDocument();
+    wrapper.unmount();
+    const editor = renderWithIntl(
+      <FloorMap {...demo} offsetEditor={<p>Offset editor</p>} offsetEditing />,
+      { locale: "en", workspace: false },
+    );
+    expect(screen.getByText("Offset editor")).toBeVisible();
+    expect(shortcut()).not.toBeInTheDocument();
+    editor.unmount();
+    show();
+    expect(shortcut()).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    expect(shortcut()).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Split view" }));
+    expect(shortcut()).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "no matching zone" },
+    });
+    expect(shortcut()).not.toBeInTheDocument();
+  });
+
   it("defaults to map, preserves query context and uses keyboard view controls", () => {
     show();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
@@ -103,6 +171,13 @@ describe("canvas first workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Filter locations" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Empty" }));
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    fireEvent.click(
+      screen.getByRole("link", { name: "Skip to map locations" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Select location FG-D · Empty" }),
+    ).toHaveFocus();
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Table view" }));
     expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(
       2,

@@ -1,5 +1,6 @@
 "use client";
 import { FloorMapDrawing } from "./FloorMapDrawing";
+import { SkipToContentLink } from "@/components/shell/SkipToContentLink";
 import {
   type Area,
   floorZoneUnitCount,
@@ -142,6 +143,7 @@ function saveLocationLabels(value: boolean) {
 export function FloorMap(props: FloorMapProps) {
   const t = useTranslations("StorageLayouts");
   const inspectorId = useId();
+  const locationEntryId = `${inspectorId}-location-entry`;
   const mobile = useStorageLayoutMobile();
   const {
     view: workspaceView,
@@ -766,6 +768,11 @@ export function FloorMap(props: FloorMapProps) {
   return (
     <div ref={workspaceRef} className={`${styles.theme} ${styles.workspace}`}>
       <div className={styles.workspaceToolbar}>
+        {workspaceView !== "list" && matches.length > 0 && (
+          <SkipToContentLink targetId={locationEntryId}>
+            {t("mapSkipToLocations")}
+          </SkipToContentLink>
+        )}
         <FloorWorkspaceToolbar
           search={search}
           onSearch={(value) => {
@@ -876,6 +883,7 @@ export function FloorMap(props: FloorMapProps) {
                   reference={reference}
                   showLocationLabels={showLocationLabels}
                   showPackages={showPackages}
+                  locationEntryId={locationEntryId}
                   selectedId={selected?.zoneId}
                   selectedUnit={unitId}
                   matchIds={matchIds}

@@ -505,6 +505,9 @@ describe("floor location labels", () => {
     );
     const map = screen.getByRole("group", { name: "Interactive floor map" });
     expect(map.querySelectorAll("[data-position-code]")).toHaveLength(15);
+    expect(
+      map.querySelector('[data-zone-id] polygon[fill="none"]'),
+    ).toHaveClass(styles.zonePerimeter!);
     expect(map.querySelectorAll('[data-aisle-width-mm="300"]')).toHaveLength(2);
     expect(view.container).toHaveTextContent("15 storage positions");
   });
@@ -652,7 +655,7 @@ describe("floor map interaction", () => {
       name: "Select location Rack 23 · Cell 12",
     });
     expect(location.querySelector("[data-pd-cell-code]")).toHaveClass(
-      "group-focus-visible:stroke-text",
+      styles.zonePerimeter!,
     );
     fireEvent.click(location);
     expect(location).toHaveAttribute("aria-pressed", "true");
@@ -676,8 +679,8 @@ describe("floor map interaction", () => {
       "fill",
       "var(--plan-empty)",
     );
-    expect(location.querySelector("[data-pd-cell-code]")).not.toHaveClass(
-      "group-focus-visible:stroke-text",
+    expect(location.querySelector("[data-pd-cell-code]")).toHaveClass(
+      styles.zonePerimeter!,
     );
   });
 

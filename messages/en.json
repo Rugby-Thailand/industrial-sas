@@ -575,6 +575,7 @@
     "moveSpotPallet": "Move pallet {lpn}",
     "continueSpotPalletMove": "Continue move for {lpn}",
     "mapTitle": "Interactive floor map",
+    "mapSkipToLocations": "Skip to map locations",
     "mapReturn": "Back to location map",
     "mapPartialFootprint": "Measured footprint only: {percent}%. Total occupied space is unknown.",
     "mapUnmeasuredInventory": "Some units do not have measurements. See location details for all inventory.",
