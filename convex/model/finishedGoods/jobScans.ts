@@ -972,7 +972,7 @@ export function parseJobScanSearchIntent(
     return { kind: "UNSUPPORTED" };
   if (
     (explicitValue !== undefined && search !== explicitValue) ||
-    filter !== ([...statuses][0] ?? "ALL")
+    filter !== (statuses.values().next().value ?? "ALL")
   )
     return { kind: "UNREADABLE" };
 

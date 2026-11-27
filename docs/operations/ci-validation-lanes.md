@@ -1,27 +1,67 @@
 # Validation lanes and advisory workspace impact
 
-Five validation runners become two matrix lanes with fail-fast disabled. Full
-validation still runs on PRs, main pushes and dispatch. The stable `check` requires
-validate, every Vitest shard, every browser suite and PR dependency review.
-CodeQL, security requirements and release behavior are unchanged.
+Three validation lanes run in parallel with fail-fast disabled. Full validation
+runs on PRs, main pushes and dispatch. The stable `check` requires validate,
+every Vitest shard, every browser suite and PR dependency review. CodeQL runs
+as a separate required check.
 
-| Previous owner          | New owner  | Preserved commands                                                                                                        |
-| ----------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------- |
-| style                   | static     | `pnpm format:check`                                                                                                       |
-| lint                    | static     | `pnpm lint`, `pnpm check:navigation`                                                                                      |
-| types                   | contracts  | `pnpm typecheck`, `pnpm typecheck:ts6`                                                                                    |
-| audit                   | contracts  | workflow lint/pins, production audit, app and release exact-chain audits                                                  |
-| audit                   | contracts  | `pnpm -C tools/release install --frozen-lockfile`, `node tools/release/check-compatibility.mjs`, `pnpm ci:test-discovery` |
-| codegen                 | contracts  | `pnpm ci:codegen`                                                                                                         |
-| every validation runner | both lanes | final `pnpm ci:clean-tree`                                                                                                |
+| Previous owner          | New owner | Preserved commands                                                                                                        |
+| ----------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------- |
+| style                   | static    | `pnpm format:check`                                                                                                       |
+| lint                    | static    | `pnpm lint`, `pnpm check:navigation`                                                                                      |
+| types                   | contracts | `pnpm typecheck`                                                                                                          |
+| types                   | types     | `pnpm typecheck:ts6`, `pnpm exec tsc --noEmit -p convex/tsconfig.json`                                                    |
+| audit                   | contracts | workflow lint/pins, production audit, app and release exact-chain audits                                                  |
+| audit                   | contracts | `pnpm -C tools/release install --frozen-lockfile`, `node tools/release/check-compatibility.mjs`, `pnpm ci:test-discovery` |
+| codegen                 | contracts | `pnpm ci:codegen`                                                                                                         |
+| every validation runner | all lanes | final `pnpm ci:clean-tree`                                                                                                |
 
 Each independent step requires successful setup and `!cancelled()`, so an earlier
-failure remains fatal while later checks report their own errors. Both unchanged
-typechecks generate Next route types sequentially, followed by anonymous Convex
-codegen in the same contracts lane. Codegen retains its private backend,
+failure remains fatal while later checks report their own errors. The two app
+typechecks generate Next route types in separate runner checkouts. Anonymous
+Convex codegen follows the Bun typecheck in contracts and retains its private backend,
 credential rejection and finally cleanup. Each lane checks the tree last,
 including after failed checks. Exact policy and mutation tests enforce these
 commands, ordering, execution conditions, artifact and aggregate behavior.
+
+## November 27 critical path
+
+Successful PR quality runs took 2m 56s to 3m 58s in the sampled window.
+Recent successful main pushes took 4m 45s to 5m 29s through production.
+The production job added about two minutes, including a 55–80 second
+Vercel build. The backup, deployment verification, candidate smoke, promotion
+and live smoke remain required release steps.
+[PR sample](https://github.com/Rugby-Thailand/industrial-sas/actions/runs/45908375702) ·
+[Main sample](https://github.com/Rugby-Thailand/industrial-sas/actions/runs/45868109703)
+
+The quality workflow uses six native Vitest shards. Navigation uses four
+legs covering desktop and mobile Chromium together, Firefox, and two WebKit
+shards. Applying the new assignments to hosted JUnit timings gives these
+summed test times for the busiest runner. These figures exclude runner
+setup and do not account for tests running in parallel on each machine.
+
+| Workload              | Previous busiest runner | New assignment |
+| --------------------- | ----------------------: | -------------: |
+| Navigation, 06:07 ICT |           194.6 seconds |   71.2 seconds |
+| Vitest, 06:07 ICT     |             161 seconds |    135 seconds |
+| Vitest, 00:29 ICT     |             255 seconds |    196 seconds |
+
+The 06:07 ICT quality run passed, then Vercel stopped on a Convex TypeScript
+error in `jobScans.ts` before promotion. `tsc --noEmit -p convex/tsconfig.json`
+reproduced `TS2367` locally. The status lookup now uses a Set iterator and falls
+back to `ALL` on an empty set. The `types` lane checks both compiler configs.
+[Hosted run](https://github.com/Rugby-Thailand/industrial-sas/actions/runs/45909005659)
+
+Local verification recorded 504 Vitest files across six shards and 100
+navigation cases across four jobs, each collected once. All 98 runnable
+navigation cases passed. The first Vitest pass reported 6,744 cases and
+three timeouts in test fixtures on the shared Mac. The affected checks
+passed on shard or focused reruns.
+
+After rollout, compare at least three green main runs through production and
+record whether runner queueing or the Vercel build limits the result. This
+layout adds four concurrent jobs to each quality run. The 3–4 minute target
+needs a hosted measurement of the new workflow.
 
 ## Report only, always run
 

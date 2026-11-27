@@ -28,6 +28,7 @@ export function junitProblems(summary) {
 }
 
 const METRICS = ["lines", "statements", "functions", "branches"];
+export const COVERAGE_UNAVAILABLE = "Combined coverage summary unavailable.";
 
 /**
  * Informational combined-coverage table from Istanbul's json-summary. No
@@ -35,8 +36,19 @@ const METRICS = ["lines", "statements", "functions", "branches"];
  */
 export function coverageMarkdown(summary) {
   const total = summary?.total;
-  if (!total || !METRICS.every((metric) => total[metric]))
-    return "Combined coverage summary unavailable.";
+  const valid = METRICS.every((metric) => {
+    const result = total?.[metric];
+    return (
+      Number.isSafeInteger(result?.total) &&
+      Number.isSafeInteger(result?.covered) &&
+      result.covered >= 0 &&
+      result.covered <= result.total &&
+      Number.isFinite(result.pct) &&
+      result.pct >= 0 &&
+      result.pct <= 100
+    );
+  });
+  if (!valid || total.lines.total === 0) return COVERAGE_UNAVAILABLE;
   const rows = METRICS.map((metric) => {
     const { covered, total: count, pct } = total[metric];
     return `| ${metric} | ${pct}% | ${covered}/${count} |`;

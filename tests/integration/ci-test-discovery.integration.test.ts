@@ -27,6 +27,7 @@ interface Inventory {
   tracked: string[];
   vitest: { file: string; projectName: string }[];
   playwright: Record<string, string[]>;
+  navigationProjects?: string[];
 }
 
 // Both executables return fixture inventories. Tests exercise the actual guard
@@ -43,8 +44,9 @@ if (path.basename(process.argv[1]) === "git") {
 } else {
   const config = args[args.indexOf("--config") + 1];
   const files = data.playwright[config] || [];
+  const projects = config === "playwright.navigation.config.ts" ? data.navigationProjects || [] : [];
   process.stdout.write(JSON.stringify({
-    config: { rootDir: process.cwd() },
+    config: { rootDir: process.cwd(), projects: projects.map(name => ({ name })) },
     suites: [{ suites: files.map(file => ({ file, specs: [{ title: "collected" }] })) }],
   }));
 }
@@ -59,6 +61,10 @@ function runInventory(inventory: Inventory) {
   mkdirSync(join(root, "bin"));
   cpSync(SCRIPT, join(root, "scripts/ci/check-test-discovery.mjs"));
   cpSync(join(dirname(SCRIPT), "lib.mjs"), join(root, "scripts/ci/lib.mjs"));
+  cpSync(
+    join(dirname(SCRIPT), "workflow-lib.mjs"),
+    join(root, "scripts/ci/workflow-lib.mjs"),
+  );
   for (const command of ["git", "pnpm"])
     writeFileSync(join(root, "bin", command), FAKE_COMMAND, { mode: 0o755 });
   writeFileSync(
@@ -210,5 +216,24 @@ describe("complete tracked test discovery", () => {
     expect(result.stderr).toContain(
       "src/untracked.test.ts: collected but not tracked by git",
     );
+  });
+
+  it("rejects Playwright navigation projects that no CI leg selects", () => {
+    const result = runInventory({
+      tracked: [],
+      vitest: [],
+      playwright: {},
+      navigationProjects: [
+        "desktop-firefox",
+        "mobile-chromium",
+        "desktop-webkit",
+        "mobile-webkit",
+      ],
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "mobile-webkit: no navigation CI leg selects this project",
+    );
+    expect(result.stderr).not.toContain("desktop-webkit: no navigation CI leg");
   });
 });

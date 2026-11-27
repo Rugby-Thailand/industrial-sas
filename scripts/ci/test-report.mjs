@@ -12,6 +12,7 @@ import { appendFileSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { junitSummary } from "./lib.mjs";
 import {
   blobInventoryProblems,
+  COVERAGE_UNAVAILABLE,
   coverageMarkdown,
   junitProblems,
 } from "./report-lib.mjs";
@@ -53,7 +54,7 @@ try {
   );
 }
 
-let coverage = "Combined coverage summary unavailable.";
+let coverage = COVERAGE_UNAVAILABLE;
 try {
   coverage = coverageMarkdown(
     JSON.parse(readFileSync(options.coverage, "utf8")),

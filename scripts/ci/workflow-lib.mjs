@@ -513,10 +513,10 @@ function generalProblems(name, workflow) {
 // result predicates refuse failed/cancelled prerequisites. Staging may be
 // skipped only when check captured an explicitly disabled staging policy.
 const TRUSTED_MAIN =
-  "github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')";
+  "github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main'";
 export const RELEASE_CONDITIONS = Object.freeze({
-  staging: `\${{ !cancelled() && needs.check.result == 'success' && needs.check.outputs.staging_enabled == 'true' && ${TRUSTED_MAIN} }}`,
-  release: `\${{ !cancelled() && needs.check.result == 'success' && ((needs.check.outputs.staging_enabled == 'false' && needs.staging.result == 'skipped') || (needs.check.outputs.staging_enabled == 'true' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED')) && ${TRUSTED_MAIN} }}`,
+  staging: `\${{ !cancelled() && needs.check.result == 'success' && needs.check.outputs.staging_enabled == 'true' && ${TRUSTED_MAIN} && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.release_target == 'production' || inputs.release_target == 'staging'))) }}`,
+  release: `\${{ !cancelled() && needs.check.result == 'success' && ((needs.check.outputs.staging_enabled == 'false' && needs.staging.result == 'skipped') || (needs.check.outputs.staging_enabled == 'true' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED')) && ${TRUSTED_MAIN} && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.release_target == 'production')) }}`,
 });
 const normalizeSpace = (value) => String(value ?? "").replace(/\s+/g, " ");
 
@@ -613,6 +613,8 @@ function releaseJobProblems(id, job, spec) {
     const env = runner[0].env ?? {};
     if (env.RELEASE_ENVIRONMENT !== target)
       problems.push(`${at}: runner env RELEASE_ENVIRONMENT must be ${target}`);
+    if (env.RELEASE_DISPATCH_TARGET !== "${{ inputs.release_target }}")
+      problems.push(`${at}: runner needs the workflow dispatch target`);
     const secrets = secretNames(env);
     if (!sameSet(secrets, spec.secrets))
       problems.push(
@@ -647,6 +649,7 @@ export const VALIDATE_COMMANDS = Object.freeze([
   "pnpm format:check",
   "pnpm typecheck",
   "pnpm typecheck:ts6",
+  "pnpm exec tsc --noEmit -p convex/tsconfig.json",
   "pnpm lint",
   "pnpm audit:prod",
   "node scripts/ci/audit-dependencies.mjs --scope=app",
@@ -689,7 +692,7 @@ const isBuild = (step) =>
 
 // Vitest shards (T11): every project in contiguous native shards. Each shard
 // is gated by its own exit status and uploads only its own native JUnit file.
-export const TEST_SHARDS = 5;
+export const TEST_SHARDS = 6;
 const SHARD_JUNIT = `test-results/vitest-junit/shard-\${{ matrix.shard }}-${TEST_SHARDS}.xml`;
 export const VITEST_SHARD_COMMAND = [
   "pnpm exec vitest run",
@@ -751,6 +754,44 @@ const legAfter = (suite, step) =>
 const NEXT_CACHE_KEY =
   "${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-";
 const runOf = (step) => String(step?.run ?? "");
+const NAVIGATION_LEGS = [
+  {
+    suite: "navigation-chromium",
+    project: "*-chromium",
+    shard: "1",
+    shards: "1",
+  },
+  {
+    suite: "navigation-firefox",
+    project: "desktop-firefox",
+    shard: "1",
+    shards: "1",
+  },
+  {
+    suite: "navigation-webkit-1",
+    project: "desktop-webkit",
+    shard: "1",
+    shards: "2",
+  },
+  {
+    suite: "navigation-webkit-2",
+    project: "desktop-webkit",
+    shard: "2",
+    shards: "2",
+  },
+];
+
+export function uncoveredNavigationProjects(projects) {
+  return projects.filter(
+    (name) =>
+      !NAVIGATION_LEGS.some(({ project }) =>
+        project.startsWith("*")
+          ? name.endsWith(project.slice(1))
+          : name === project,
+      ),
+  );
+}
+
 const BROWSER_STEPS = Object.freeze([
   [
     "setup",
@@ -828,11 +869,13 @@ const BROWSER_STEPS = Object.freeze([
     "navigation suite",
     (step) => runOf(step).includes("test:e2e:navigation"),
     {
-      run: "pnpm test:e2e:navigation --shard=${{ matrix.shard }}/2",
+      run: 'pnpm test:e2e:navigation --project="$NAVIGATION_PROJECT" --shard="$NAVIGATION_SHARD"',
       if: "${{ !cancelled() && startsWith(matrix.suite, 'navigation-') && steps.navigation-preparation.outcome == 'success' }}",
       env: {
         PLAYWRIGHT_REQUIRE_BUILD: "1",
         NAVIGATION_REPORT_NAME: "${{ matrix.suite }}",
+        NAVIGATION_PROJECT: "${{ matrix.project }}",
+        NAVIGATION_SHARD: "${{ matrix.shard }}/${{ matrix.shards }}",
         HOME: "/root",
       },
     },
@@ -889,15 +932,14 @@ function browserProblems(jobs) {
     !same(strategy.matrix, {
       include: [
         { suite: "smoke", shard: "0" },
-        { suite: "navigation-1", shard: "1" },
-        { suite: "navigation-2", shard: "2" },
+        ...NAVIGATION_LEGS,
         { suite: "workspace-1", shard: "1" },
         { suite: "workspace-2", shard: "2" },
       ],
     })
   )
     problems.push(
-      `${at}: matrix must be exactly smoke (0), navigation-1 (1), navigation-2 (2), workspace-1 (1), workspace-2 (2) with fail-fast false`,
+      `${at}: matrix must include smoke, Chromium, Firefox, both WebKit shards, and both workspace shards with fail-fast false`,
     );
   if (jobs.browser?.defaults !== undefined)
     problems.push(
@@ -935,7 +977,8 @@ function browserProblems(jobs) {
 // Informational full-suite coverage (T12): one unsharded run of every Vitest
 // project in the scheduled workflow; only it gets the instrumentation budget.
 export const COVERAGE_COMMAND = [
-  "pnpm exec vitest run",
+  "timeout --kill-after=30s 15m pnpm exec vitest run",
+  "--maxWorkers=4",
   "--coverage",
   "--coverage.reportOnFailure",
   "--testTimeout=15000",
@@ -952,21 +995,27 @@ const COVERAGE_UPLOAD = Object.freeze({
 });
 
 function coverageProblems(job) {
-  const runs = stepsOf(job).filter((step) => step.run !== undefined);
-  const uploads = stepsOf(job).filter(isUpload);
+  const steps = stepsOf(job);
+  const runs = steps.filter((step) => step.run !== undefined);
+  const uploads = steps.filter(isUpload);
   return job &&
     job.needs === undefined &&
     job.if === undefined &&
-    runs.length === 1 &&
+    runs.length === 2 &&
+    runs[0].id === "vitest" &&
     runs[0].run === COVERAGE_COMMAND &&
     runs[0].if === undefined &&
     runs[0].env === undefined &&
+    runs[1].run === "node scripts/ci/check-coverage.mjs" &&
+    runs[1].if === "${{ !cancelled() }}" &&
+    same(runs[1].env, { VITEST_OUTCOME: "${{ steps.vitest.outcome }}" }) &&
     uploads.length === 1 &&
+    steps.indexOf(runs[1]) < steps.indexOf(uploads[0]) &&
     uploads[0].if === "${{ !cancelled() }}" &&
     same(uploads[0].with, COVERAGE_UPLOAD)
     ? []
     : [
-        `workspace-matrix.yml:coverage: run only ${COVERAGE_COMMAND} in parallel and upload ${JSON.stringify(COVERAGE_UPLOAD)} unless cancelled`,
+        "workspace-matrix.yml:coverage: must run the bounded full suite, verify its reports, and upload them unless cancelled",
       ];
 }
 
@@ -980,6 +1029,15 @@ function qualityProblems(workflow, { allowedGhsas }) {
   )
     problems.push(
       "quality.yml: triggers must be push(main), pull_request, workflow_dispatch",
+    );
+  const dispatchTarget = on.workflow_dispatch?.inputs?.release_target;
+  if (
+    dispatchTarget?.type !== "choice" ||
+    dispatchTarget?.default !== "production" ||
+    !sameSet(asList(dispatchTarget?.options), ["production", "staging"])
+  )
+    problems.push(
+      "quality.yml: dispatch must offer production (default) and staging targets",
     );
   const group = String(workflow.concurrency?.group ?? "");
   if (
@@ -1042,7 +1100,11 @@ function qualityProblems(workflow, { allowedGhsas }) {
       policy.id !== "release-policy" ||
       policy.run !== "node scripts/ci/release-policy.mjs" ||
       policy.if !== undefined ||
-      !same(policy.env, { STAGING_ENABLED: "${{ vars.STAGING_ENABLED }}" }) ||
+      !same(policy.env, {
+        STAGING_ENABLED: "${{ vars.STAGING_ENABLED }}",
+        STAGING_ONLY:
+          "${{ github.event_name == 'workflow_dispatch' && inputs.release_target == 'staging' }}",
+      }) ||
       !step ||
       stepsOf(check).indexOf(policy) <= stepsOf(check).indexOf(step) ||
       !same(check.outputs, {
@@ -1050,7 +1112,7 @@ function qualityProblems(workflow, { allowedGhsas }) {
       })
     )
       problems.push(
-        "quality.yml:check: must capture STAGING_ENABLED once after aggregate success and export staging_enabled",
+        "quality.yml:check: must capture staging policy once after aggregate success and export staging_enabled",
       );
     for (const id of prOnly)
       if (jobs[id]?.if !== "${{ github.event_name == 'pull_request' }}")
@@ -1080,9 +1142,12 @@ function qualityProblems(workflow, { allowedGhsas }) {
 
   const validationLanes = {
     static: ["pnpm format:check", "pnpm lint", "pnpm check:navigation"],
+    types: [
+      "pnpm typecheck:ts6",
+      "pnpm exec tsc --noEmit -p convex/tsconfig.json",
+    ],
     contracts: [
       "pnpm typecheck",
-      "pnpm typecheck:ts6",
       "node scripts/ci/validate-workflows.mjs --verify-pins",
       "pnpm audit:prod",
       "node scripts/ci/audit-dependencies.mjs --scope=app",
@@ -1096,7 +1161,7 @@ function qualityProblems(workflow, { allowedGhsas }) {
   if (
     !same(jobs.validate?.strategy, {
       "fail-fast": "false",
-      matrix: { lane: ["static", "contracts"] },
+      matrix: { lane: ["static", "contracts", "types"] },
     })
   )
     problems.push(
@@ -1126,14 +1191,12 @@ function qualityProblems(workflow, { allowedGhsas }) {
     }
   }
   const generatorRuns = validationSteps.map((step) => step.run);
-  if (!(
-    generatorRuns.indexOf("pnpm typecheck") <
-      generatorRuns.indexOf("pnpm typecheck:ts6") &&
-    generatorRuns.indexOf("pnpm typecheck:ts6") <
-      generatorRuns.indexOf("pnpm ci:codegen")
-  ))
+  if (
+    generatorRuns.indexOf("pnpm typecheck") >=
+    generatorRuns.indexOf("pnpm ci:codegen")
+  )
     problems.push(
-      "quality.yml:validate: typechecks must precede codegen sequentially",
+      "quality.yml:validate: Bun typecheck must precede codegen in contracts",
     );
   const reportUpload = validationSteps.find(
     (step) => step.name === "Upload workspace impact report",

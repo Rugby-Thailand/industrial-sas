@@ -15,7 +15,7 @@ Owners: the CODEOWNERS maintainers (`@Narungsih @Ruckth @VarongWiriyawit
 the team names individual owners. Rotate the CI credentials below before
 **2027-01-07 UTC**.
 
-## Verified local checks
+## October 2026 verification snapshot
 
 - Final coordinator shards passed **189 files / 2,139 tests**, with **0 failures
   and 0 retries**. Full-tree lint, formatting and production-mode build checks
@@ -43,23 +43,20 @@ the team names individual owners. Rotate the CI credentials below before
   counts are not added. They verify signed source clocks, stale/replay and
   delete ordering, signature/freshness rejection and tenant boundaries locally.
 
-These results do not establish a native staging Clerk/JWT/webhook smoke run,
-candidate/live production smoke, or GitHub post-merge execution. Those proofs
-remain pending coordinator evidence. UploadThing file-byte recovery, business
-RPO/RTO and durable telemetry/alert delivery remain unresolved below.
+The [November CI/CD audit](ci-cd-audit-2026-11-26.md) records the subsequent
+hosted release, staging, coverage and backup evidence.
 
 ## Release path
 
-PR and push checks run every Vitest project across three shards and upload
-native JUnit reports. Browser smoke and two native Playwright shards of the
-complete workspace subset run in parallel; smoke also verifies the production
-build and owns its `.next/cache` cache. The browser jobs report separately as
-`smoke`, `workspace-1`, and `workspace-2`, each with its own JUnit and diagnostic
-paths. Every leg is required, with two browser workers per runner and zero retries.
-This avoids a second build and a separate report-merging job. Informational
-full-suite coverage runs weekly or by dispatching `Workspace matrix`, alongside
-the existing full browser matrix. Coverage instrumentation gets a 15-second
-test timeout there; ordinary quality tests retain their default timeout.
+PR and push checks run every Vitest project across six shards. The required
+browser jobs run anonymous production-mode smoke, Chromium and Firefox
+navigation, two WebKit navigation shards, and two storage-workspace shards.
+Each job uploads its own JUnit report. The TypeScript 6 lane checks the app
+and the Convex deployment project before release.
+`Workspace matrix` runs weekly or on demand. Its informational coverage job
+runs the full Vitest suite with at most four workers and a 15-minute execution
+deadline. It verifies JUnit, JSON coverage and LCOV before publishing counts
+and coverage in the run summary. The browser matrix runs alongside coverage.
 
 `.github/workflows/quality.yml` runs one pipeline on `push` to `main` and on a
 `workflow_dispatch` of `main`:
@@ -67,7 +64,8 @@ test timeout there; ordinary quality tests retain their default timeout.
 1. `check` aggregates every mandatory quality job. A failed, cancelled or
    unexpectedly skipped job fails it. After success, it captures the repository
    variable `STAGING_ENABLED` once and exports `staging_enabled`. Only the exact
-   string `false` disables staging; unset, invalid, or other values enable it.
+   string `false` disables staging for an automatic push or a production
+   dispatch. A staging-only dispatch explicitly enables staging for that run.
 2. `staging` (environment `staging`, lock `industrial-sas-staging-release`)
    deploys the same SHA to `industrial-sas-staging` / `befitting-stoat-208`.
    It then runs the authenticated staging browser suite. When the captured
@@ -97,8 +95,9 @@ Production requires successful quality checks and one of exactly two paths:
 - captured `staging_enabled=true`, staging result `success`, and controller
   outcome `STAGING_PASSED`.
 
-Missing policy output, failed or cancelled CI, and failed/cancelled staging
-never authorize a production release. There is no manual release approval.
+A production release also requires a `main` push or a dispatch with
+`release_target=production`. Missing policy output, failed or cancelled CI,
+and failed or cancelled staging block production. There is no manual approval.
 
 During pre-user development, set the repository variable to `false`:
 
@@ -149,10 +148,16 @@ Other sessions, endpoints, origins, statuses, missing response evidence,
 unconfirmed revocation and unrelated console/page errors retain their failure
 verdict. The session ID is cleared with the fixture and never enters reports.
 
-To re-run a release, dispatch `Planner quality` on `main`. Fresh CI runs
-first, and the release can only use the current `main` SHA. Dispatching
-another branch runs CI only. A passing staging job is verification, not a
-production release.
+To re-run a release, dispatch `Planner quality` on `main` with the default
+`release_target=production`. Fresh CI runs first, and the release can only
+use the current `main` SHA. Dispatching another branch runs CI only.
+To rehearse the authenticated staging flow on `main`, select `staging`.
+That run ends after staging and its manifest, even when `STAGING_ENABLED=false`.
+Verify `STAGING_PASSED` and a skipped `Production release` job.
+
+```sh
+gh workflow run quality.yml --repo Rugby-Thailand/industrial-sas --ref main -f release_target=staging
+```
 
 Do not use these for production: `vercel --prod`, `vercel deploy`, dashboard
 **Redeploy**, deploy hooks, or a manual `convex deploy`. They bypass the lock
@@ -226,7 +231,9 @@ this table in a reviewed PR.
 - Repository variable `RELEASE_ACKNOWLEDGED_DEPLOYMENTS`: comma-separated
   Vercel deployment IDs that an operator has reconciled (see below).
 - Repository variable `STAGING_ENABLED`: exact `false` skips staging during
-  pre-user development; every other value (including unset) requires staging.
+  pre-user development for main pushes and production dispatches. Every other
+  value requires staging. A `release_target=staging` dispatch runs staging
+  regardless of this setting.
 
 ### External file store
 
@@ -383,21 +390,21 @@ Recovery rules:
   recovery window. The 2026-10-13 full read-only inventory found zero Convex
   file objects and zero file references in both reviewed environments; see
   [current inventory](uploadthing-storage-operations.md). The earlier
-  storage-inclusive protocol was verified live in about 3.5 s. The new
-  database-only request has focused local regression coverage; its first
-  live execution is left to the protected release/daily workflow.
+  storage-inclusive protocol was verified live in about 3.5 s. The November
+  26 daily backup artifact also records a completed database-only snapshot.
+  [November 26 backup](https://github.com/Rugby-Thailand/industrial-sas/actions/runs/45741564311)
 - Cloud snapshot `1708272` was restored server-side into disposable preview
   `precise-rabbit-956`. The import completed with 3296 documents in a
   measured 94.9 s. That run had zero `_storage` objects. It was a data-import
   rehearsal. It was not an application recovery, a file-byte recovery or an
   UploadThing backup.
-- The technical cadence is at least one daily snapshot plus one before each
-  release, so the snapshot interval is ≤ 24 hours once the schedule runs.
-  That is not an approved business recovery point objective. **Business RPO/RTO
-  targets are not set.** No timed full-application recovery exists to compare
-  against them. Native snapshots are kept until their returned expiry (source
-  default fourteen days, checked per snapshot). Periodic cloud backups are not
-  available under the current Convex entitlement, and no upgrade is authorized.
+- The workflow requests a snapshot daily and before each production release.
+  The daily run starts on November 23 and 24 were nearly 28 hours apart, so
+  the schedule alone cannot establish a 24-hour recovery point. **Business
+  RPO/RTO targets are not set.** No timed full-application recovery exists to
+  compare against them. Native snapshots are kept until their returned expiry
+  (source default fourteen days, checked per snapshot). Periodic cloud backups
+  are unavailable under the recorded Convex entitlement.
 
 ## Telemetry and alerts
 

@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { relative, resolve } from "node:path";
 
 import { testDiscoveryProblems } from "./lib.mjs";
+import { uncoveredNavigationProjects } from "./workflow-lib.mjs";
 
 const root = process.cwd();
 const run = (command, args) =>
@@ -24,6 +25,7 @@ const vitest = JSON.parse(
 }));
 
 const playwright = [];
+const navigationProblems = [];
 for (const config of [
   "playwright.config.ts",
   "playwright.workspace.config.ts",
@@ -43,6 +45,13 @@ for (const config of [
       "--reporter=json",
     ]),
   );
+  if (config === "playwright.navigation.config.ts") {
+    const projects = report.config.projects.map(({ name }) => name);
+    for (const name of uncoveredNavigationProjects(projects))
+      navigationProblems.push(
+        `${name}: no navigation CI leg selects this project`,
+      );
+  }
   const visit = (suite) => {
     if (suite.file && (suite.specs?.length ?? 0) > 0) {
       playwright.push(
@@ -54,7 +63,10 @@ for (const config of [
   for (const suite of report.suites ?? []) visit(suite);
 }
 
-const problems = testDiscoveryProblems({ tracked, vitest, playwright });
+const problems = [
+  ...navigationProblems,
+  ...testDiscoveryProblems({ tracked, vitest, playwright }),
+];
 if (problems.length > 0) {
   console.error("Test discovery mismatch:");
   for (const problem of problems) console.error(`  ${problem}`);

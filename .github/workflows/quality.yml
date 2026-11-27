@@ -1,15 +1,20 @@
 name: Planner quality
 # One workflow owns the merge gate and the automatic release. PRs (including
 # forks and Dependabot) run only the secret-free quality jobs and the stable
-# `check`. A push to main — or a workflow_dispatch from main, which reruns full
-# CI rather than bypassing it — then releases that exact commit. The repository
-# variable STAGING_ENABLED=false skips staging during pre-user development;
-# every other value keeps staging required. There is no manual approval step.
+# `check`. Main pushes and production dispatches run full CI before releasing
+# that exact commit. A staging dispatch runs full CI and stops after staging.
+# STAGING_ENABLED=false skips staging for production releases only.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_target:
+        description: Deployment target after quality checks
+        type: choice
+        options: [production, staging]
+        default: production
 permissions:
   contents: read
 # PRs: one group per PR, superseded runs cancelled. Every other run gets its own
@@ -24,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lane: [static, contracts]
+        lane: [static, contracts, types]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -43,13 +48,16 @@ jobs:
         run: pnpm format:check
       # The pinned Bun comes from the shared setup action (after the frozen
       # install). `bun --check`, never bare `bun check`, which would run the aggregate
-      # `check` script. The same lane also owns the exact TypeScript 6 gate.
+      # `check` script. The TypeScript 6 lane checks both project configs.
       - name: Typecheck (cold next typegen + Bun checker)
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: pnpm typecheck
       - name: TypeScript 6 gate (cold generated route types)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'types' }}
         run: pnpm typecheck:ts6
+      - name: Convex deployment typecheck
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'types' }}
+        run: pnpm exec tsc --noEmit -p convex/tsconfig.json
       - name: Lint
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'static' }}
         run: pnpm lint
@@ -98,13 +106,13 @@ jobs:
         run: pnpm ci:clean-tree
 
   test:
-    name: Tests (${{ matrix.shard }}/5)
+    name: Tests (${{ matrix.shard }}/6)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -116,11 +124,11 @@ jobs:
       - name: Vitest shard
         run: >-
           pnpm exec vitest run
-          --shard=${{ matrix.shard }}/5
+          --shard=${{ matrix.shard }}/6
           --reporter=default
           --reporter=github-actions
           --reporter=junit
-          --outputFile.junit=test-results/vitest-junit/shard-${{ matrix.shard }}-5.xml
+          --outputFile.junit=test-results/vitest-junit/shard-${{ matrix.shard }}-6.xml
       - name: Upload shard JUnit
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -128,11 +136,11 @@ jobs:
           name: vitest-junit-${{ matrix.shard }}
           # Re-running a failed shard replaces only its own report.
           overwrite: true
-          path: test-results/vitest-junit/shard-${{ matrix.shard }}-5.xml
+          path: test-results/vitest-junit/shard-${{ matrix.shard }}-6.xml
           retention-days: 7
           if-no-files-found: error
 
-  # Smoke plus two shards each for navigation and workspace; all gate check.
+  # Smoke, four navigation legs and two workspace shards all gate check.
   # Smoke and navigation own separate production builds. The Vite
   # workspace harness needs no Next.js build.
   browser:
@@ -150,10 +158,22 @@ jobs:
         include:
           - suite: smoke
             shard: 0
-          - suite: navigation-1
+          - suite: navigation-chromium
+            project: "*-chromium"
             shard: 1
-          - suite: navigation-2
+            shards: 1
+          - suite: navigation-firefox
+            project: desktop-firefox
+            shard: 1
+            shards: 1
+          - suite: navigation-webkit-1
+            project: desktop-webkit
+            shard: 1
+            shards: 2
+          - suite: navigation-webkit-2
+            project: desktop-webkit
             shard: 2
+            shards: 2
           - suite: workspace-1
             shard: 1
           - suite: workspace-2
@@ -207,8 +227,10 @@ jobs:
         env:
           PLAYWRIGHT_REQUIRE_BUILD: "1"
           NAVIGATION_REPORT_NAME: ${{ matrix.suite }}
+          NAVIGATION_PROJECT: ${{ matrix.project }}
+          NAVIGATION_SHARD: ${{ matrix.shard }}/${{ matrix.shards }}
           HOME: /root
-        run: pnpm test:e2e:navigation --shard=${{ matrix.shard }}/2
+        run: pnpm test:e2e:navigation --project="$NAVIGATION_PROJECT" --shard="$NAVIGATION_SHARD"
       - name: Storage workspace (PR subset)
         if: ${{ !cancelled() && (matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2') && steps.browsers.outcome == 'success' }}
         env:
@@ -276,6 +298,7 @@ jobs:
         id: release-policy
         env:
           STAGING_ENABLED: ${{ vars.STAGING_ENABLED }}
+          STAGING_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.release_target == 'staging' }}
         run: node scripts/ci/release-policy.mjs
 
   # Trusted stable staging for this exact commit. Fork/PR code never reaches
@@ -284,7 +307,7 @@ jobs:
   staging:
     name: Staging release
     needs: [check]
-    if: ${{ !cancelled() && needs.check.result == 'success' && needs.check.outputs.staging_enabled == 'true' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ !cancelled() && needs.check.result == 'success' && needs.check.outputs.staging_enabled == 'true' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.release_target == 'production' || inputs.release_target == 'staging'))) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment:
@@ -321,6 +344,7 @@ jobs:
         id: release
         env:
           RELEASE_ENVIRONMENT: staging
+          RELEASE_DISPATCH_TARGET: ${{ inputs.release_target }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
@@ -347,7 +371,7 @@ jobs:
   release:
     name: Production release
     needs: [check, staging]
-    if: ${{ !cancelled() && needs.check.result == 'success' && ((needs.check.outputs.staging_enabled == 'false' && needs.staging.result == 'skipped') || (needs.check.outputs.staging_enabled == 'true' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED')) && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ !cancelled() && needs.check.result == 'success' && ((needs.check.outputs.staging_enabled == 'false' && needs.staging.result == 'skipped') || (needs.check.outputs.staging_enabled == 'true' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED')) && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.release_target == 'production')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     environment:
@@ -379,6 +403,7 @@ jobs:
         id: release
         env:
           RELEASE_ENVIRONMENT: production
+          RELEASE_DISPATCH_TARGET: ${{ inputs.release_target }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           CONVEX_BACKUP_ADMIN_KEY: ${{ secrets.CONVEX_BACKUP_ADMIN_KEY }}
           GITHUB_TOKEN: ${{ github.token }}

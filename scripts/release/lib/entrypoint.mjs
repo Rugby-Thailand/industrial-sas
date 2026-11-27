@@ -25,13 +25,19 @@ export function validateReleaseSource(targets) {
 }
 
 export function validateReleaseRuntime(env, targetName, repository) {
+  const dispatchTarget = env.RELEASE_DISPATCH_TARGET?.toLowerCase();
+  const allowedEvent =
+    env.GITHUB_EVENT_NAME === "push" ||
+    (env.GITHUB_EVENT_NAME === "workflow_dispatch" &&
+      (dispatchTarget === "production" ||
+        (dispatchTarget === "staging" && targetName === "staging")));
   return (
     repository === RELEASE_REPOSITORY &&
     env.GITHUB_ACTIONS === "true" &&
     env.GITHUB_SERVER_URL === "https://github.com" &&
     env.GITHUB_REPOSITORY === repository &&
     env.GITHUB_REF === "refs/heads/main" &&
-    ["push", "workflow_dispatch"].includes(env.GITHUB_EVENT_NAME) &&
+    allowedEvent &&
     env.GITHUB_WORKFLOW_REF ===
       `${repository}/.github/workflows/quality.yml@refs/heads/main` &&
     env.RELEASE_ENVIRONMENT === targetName &&
