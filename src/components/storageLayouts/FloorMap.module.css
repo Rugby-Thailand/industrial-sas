@@ -248,7 +248,8 @@
   overflow: hidden;
   background: var(--plan-panel);
 }
-.svg g[role="button"]:focus-visible rect {
+.svg g[role="button"]:focus-visible rect,
+.svg g[role="button"]:focus-visible .zonePerimeter {
   stroke: var(--plan-selected-border);
   stroke-width: 3;
   stroke-dasharray: 5 3;
