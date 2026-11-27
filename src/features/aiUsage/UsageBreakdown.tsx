@@ -91,14 +91,17 @@ export function UsageBreakdown({
   };
   const columns = [
     { key: "user", label: t("colUser") },
+    { key: "usd", label: t("colCostUsd"), numeric: true },
+    { key: "thb", label: t("colCostThb"), numeric: true },
     { key: "warehouse", label: t("warehouse") },
     { key: "model", label: t("colModel") },
     { key: "calls", label: t("colCalls"), numeric: true },
-    { key: "usd", label: t("colCostUsd"), numeric: true },
-    { key: "thb", label: t("colCostThb"), numeric: true },
   ];
   return (
-    <section aria-labelledby="usage-breakdown" className="space-y-2">
+    <section
+      aria-labelledby="usage-breakdown"
+      className="space-y-2 max-sm:[&_td]:px-1.5 max-sm:[&_th]:px-1.5"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 sm:flex-1">
           <h2 id="usage-breakdown" className="text-lg font-semibold sm:text-xl">
@@ -133,7 +136,7 @@ export function UsageBreakdown({
       <UsageTable
         label={t("breakdown")}
         columns={columns}
-        minWidth="min-w-[720px]"
+        minWidth="min-w-[600px] sm:min-w-[720px]"
         {...(report.breakdown.length ? {} : { empty: t("breakdownEmpty") })}
       >
         {rows.map((row, i) => {
@@ -152,6 +155,23 @@ export function UsageBreakdown({
                   {featureLabel(row.feature)}
                 </span>
               </th>
+              <td className={`${CELL} ${NUMERIC} wrap-anywhere`}>
+                {unconfirmed ? (
+                  <span className="text-warning">{t("costUnconfirmed")}</span>
+                ) : (
+                  <span className="whitespace-nowrap">
+                    {usd(m.knownCostUsdNano)}
+                  </span>
+                )}
+                {m.unknownAttemptCount ? (
+                  <span className="mt-1 block text-xs text-warning">
+                    {t("unknown", { count: m.unknownAttemptCount })}
+                  </span>
+                ) : null}
+              </td>
+              <td className={`${CELL} ${NUMERIC} text-muted`}>
+                {unconfirmed ? "—" : (thb(m.knownCostUsdNano) ?? "—")}
+              </td>
               <td className={`${CELL} break-words`}>
                 {row.warehouseId === undefined
                   ? t("noWarehouse")
@@ -181,21 +201,6 @@ export function UsageBreakdown({
                       })
                     : null}
                 </span>
-              </td>
-              <td className={`${CELL} ${NUMERIC} wrap-anywhere`}>
-                {unconfirmed ? (
-                  <span className="text-warning">{t("costUnconfirmed")}</span>
-                ) : (
-                  usd(m.knownCostUsdNano)
-                )}
-                {m.unknownAttemptCount ? (
-                  <span className="mt-1 block text-xs text-warning">
-                    {t("unknown", { count: m.unknownAttemptCount })}
-                  </span>
-                ) : null}
-              </td>
-              <td className={`${CELL} ${NUMERIC} text-muted`}>
-                {unconfirmed ? "—" : (thb(m.knownCostUsdNano) ?? "—")}
               </td>
             </tr>
           );
