@@ -334,3 +334,56 @@ it("runs tickets in parallel and starts upload while each AI response is still p
   await firstWork;
   h.controller.dispose();
 });
+
+it("keeps a typed identifier, uses the other decoded barcode, and sends the close-up for Luna", async () => {
+  const h = harness();
+  const pending = pendingTransports(h);
+  const detail = new File(["close-up"], "detail.jpg", { type: "image/jpeg" });
+  h.ports.prepare.mockImplementation(async (image, options) => {
+    await options.onAiReady(image, {
+      codes: ["FO69888", "BARCODE-VALUE"],
+      detailImage: detail,
+    });
+    return image;
+  });
+  h.ports.toDataUrl
+    .mockResolvedValueOnce("data:image/jpeg;base64,AA")
+    .mockResolvedValueOnce("data:image/jpeg;base64,BB");
+  const work = h.controller.acquire(file);
+  await h.uploadStarted.promise;
+  const current = h.first();
+  h.tickets.set(current.key, {
+    ...current,
+    values: { factoryOrder: "FO-TYPED" },
+  });
+  pending.extraction.resolve({
+    ok: true,
+    requestId: "extract-a",
+    value: {
+      ok: true,
+      mock: false,
+      raw: "{}",
+      aiUsageOperationId: "usage-a",
+      fields: {
+        factoryOrder: "FO12345",
+        productBarcodeText: "MODEL",
+        quantity: 0,
+      },
+    },
+  });
+  pending.upload.resolve(attachment);
+  await work;
+  expect(h.ports.extract).toHaveBeenCalledExactlyOnceWith(
+    "data:image/jpeg;base64,AA",
+    { detailImageUrl: "data:image/jpeg;base64,BB" },
+  );
+  expect(h.first()).toMatchObject({
+    values: {
+      factoryOrder: "FO-TYPED",
+      productBarcodeText: "BARCODE-VALUE",
+      quantity: "0",
+    },
+    aiFields: ["quantity"],
+  });
+  h.controller.dispose();
+});

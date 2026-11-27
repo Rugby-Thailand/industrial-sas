@@ -499,24 +499,55 @@ async function mapLocation(
 
 /** Reads a job ticket photo with the configured image provider. Sample extraction requires explicit local opt-in. */
 export const extractJobTicket = actionWithOrg({
-  args: { warehouseId: v.id("warehouses"), imageUrl: v.string() },
+  args: {
+    warehouseId: v.id("warehouses"),
+    imageUrl: v.string(),
+    detailImageUrl: v.optional(v.string()),
+    datesImageUrl: v.optional(v.string()),
+    deliveryImageUrl: v.optional(v.string()),
+  },
   returns: extractionOutcome,
   permissionCode: MANAGE,
   target: { table: TABLE },
   warehouseId: (args) => args.warehouseId,
   handler: async (ctx, args): Promise<Infer<typeof extractionOutcome>> => {
-    // An uploaded HTTPS URL or a downscaled photo as a data URL.
+    const supplements = [
+      {
+        url: args.detailImageUrl,
+        instruction:
+          "This is a magnified part of the same ticket. Use it to verify tiny text and digits.",
+      },
+      {
+        url: args.datesImageUrl,
+        instruction:
+          "Zoom for the printed header and both date boxes. When the upper JOB NO. text is visible, read it even if its barcode is unreadable. Read each date beside its own label. The upper date is delivery and the lower date is manufacturing. An empty or unreadable delivery box does not stop you reading the lower manufacturing date.",
+      },
+      {
+        url: args.deliveryImageUrl,
+        instruction:
+          "Zoom of the delivery date only. If the delivery date is visible here, use these isolated glyphs as the source for delivery_date. Read the year literally without checking plausible years.",
+      },
+    ].flatMap(({ url, instruction }) =>
+      url === undefined ? [] : [{ url, instruction }],
+    );
+    // The initial image can also be an uploaded HTTPS URL. Crops are local JPEGs.
     if (
       !/^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(
         args.imageUrl,
       ) ||
-      args.imageUrl.length > 4_000_000
-    )
+      args.imageUrl.length +
+        supplements.reduce((size, { url }) => size + url.length, 0) >
+        4_000_000 ||
+      supplements.some(({ url }) => !/^data:image\/jpeg;base64,/i.test(url))
+    ) {
       return { ok: false as const, error: { code: "IMAGE_URL_INVALID" } };
+    }
     const request = imageProviderRequest({
       prompt: JOB_TICKET_PROMPT,
       instruction: "Extract information from this image",
       imageUrl: args.imageUrl,
+      supplements,
+      openAiImageDetail: "original",
       name: "job_ticket",
       schema: JOB_TICKET_JSON_SCHEMA,
     });
