@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
+import { PublicInfoLink } from "@/components/system/PublicInfoLink";
 
 export const metadata: Metadata = {
   title: "Terms of Service · Yongkit",
@@ -52,10 +52,10 @@ export default async function Page({
         about other people.
       </p>
       <p>
-        Our <Link href="/privacy">Privacy Policy</Link> explains how personal
-        information is handled. Contact us about requests concerning your
-        records. Removing an account or organization membership does not
-        automatically delete historical operational or audit records.
+        Our <PublicInfoLink href="/privacy">Privacy Policy</PublicInfoLink>{" "}
+        explains how personal information is handled. Contact us about requests
+        concerning your records. Removing an account or organization membership
+        does not automatically delete historical operational or audit records.
       </p>
       <h2>Warehouse decisions</h2>
       <p>
