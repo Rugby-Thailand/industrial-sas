@@ -214,12 +214,12 @@ describe("floor editor workflow step", () => {
       screen.getByRole("button", { name: "Edit floor 1" }),
     ).toHaveAttribute("aria-pressed", "true");
     await nativeBack();
-    expect(href()).toBe(BUILDING_URL);
+    await waitFor(() => expect(href()).toBe(BUILDING_URL));
     expect(
       screen.getByRole("button", { name: "Find and view" }),
     ).toHaveAttribute("aria-pressed", "true");
     await nativeBack();
-    expect(href()).toBe(ORIGIN);
+    await waitFor(() => expect(href()).toBe(ORIGIN));
   });
 
   it("Find and view consumes the editor entry so the next Back leaves the building", async () => {

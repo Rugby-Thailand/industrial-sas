@@ -1,11 +1,8 @@
 "use client";
-import {
-  useLocationCatalogueState,
-  type LocationCatalogueState,
-} from "./useLocationCatalogueState";
+import { useLocationCatalogueState } from "./useLocationCatalogueState";
 
 import { NamedLocationCatalogue } from "./NamedLocationCatalogue";
-import { useSyncExternalStore, useState, type ReactNode } from "react";
+import { useId, useSyncExternalStore, useState, type ReactNode } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
@@ -38,8 +35,12 @@ import { scopeKey } from "@/lib/browser/scope";
 import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { Button } from "@/components/ui/button";
 import { DataGate } from "@/components/system/DataGate";
-import { Input } from "@/components/ui/input";
-import { SelectControl } from "@/components/ui/SelectControl";
+import { ClearFilterButton } from "@/components/system/FilterActions";
+import {
+  StorageCatalogueDimension,
+  StorageCatalogueSearch,
+  StorageCatalogueStatuses,
+} from "./StorageCatalogueFilterControls";
 import type { StorageLayoutStatus } from "@/lib/convex/storageLayoutApi";
 import { QrDialog } from "@/features/storageKit/QrDialog";
 
@@ -56,8 +57,6 @@ export type CatalogueFilters = {
   status: StorageLayoutStatus | "ALL";
   onSearchChange: (value: string) => void;
   onStatusChange: (value: StorageLayoutStatus | "ALL") => void;
-  /** Clears search and status together, as one history step. */
-  onClearFilters: () => void;
 };
 /**
  * The catalogue's one create action. It sits to the right of, and outside,
@@ -214,6 +213,11 @@ function LocationCatalogueContent({
       : s === "DRAFT"
         ? tr("Draft", "ฉบับร่าง")
         : tr("Archived", "เก็บถาวร");
+  const statusId = useId();
+  const filterCount =
+    Number(prefs.status !== "ALL") +
+    Number(prefs.building !== "ALL") +
+    Number(prefs.floor !== "ALL");
   return (
     <div className="space-y-4">
       <div
@@ -247,64 +251,61 @@ function LocationCatalogueContent({
           status: prefs.status,
           onSearchChange: (search) => change({ search }),
           onStatusChange: (status) => change({ status }),
-          onClearFilters: () => change({ search: "", status: "ALL" }),
         })
       ) : (
         <>
-          <div
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_1fr_1fr_8rem]"
-            data-testid="location-filters"
-          >
-            <div className="flex min-w-0 gap-2 sm:col-span-2 lg:col-span-1">
-              <Input
-                aria-label={tr("Search locations", "ค้นหาจุดจัดเก็บ")}
-                placeholder={tr(
-                  "Search location, code or building…",
-                  "ค้นหาชื่อจุด รหัส หรืออาคาร…",
-                )}
-                value={prefs.search}
-                onChange={(e) => change({ search: e.target.value })}
+          <div className="space-y-3" data-testid="location-filters">
+            <StorageCatalogueSearch
+              label={tr("Search locations", "ค้นหาจุดจัดเก็บ")}
+              placeholder={tr(
+                "Search location, code or building…",
+                "ค้นหาชื่อจุด รหัส หรืออาคาร…",
+              )}
+              value={prefs.search}
+              onChange={(search) => change({ search })}
+              action={<NewBuildingAction />}
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <StorageCatalogueStatuses
+                id={statusId}
+                value={prefs.status}
+                onChange={(status) => change({ status })}
               />
-              <NewBuildingAction />
+              {filterCount > 1 ? (
+                <ClearFilterButton
+                  label={tr("Clear filters", "ล้างตัวกรอง")}
+                  onClick={() => {
+                    change({ status: "ALL", building: "ALL", floor: "ALL" });
+                    document.getElementById(statusId)?.focus();
+                  }}
+                />
+              ) : null}
             </div>
-            <SelectControl
-              label={tr("Status", "สถานะ")}
-              value={prefs.status}
-              onValueChange={(status) =>
-                change({ status: status as LocationCatalogueState["status"] })
-              }
-              options={[
-                { value: "ALL", label: tr("All statuses", "ทุกสถานะ") },
-                ...["ACTIVE", "DRAFT", "ARCHIVED"].map((value) => ({
-                  value,
-                  label: statusName(value),
-                })),
-              ]}
-              placeholder=""
-              emptyLabel=""
-            />
-            <SelectControl
-              label={tr("Building", "อาคาร")}
-              value={prefs.building}
-              onValueChange={(building) => change({ building, floor: "ALL" })}
-              options={[
-                { value: "ALL", label: tr("All buildings", "ทุกอาคาร") },
-                ...buildings,
-              ]}
-              placeholder=""
-              emptyLabel=""
-            />
-            <SelectControl
-              label={tr("Floor", "ชั้น")}
-              value={prefs.floor}
-              onValueChange={(floor) => change({ floor })}
-              options={[
-                { value: "ALL", label: tr("All floors", "ทุกชั้น") },
-                ...floors.map((n) => ({ value: String(n), label: String(n) })),
-              ]}
-              placeholder=""
-              emptyLabel=""
-            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <StorageCatalogueDimension
+                label={tr("Building", "อาคาร")}
+                value={prefs.building}
+                onChange={(building) => change({ building, floor: "ALL" })}
+                onClear={() => change({ building: "ALL" })}
+                options={[
+                  { value: "ALL", label: tr("All buildings", "ทุกอาคาร") },
+                  ...buildings,
+                ]}
+              />
+              <StorageCatalogueDimension
+                label={tr("Floor", "ชั้น")}
+                value={prefs.floor}
+                onChange={(floor) => change({ floor })}
+                onClear={() => change({ floor: "ALL" })}
+                options={[
+                  { value: "ALL", label: tr("All floors", "ทุกชั้น") },
+                  ...floors.map((n) => ({
+                    value: String(n),
+                    label: String(n),
+                  })),
+                ]}
+              />
+            </div>
           </div>
           {choices?.ok && !choices.value.isDone && (
             <Button
@@ -347,24 +348,6 @@ function LocationCatalogueContent({
                           "ยังไม่มีจุดจัดเก็บ เพิ่มจุดจัดเก็บในหน้าวางผังชั้นของอาคาร",
                         )}
                   </p>
-                  {(prefs.search ||
-                    prefs.status !== "ALL" ||
-                    prefs.building !== "ALL" ||
-                    prefs.floor !== "ALL") && (
-                    <Button
-                      variant="ghost"
-                      onClick={() =>
-                        change({
-                          search: "",
-                          status: "ALL",
-                          building: "ALL",
-                          floor: "ALL",
-                        })
-                      }
-                    >
-                      {tr("Clear filters", "ล้างตัวกรอง")}
-                    </Button>
-                  )}
                 </div>
               ) : (
                 <div

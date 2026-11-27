@@ -1,20 +1,12 @@
 "use client";
-import {
-  Columns2,
-  Map,
-  List,
-  SlidersHorizontal,
-  Search,
-  X,
-} from "lucide-react";
-import { Popover } from "radix-ui";
+import { Columns2, Map, List, Search, X } from "lucide-react";
+import { LocationFilters, type LocationFilter } from "./LocationFilters";
 import { useTranslations } from "next-intl";
 import { useRef, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/IconButton";
 import type { FloorWorkspaceView } from "./useFloorWorkspaceView";
 import styles from "./FloorWorkspaceToolbar.module.css";
-export type LocationFilter = "empty" | "stored" | "reserved" | "unmeasured";
+export type { LocationFilter } from "./LocationFilters";
 export function FloorWorkspaceToolbar({
   search,
   onSearch,
@@ -93,59 +85,11 @@ export function FloorWorkspaceToolbar({
         )}
       </div>
       <div className={styles.filter}>
-        <Popover.Root>
-          <Popover.Trigger asChild>
-            <IconButton
-              className={styles.icon}
-              label={t("locationTable.filters")}
-              aria-pressed={filters.length > 0}
-              variant={filters.length ? "active" : "ghost"}
-            >
-              <SlidersHorizontal />
-              {filters.length > 0 && <span className={styles.filterDot} />}
-            </IconButton>
-          </Popover.Trigger>
-          <Popover.Portal>
-            <Popover.Content
-              align="end"
-              sideOffset={8}
-              className="z-50 w-56 rounded-lg border border-border bg-surface p-2 shadow-lg"
-            >
-              <div
-                role="group"
-                aria-label={t("locationTable.filters")}
-                className="flex flex-col gap-1"
-              >
-                {(["empty", "stored", "reserved", "unmeasured"] as const).map(
-                  (key) => (
-                    <Button
-                      key={key}
-                      variant={filters.includes(key) ? "active" : "ghost"}
-                      className="min-h-11 justify-start"
-                      aria-pressed={filters.includes(key)}
-                      onClick={() =>
-                        onFilters(
-                          filters.includes(key)
-                            ? filters.filter((item) => item !== key)
-                            : [...filters, key],
-                        )
-                      }
-                    >
-                      {t(`locationTable.${key === "empty" ? "vacant" : key}`)}
-                    </Button>
-                  ),
-                )}
-                <Button
-                  variant="ghost"
-                  disabled={!filters.length}
-                  onClick={() => onFilters([])}
-                >
-                  {t("locationTable.clear")}
-                </Button>
-              </div>
-            </Popover.Content>
-          </Popover.Portal>
-        </Popover.Root>
+        <LocationFilters
+          filters={filters}
+          onFilters={onFilters}
+          className={styles.icon}
+        />
       </div>
       <div
         role="group"

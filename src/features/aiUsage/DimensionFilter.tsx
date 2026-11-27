@@ -7,9 +7,7 @@ import { useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { PaginationFooter } from "@/components/system/PaginationFooter";
 import { Button } from "@/components/ui/button";
-import { FormField } from "@/components/ui/FormField";
-import { Input } from "@/components/ui/input";
-import { SelectControl } from "@/components/ui/SelectControl";
+import { CollectionToolbar } from "@/components/system/CollectionToolbar";
 import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { useDebouncedSearch } from "@/hooks/useScanContinuation";
 import { useScanRecovery } from "@/hooks/useScanRecovery";
@@ -23,7 +21,11 @@ export const labelsRef = clientRef(api.aiUsage.dimensions.labels);
 /** Matches the server's per-request label bound. */
 const MAX_LABEL_IDS = 100;
 
-type Labelled = { readonly id: string; readonly name: string };
+type Labelled = {
+  readonly id: string;
+  readonly name: string;
+  readonly code?: string;
+};
 
 /**
  * Names for IDs that one displayed page needs and the report did not label.
@@ -54,26 +56,31 @@ const hasRows = (value: object) =>
   "items" in value && Array.isArray(value.items) && value.items.length > 0;
 
 /**
- * One user or warehouse filter: searchable, server-paged choices of every
- * organization member or warehouse. The selected value keeps its name when
- * it is not on the current page.
+ * One user or warehouse filter: searchable, server-paged inline radio choices
+ * of every organization member or warehouse. The selected value keeps its name
+ * when a later search or page excludes it.
  */
 export function DimensionFilter({
   kind,
   title,
   value,
   knownLabel,
+  hideHeading = false,
   onChange,
 }: {
   readonly kind: "actor" | "warehouse";
   readonly title: string;
   readonly value: string;
-  /** A name the report already supplied for the selected value. */
+  /** A name the report or earlier choice already supplied for the selected value. */
   readonly knownLabel?: string | undefined;
-  readonly onChange: (value: string) => void;
+  readonly hideHeading?: boolean;
+  readonly onChange: (value: string, label?: string) => void;
 }) {
   const t = useTranslations("AiUsage");
   const [search, setSearch] = useState("");
+  const [chosenLabels, setChosenLabels] = useState<
+    Readonly<Record<string, string>>
+  >({});
   const typed = search.trim();
   const settled = useDebouncedSearch(typed);
   const [stack, setStack] = useState<{
@@ -127,19 +134,22 @@ export function DimensionFilter({
   const page = outcome?.ok ? outcome.value : null;
   const ready = page?.status === "ready" ? page : null;
   const items: readonly Labelled[] = ready?.items ?? [];
-  const label = (option: Labelled & { code?: string }) =>
+  const label = (option: Labelled) =>
     option.code ? `${option.name} · ${option.code}` : option.name;
   const selectedOnPage = items.some((option) => option.id === value);
+  const cachedLabel = value ? (chosenLabels[value] ?? knownLabel) : undefined;
   const resolved = useDimensionLabels(
-    kind === "actor" && value && !knownLabel && !selectedOnPage ? [value] : [],
-    kind === "warehouse" && value && !knownLabel && !selectedOnPage
+    kind === "actor" && value && !cachedLabel && !selectedOnPage ? [value] : [],
+    kind === "warehouse" && value && !cachedLabel && !selectedOnPage
       ? [value]
       : [],
   );
   const selectedName =
-    knownLabel ??
+    cachedLabel ??
     (kind === "actor" ? resolved.user(value) : resolved.warehouse(value)) ??
-    t(kind === "actor" ? "unknownUser" : "unknownWarehouse");
+    (resolved.loading
+      ? "…"
+      : t(kind === "actor" ? "unknownUser" : "unknownWarehouse"));
   const failed =
     (outcome && (!outcome.ok || !outcome.value)) ||
     page?.status === "reset" ||
@@ -149,79 +159,127 @@ export function DimensionFilter({
     paging.reset();
     recovery.retry();
   };
-  const id = `usage-filter-${kind}`;
+  const searchLabel = t(kind === "actor" ? "searchUsers" : "searchWarehouses");
+  const groupName = `usage-filter-${kind}`;
+  const pending = !ready && !failed && !tracked.paused;
+  const select = (nextId: string, nextLabel?: string) => {
+    if (nextId && nextLabel)
+      setChosenLabels((current) =>
+        current[nextId] === nextLabel
+          ? current
+          : { ...current, [nextId]: nextLabel },
+      );
+    onChange(nextId, nextLabel);
+  };
   return (
-    <FormField id={id} label={title}>
-      {(props) => (
-        <div className="space-y-2">
-          <Input
-            type="search"
-            aria-label={t(
-              kind === "actor" ? "searchUsers" : "searchWarehouses",
-            )}
-            placeholder={t(
-              kind === "actor" ? "searchUsers" : "searchWarehouses",
-            )}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+    <fieldset className="min-w-0 space-y-2">
+      <legend
+        className={hideHeading ? "sr-only" : "text-sm font-semibold text-text"}
+      >
+        {title}
+      </legend>
+      <CollectionToolbar
+        value={search}
+        onValueChange={setSearch}
+        searchLabel={searchLabel}
+        clearLabel={t("clearSearch")}
+      />
+      <div
+        role="radiogroup"
+        aria-label={title}
+        aria-busy={pending || undefined}
+        className="max-h-52 divide-y divide-border overflow-y-auto rounded-md border border-border bg-surface"
+      >
+        <label className="flex min-h-touch cursor-pointer items-center gap-2.5 px-3 py-2 text-sm text-text hover:bg-raised has-checked:bg-accent-surface has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-inset">
+          <input
+            type="radio"
+            name={groupName}
+            value=""
+            checked={value === ""}
+            onChange={() => select("")}
+            className="size-4 shrink-0 accent-primary"
           />
-          <SelectControl
-            id={props.id}
-            value={value}
-            label={title}
-            onValueChange={onChange}
-            pending={!ready && !failed && !tracked.paused}
-            options={[
-              { value: "", label: t("all") },
-              ...(value && !selectedOnPage
-                ? [{ value, label: selectedName }]
-                : []),
-              ...items.map((option) => ({
-                value: option.id,
-                label: label(option),
-              })),
-            ]}
-            placeholder={t("all")}
-            emptyLabel={t("all")}
-          />
-          {failed ? (
-            <div role="alert" className="space-y-2 text-sm text-danger">
-              <p>{t("optionsFailed")}</p>
-              <Button variant="outline" size="sm" onClick={retry}>
-                {t("optionsRetry")}
-              </Button>
-            </div>
-          ) : tracked.paused ? (
-            <Button variant="outline" size="sm" onClick={recovery.resume}>
-              {t("optionsContinue")}
-            </Button>
-          ) : ready && !items.length && typed ? (
-            <p role="status" className="text-sm text-muted">
-              {t("optionsNoMatch")}
-            </p>
-          ) : null}
-          {(paging.canPrevious || (ready && !ready.isDone)) && (
-            <PaginationFooter
-              label={t(kind === "actor" ? "userPages" : "warehousePages")}
-              pageSizeControl={null}
-              status={t("optionsPage", { page: cursors.length })}
-              previousLabel={t("breakdownPrevious")}
-              nextLabel={t("breakdownNext")}
-              canPrevious={paging.canPrevious}
-              canNext={Boolean(ready && !ready.isDone)}
-              loading={!ready}
-              onPrevious={paging.previous}
-              onNext={() => {
-                if (ready && !ready.isDone)
-                  setStack({
-                    key: settled,
-                    cursors: [...cursors, ready.continueCursor],
-                  });
-              }}
+          <span className="min-w-0 break-words">{t("all")}</span>
+        </label>
+        {value && !selectedOnPage ? (
+          <label className="flex min-h-touch cursor-pointer items-center gap-2.5 px-3 py-2 text-sm text-text hover:bg-raised has-checked:bg-accent-surface has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-inset">
+            <input
+              type="radio"
+              name={groupName}
+              value={value}
+              checked
+              onChange={() => select(value, selectedName)}
+              className="size-4 shrink-0 accent-primary"
             />
-          )}
+            <span className="min-w-0 break-words">{selectedName}</span>
+          </label>
+        ) : null}
+        {items.map((option) => {
+          const text = label(option);
+          return (
+            <label
+              key={option.id}
+              className="flex min-h-touch cursor-pointer items-center gap-2.5 px-3 py-2 text-sm text-text hover:bg-raised has-checked:bg-accent-surface has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-inset"
+            >
+              <input
+                type="radio"
+                name={groupName}
+                value={option.id}
+                checked={value === option.id}
+                onChange={() => select(option.id, text)}
+                className="size-4 shrink-0 accent-primary"
+              />
+              <span className="min-w-0 break-words">{text}</span>
+            </label>
+          );
+        })}
+        {pending ? (
+          <p role="status" className="px-3 py-2 text-sm text-muted">
+            {t("optionsLoading")}
+          </p>
+        ) : ready && !items.length && typed ? (
+          <p role="status" className="px-3 py-2 text-sm text-muted">
+            {t("optionsNoMatch")}
+          </p>
+        ) : null}
+      </div>
+      {failed ? (
+        <div role="alert" className="space-y-2 text-sm text-danger">
+          <p>{t("optionsFailed")}</p>
+          <Button type="button" variant="outline" size="sm" onClick={retry}>
+            {t("optionsRetry")}
+          </Button>
         </div>
+      ) : tracked.paused ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={recovery.resume}
+        >
+          {t("optionsContinue")}
+        </Button>
+      ) : null}
+      {(paging.canPrevious || (ready && !ready.isDone)) && (
+        <PaginationFooter
+          label={t(kind === "actor" ? "userPages" : "warehousePages")}
+          pageSizeControl={null}
+          status={t("optionsPage", { page: cursors.length })}
+          previousLabel={t("breakdownPrevious")}
+          nextLabel={t("breakdownNext")}
+          canPrevious={paging.canPrevious}
+          canNext={Boolean(ready && !ready.isDone)}
+          loading={!ready}
+          onPrevious={paging.previous}
+          onNext={() => {
+            if (ready && !ready.isDone)
+              setStack({
+                key: settled,
+                cursors: [...cursors, ready.continueCursor],
+              });
+          }}
+        />
       )}
-    </FormField>
+    </fieldset>
   );
 }

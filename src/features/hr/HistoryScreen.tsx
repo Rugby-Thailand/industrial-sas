@@ -41,6 +41,11 @@ import {
 import { HrActionCard } from "./HrActionCard";
 import { useHrListCriteria } from "./HrListCriteria";
 import { monthRange } from "./selfService";
+import {
+  filterRangeIssue,
+  HrFilterRange,
+  type FilterRange,
+} from "./HrFilterRange";
 import { HrToolbar } from "./HrUi";
 
 export function HrHistoryScreen() {
@@ -146,7 +151,7 @@ function HistoryContent() {
   };
   const editRange = (next: { from: string; to: string }) => {
     setFields(next);
-    if (ISO_DATE.test(next.from) && ISO_DATE.test(next.to))
+    if (filterRangeIssue(next, today) === undefined)
       setCriteria({ from: next.from, to: next.to }, true);
   };
   const filter = (FILTERS as readonly string[]).includes(criteria.status)
@@ -162,23 +167,21 @@ function HistoryContent() {
   const outcome = useHrQuery(hrRefs.history, range);
   return (
     <div className="space-y-4">
-      <HrToolbar>
-        <FormField id={id} label={t("month")}>
-          {(field) => (
-            <Input
-              {...field}
-              type="month"
-              max={today.slice(0, 7)}
-              value={month}
-              onChange={(event) => {
-                const next = monthRange(event.target.value, today);
-                if (next && next.from <= next.to) setRange(next);
-              }}
-              className="sm:w-44"
-            />
-          )}
-        </FormField>
-        <DateRangeFields {...fields} max={today} onChange={editRange} />
+      <HrToolbar className="items-start">
+        <HrFilterRange
+          id={`${id}-range`}
+          {...fields}
+          max={today}
+          onChange={editRange}
+          onPreset={setRange}
+        />
+        <HistoryMonthFilter
+          id={id}
+          label={t("month")}
+          value={month}
+          today={today}
+          onChange={setRange}
+        />
       </HrToolbar>
       <HrQueryState outcome={outcome}>
         {() =>
@@ -192,6 +195,44 @@ function HistoryContent() {
         }
       </HrQueryState>
     </div>
+  );
+}
+
+function HistoryMonthFilter({
+  id,
+  label,
+  value,
+  today,
+  onChange,
+}: {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly today: string;
+  readonly onChange: (range: FilterRange) => void;
+}) {
+  const [month, setMonth] = useUrlBackedState(value, value);
+  return (
+    <FormField id={id} label={label}>
+      {(field) => (
+        <Input
+          {...field}
+          type="text"
+          placeholder="YYYY-MM"
+          maxLength={7}
+          autoComplete="off"
+          value={month}
+          onChange={(event) => {
+            const value = event.target.value;
+            setMonth(value);
+            const next = monthRange(value, today);
+            if (next && filterRangeIssue(next, today) === undefined)
+              onChange(next);
+          }}
+          className="sm:w-40"
+        />
+      )}
+    </FormField>
   );
 }
 

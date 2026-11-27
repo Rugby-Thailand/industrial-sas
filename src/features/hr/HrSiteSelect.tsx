@@ -1,5 +1,6 @@
 "use client";
 
+import { FilterRadios } from "@/components/system/FilterRadios";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -19,15 +20,17 @@ import {
 } from "./HrPagedList";
 import { useHrError } from "./HrShared";
 
-const siteLabel = (site: { readonly code: string; readonly name: string }) =>
-  `${site.code} · ${site.name}`;
+export const siteLabel = (site: {
+  readonly code: string;
+  readonly name: string;
+}) => `${site.code} · ${site.name}`;
 
 export interface HrSiteSelectProps {
   readonly id: string;
   /** Names the paged picker's position; one per selector on a screen. */
   readonly surface: string;
   readonly value: string;
-  readonly onChange: (value: string) => void;
+  readonly onChange: (value: string, label?: string) => void;
   readonly placeholder: string;
   readonly emptyLabel: string;
   /** Adds an "all sites" choice with the empty value. */
@@ -39,25 +42,34 @@ export interface HrSiteSelectProps {
   readonly describedBy?: string;
   /** The preloaded sites to offer; defaults to the HR access sites. */
   readonly sites?: readonly HrSite[];
+  /** Filter surfaces show long choices inline under their search. */
+  readonly filter?: boolean;
 }
 
 /**
  * A site choice over every site the actor may use. While the preloaded
- * site list is complete it is a plain select of those sites; when the
- * actor's sites exceed it (`sitesComplete: false`) the choices come from
- * the searchable, paged `sitesPage`, so a site sorted 51st or later stays
- * choosable and a site chosen from a link keeps its label.
+ * site list is complete it is a plain select of those sites unless a
+ * filter has a long list. Historical or incomplete lists use `sitesPage`
+ * so later choices and selected sites outside the current page stay available.
  */
 export function HrSiteSelect(props: HrSiteSelectProps) {
   const access = useHrAccess();
   // The access preview contains active sites only; historical filters must
   // query the complete site options even when that active preview is complete.
-  if (access.sitesComplete !== false && !props.includeInactive) {
+  const sites = props.sites ?? access.sites;
+  if (
+    access.sitesComplete !== false &&
+    !props.includeInactive &&
+    (!props.filter || props.sites !== undefined || sites.length <= 10)
+  ) {
     return (
       <SelectControl
         id={props.id}
         value={props.value}
-        onValueChange={props.onChange}
+        onValueChange={(value) => {
+          const selected = sites.find((site) => site.id === value);
+          props.onChange(value, selected ? siteLabel(selected) : undefined);
+        }}
         placeholder={props.placeholder}
         emptyLabel={props.emptyLabel}
         disabled={props.disabled ?? false}
@@ -69,7 +81,7 @@ export function HrSiteSelect(props: HrSiteSelectProps) {
           ...(props.allLabel === undefined
             ? []
             : [{ value: "", label: props.allLabel }]),
-          ...(props.sites ?? access.sites ?? []).map((site) => ({
+          ...sites.map((site) => ({
             value: site.id,
             label: siteLabel(site),
           })),
@@ -93,8 +105,10 @@ function PagedSiteSelect({
   invalid,
   describedBy,
   sites,
+  filter = false,
 }: HrSiteSelectProps) {
   const t = useTranslations("Hr.sitePicker");
+  const tControls = useTranslations("Hr.filterControls");
   const message = useHrError();
   const access = useHrAccess();
   const [search, setSearch] = useState("");
@@ -131,34 +145,60 @@ function PagedSiteSelect({
       : []),
     ...shown,
   ];
+  const choose = (next: string) => {
+    const entry = options.find((candidate) => candidate.value === next);
+    if (next !== "" && entry !== undefined)
+      setChosen((current) => ({ ...current, [next]: entry.label }));
+    onChange(next, entry?.label);
+  };
   return (
     <div className="grid min-w-0 gap-2">
-      <SelectControl
-        id={id}
-        value={value}
-        onValueChange={(next) => {
-          const entry = shown.find((candidate) => candidate.value === next);
-          if (entry !== undefined)
-            setChosen((current) => ({ ...current, [next]: entry.label }));
-          onChange(next);
-        }}
-        placeholder={placeholder}
-        emptyLabel={emptyLabel}
-        disabled={disabled ?? false}
-        invalid={invalid ?? false}
-        {...(describedBy === undefined ? {} : { describedBy })}
-        // Choices of a previous page are not choosable while the next loads.
-        pending={!ready && view.kind !== "refused" && view.kind !== "denied"}
-        options={options}
-      />
+      {filter ? null : (
+        <SelectControl
+          id={id}
+          value={value}
+          onValueChange={choose}
+          placeholder={placeholder}
+          emptyLabel={emptyLabel}
+          disabled={disabled ?? false}
+          invalid={invalid ?? false}
+          {...(describedBy === undefined ? {} : { describedBy })}
+          pending={!ready && view.kind !== "refused" && view.kind !== "denied"}
+          options={options}
+        />
+      )}
       <HrSearchField
         id={`${id}-search`}
         label={t("search")}
         placeholder={t("searchHint")}
         value={search}
         onSettled={setSearch}
+        searchOnEnter={filter}
+        {...(filter ? { clearLabel: tControls("clearSearch") } : {})}
         className="grid w-full gap-1"
       />
+      {filter ? (
+        <div
+          className="max-h-56 overflow-y-auto rounded-md border border-border p-1"
+          aria-busy={!ready}
+        >
+          <FilterRadios
+            id={id}
+            label={t("choices")}
+            value={value}
+            options={options}
+            disabled={disabled ?? false}
+            invalid={invalid ?? false}
+            describedBy={describedBy}
+            onChange={choose}
+          />
+        </div>
+      ) : null}
+      {ready && shown.length === 0 && (filter || search !== "") ? (
+        <p className="text-xs text-muted" role="status">
+          {search !== "" ? t("noMatches") : emptyLabel}
+        </p>
+      ) : null}
       {view.kind === "refused" || view.kind === "denied" ? (
         <p role="alert" className="text-xs text-danger">
           {message(view.kind === "refused" ? view.code : "NOT_FOUND")}
@@ -166,11 +206,6 @@ function PagedSiteSelect({
       ) : null}
       {view.kind === "interrupted" ? (
         <HrInterrupted view={view} compact />
-      ) : null}
-      {ready && shown.length === 0 && search !== "" ? (
-        <p className="text-xs text-muted" role="status">
-          {t("noMatches")}
-        </p>
       ) : null}
       <HrPager paging={paging} label={t("pagination")} />
     </div>

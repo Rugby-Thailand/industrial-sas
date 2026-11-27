@@ -454,7 +454,11 @@ it("the registry defaults to current employees and filters former employees thro
   expect(
     state.args.get(getFunctionName(hrRefs.employeesPage)),
   ).not.toHaveProperty("status");
-  chooseOption("Status", "Former (resigned or terminated)");
+  fireEvent.click(screen.getByRole("button", { name: "Employee filters" }));
+  fireEvent.click(
+    screen.getByRole("radio", { name: "Former (resigned or terminated)" }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
   await waitFor(() =>
     expect(state.args.get(getFunctionName(hrRefs.employeesPage))).toMatchObject(
       { status: "FORMER" },

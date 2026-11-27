@@ -244,9 +244,12 @@ it.each(["header", "native"] as const)(
     });
     fireEvent.click(screen.getByRole("button", { name: /Somsak/ }));
     fireEvent.click(screen.getByTestId("hr-return"));
-    fireEvent.change(screen.getByRole("textbox"), {
-      target: { value: "Retain this return reason" },
-    });
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Reason for returning" }),
+      {
+        target: { value: "Retain this return reason" },
+      },
+    );
     const index = appHistoryIndex();
     state.queries.set(
       getFunctionName(hrRefs.reviewDayDetail),
@@ -268,13 +271,15 @@ it.each(["header", "native"] as const)(
       }),
     );
     view.rerender(page());
-    expect(screen.getByRole("textbox")).toHaveValue(
-      "Retain this return reason",
-    );
+    expect(
+      screen.getByRole("textbox", { name: "Reason for returning" }),
+    ).toHaveValue("Retain this return reason");
     expect(screen.getByTestId("hr-return-confirm")).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
     expect(screen.queryByTestId("hr-return-confirm")).toBeNull();
-    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(
+      screen.queryByRole("textbox", { name: "Reason for returning" }),
+    ).toBeNull();
     expect(appHistoryIndex()).toBe(index);
     fireEvent.click(screen.getByRole("button", { name: "Back to the list" }));
     await waitFor(() =>

@@ -2032,23 +2032,6 @@
         },
         {
           "shape": "conditional",
-          "truthy": [
-            "div[role=group]",
-            "lucide-react#LayoutGrid",
-            "lucide-react#List",
-            "lucide-react#X",
-            "src/components/ui/IconButton#IconButton",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["lucide-react#X", "src/components/ui/button#Button"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
           "truthy": ["p"],
           "falsy": []
         },
@@ -2057,35 +2040,12 @@
           "truthy": ["td", "tr"],
           "falsy": []
         }
-      ]
-    },
-    {
-      "id": "src/components/storageLayouts/FloorLocationTable.tsx#LocationTable:filtersOpen",
-      "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "The inline table filter disclosure does not replace the page or claim a separate foreground step.",
-      "render": [
+      ],
+      "tests": ["src/components/storageLayouts/FloorLocationTable.test.tsx"],
+      "cases": [
         {
-          "shape": "and",
-          "truthy": [
-            "div[role=group]",
-            "lucide-react#LayoutGrid",
-            "lucide-react#List",
-            "src/components/ui/IconButton#IconButton"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "div[role=group]",
-            "lucide-react#LayoutGrid",
-            "lucide-react#List",
-            "lucide-react#X",
-            "src/components/ui/IconButton#IconButton",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
+          "file": "src/components/storageLayouts/FloorLocationTable.test.tsx",
+          "name": "filters known inventory, clears excluded selection and restores rows"
         }
       ]
     },
@@ -3067,12 +3027,19 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/CatalogueFilterControls.tsx#CatalogueFiltersButton:$overlay:Sheet:open",
+      "id": "src/features/finishedGoods/CatalogueFilterControls.tsx#CatalogueFilterBar:$overlay:Sheet:editing",
       "policy": "overlay",
       "integration": "sheet",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
-      "tests": ["src/components/ui/ForegroundOrdering.test.tsx"],
+      "expectation": "Back dismisses the all-filters or single-condition editor before page departure without applying its draft; Cancel consumes its entry so the next Back restores the earlier catalogue entry with its locale, query and hash.",
+      "tests": [
+        "src/features/finishedGoods/FinishedGoodsCatalogue.filters.test.tsx",
+        "src/components/ui/ForegroundOrdering.test.tsx"
+      ],
       "cases": [
+        {
+          "file": "src/features/finishedGoods/FinishedGoodsCatalogue.filters.test.tsx",
+          "name": "a chip editor closes on native Back without applying, and Cancel then Back restores the earlier entry"
+        },
         {
           "file": "src/components/ui/ForegroundOrdering.test.tsx",
           "name": "real PageBackButton in foreground dismisses the topmost and next Back dismisses remaining root"
@@ -3080,12 +3047,19 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/CatalogueFilterControls.tsx#CatalogueFiltersButton:open",
+      "id": "src/features/finishedGoods/CatalogueFilterControls.tsx#CatalogueFilterBar:editing",
       "policy": "overlay",
       "integration": "sheet",
-      "expectation": "Back restores the predecessor owned by CatalogueFiltersButton.open, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/components/ui/ForegroundOrdering.test.tsx"],
+      "expectation": "Back restores the predecessor owned by CatalogueFilterBar.editing (the funnel or a chip's edit action), preserving route intent and the applied filters; the draft is discarded.",
+      "tests": [
+        "src/features/finishedGoods/FinishedGoodsCatalogue.filters.test.tsx",
+        "src/components/ui/ForegroundOrdering.test.tsx"
+      ],
       "cases": [
+        {
+          "file": "src/features/finishedGoods/FinishedGoodsCatalogue.filters.test.tsx",
+          "name": "a chip editor closes on native Back without applying, and Cancel then Back restores the earlier entry"
+        },
         {
           "file": "src/components/ui/ForegroundOrdering.test.tsx",
           "name": "real PageBackButton in foreground dismisses the topmost and next Back dismisses remaining root"
@@ -6075,6 +6049,28 @@
       ]
     },
     {
+      "id": "src/features/storageLayouts/StorageCatalogueFilterControls.tsx#StorageCatalogueDimension:search",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "Local search narrows the already loaded building or floor options and reports an empty match list. It leaves the selected option, catalogue criteria and history in place.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ],
+      "tests": [
+        "src/features/storageLayouts/StorageLocationCatalogue.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLocationCatalogue.test.tsx",
+          "name": "searches accumulated building and floor choices while preserving the selected filter"
+        }
+      ]
+    },
+    {
       "id": "src/features/storageLayouts/StorageLocationCatalogue.tsx#LocationCatalogueContent:optionCursor",
       "policy": "presentation",
       "uses": ["branch"],
@@ -6780,6 +6776,65 @@
       ]
     },
     {
+      "id": "src/features/aiUsage/AiUsageScreen.tsx#UsageReport:options",
+      "policy": "presentation",
+      "expectation": "Retains the latest report's organization timezone and dimension choices across reloads so timezone-aware presets and selected labels stay stable without opening a foreground or workflow step.",
+      "uses": ["branch"],
+      "tests": ["src/features/aiUsage/AiUsageScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
+          "name": "uses direct period shortcut with Last 7 days and custom dates in the organization timezone"
+        }
+      ],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "p[role=status]",
+            "src/components/ui/skeleton#Skeleton"
+          ],
+          "falsy": [
+            "div",
+            "p",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/features/aiUsage/AutomaticEstimate#AutomaticEstimate",
+            "src/features/aiUsage/RecentActivity#RecentActivity",
+            "src/features/aiUsage/UsageBreakdown#UsageBreakdown",
+            "src/features/aiUsage/UsageOverview#FeatureStrip",
+            "src/features/aiUsage/UsageOverview#UsageStatement"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": [
+            "div",
+            "p",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/features/aiUsage/AutomaticEstimate#AutomaticEstimate",
+            "src/features/aiUsage/RecentActivity#RecentActivity",
+            "src/features/aiUsage/UsageBreakdown#UsageBreakdown",
+            "src/features/aiUsage/UsageOverview#FeatureStrip",
+            "src/features/aiUsage/UsageOverview#UsageStatement"
+          ]
+        }
+      ]
+    },
+    {
       "id": "src/features/aiUsage/AiUsageScreen.tsx#UsageReport:exportError",
       "policy": "presentation",
       "expectation": "Export failure shows an inline alert within the same report.",
@@ -6808,8 +6863,15 @@
     {
       "id": "src/features/aiUsage/DimensionFilter.tsx#DimensionFilter:search",
       "policy": "presentation",
-      "expectation": "Search changes inline choice results/loading/recovery inside the filter Sheet; no separate foreground opens.",
+      "expectation": "Search changes inline radio choice results, clear-search button, loading, and recovery inside the filter Sheet; no separate foreground opens.",
       "uses": ["branch"],
+      "tests": ["src/features/aiUsage/AiUsageScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
+          "name": "pages and searches every member as a user filter and keeps the chosen name"
+        }
+      ],
       "render": [
         {
           "shape": "and",
@@ -6819,7 +6881,17 @@
         {
           "shape": "conditional",
           "truthy": ["div[role=alert]", "p", "src/components/ui/button#Button"],
-          "falsy": ["p[role=status]", "src/components/ui/button#Button"]
+          "falsy": ["src/components/ui/button#Button"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["input", "label", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": ["p[role=status]"]
         },
         {
           "shape": "conditional",
@@ -6829,15 +6901,22 @@
         {
           "shape": "conditional",
           "truthy": ["src/components/ui/button#Button"],
-          "falsy": ["p[role=status]"]
+          "falsy": []
         }
       ]
     },
     {
       "id": "src/features/aiUsage/DimensionFilter.tsx#DimensionFilter:stack",
       "policy": "presentation",
-      "expectation": "The bounded choice cursor pages inline options inside the filter Sheet; Sheet owns Back.",
+      "expectation": "The bounded choice cursor pages inline radio options inside the filter Sheet; Sheet owns Back.",
       "uses": ["branch"],
+      "tests": ["src/features/aiUsage/AiUsageScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
+          "name": "pages and searches every member as a user filter and keeps the chosen name"
+        }
+      ],
       "render": [
         {
           "shape": "and",
@@ -6847,7 +6926,17 @@
         {
           "shape": "conditional",
           "truthy": ["div[role=alert]", "p", "src/components/ui/button#Button"],
-          "falsy": ["p[role=status]", "src/components/ui/button#Button"]
+          "falsy": ["src/components/ui/button#Button"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["input", "label", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": ["p[role=status]"]
         },
         {
           "shape": "conditional",
@@ -6857,7 +6946,7 @@
         {
           "shape": "conditional",
           "truthy": ["src/components/ui/button#Button"],
-          "falsy": ["p[role=status]"]
+          "falsy": []
         }
       ]
     },
@@ -6904,14 +6993,113 @@
       ]
     },
     {
-      "id": "src/features/aiUsage/UsageToolbar.tsx#UsageToolbar:dateError",
+      "id": "src/features/aiUsage/UsageToolbar.tsx#LocalChoiceFilter:search",
       "policy": "presentation",
-      "expectation": "Invalid dates display an inline form alert inside the existing filter Sheet.",
+      "expectation": "Filters a long inline radio choice list (such as requested models) inside the filter Sheet while retaining the selected option; Sheet owns Back.",
       "uses": ["branch"],
+      "tests": ["src/features/aiUsage/AiUsageScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
+          "name": "searches long model lists inline while keeping the selected model visible"
+        }
+      ],
       "render": [
         {
           "shape": "conditional",
+          "truthy": ["input", "label", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/aiUsage/UsageToolbar.tsx#UsageToolbar:scope",
+      "policy": "presentation",
+      "expectation": "Selects whether the shared filter Sheet shows all report conditions or a single edited condition (period shortcut or chip); Sheet owns Back.",
+      "uses": ["branch"],
+      "tests": ["src/features/aiUsage/AiUsageScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
+          "name": "counts one condition per non-default filter, edits and removes chips individually, and shows clear-all only above one"
+        },
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
+          "name": "uses direct period shortcut with Last 7 days and custom dates in the organization timezone"
+        }
+      ],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["LocalChoiceFilter", "div"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "RadioChoiceGroup",
+            "div",
+            "p",
+            "p[role=alert]",
+            "src/components/system/FilterDateField#FilterDateField"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["RadioChoiceGroup", "div"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/features/aiUsage/DimensionFilter#DimensionFilter"
+          ],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/aiUsage/UsageToolbar.tsx#UsageToolbar:draft",
+      "policy": "presentation",
+      "expectation": "Holds uncommitted compound filter edits and inline date validation inside the shared filter Sheet until Apply; Cancel, Escape, close, or Back discards the draft.",
+      "uses": ["branch", "return"],
+      "tests": ["src/features/aiUsage/AiUsageScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
+          "name": "drafts compound edits until Apply and discards on Cancel, Escape, and browser Back"
+        },
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
+          "name": "uses direct period shortcut with Last 7 days and custom dates in the organization timezone"
+        }
+      ],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["input", "label", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
           "truthy": ["p[role=alert]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": ["RadioChoiceGroup"],
           "falsy": []
         }
       ]
@@ -7504,11 +7692,135 @@
       ]
     },
     {
-      "id": "src/features/hr/RequestsScreen.tsx#RequestsContent:draft",
+      "id": "src/features/hr/HrFilterSheet.tsx#HrFilterSheet:$overlay:Sheet:open",
+      "policy": "overlay",
+      "integration": "sheet",
+      "expectation": "The shared Sheet is the filter foreground. Apply consumes the overlay entry before updating applied URL criteria, while Cancel or native Back abandons edits. Forward starts from applied criteria.",
+      "tests": [
+        "src/features/hr/EmployeesNavigation.test.tsx",
+        "src/features/hr/HrListReturn.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/EmployeesNavigation.test.tsx",
+          "name": "Employee filter Cancel consumes the sheet entry before Back returns to the localized origin"
+        },
+        {
+          "file": "src/features/hr/EmployeesNavigation.test.tsx",
+          "name": "Employee status chips edit and remove their own condition without clearing search"
+        },
+        {
+          "file": "src/features/hr/HrListReturn.test.tsx",
+          "name": "Request filter native Back and Forward reopen only the applied draft before returning to the localized origin"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/EmployeesScreen.tsx#EmployeeFilters:filtersOpen",
+      "policy": "overlay",
+      "integration": "delegated-overlay",
+      "expectation": "Employee filter edits open the shared Sheet above the retained registry. Cancel consumes the overlay entry and preserves the search, locale and hash. Apply updates only filter criteria.",
+      "tests": ["src/features/hr/EmployeesNavigation.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/EmployeesNavigation.test.tsx",
+          "name": "Employee filter Cancel consumes the sheet entry before Back returns to the localized origin"
+        },
+        {
+          "file": "src/features/hr/EmployeesNavigation.test.tsx",
+          "name": "Employee status chips edit and remove their own condition without clearing search"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/RequestsScreen.tsx#RequestsContent:filtersOpen",
+      "policy": "overlay",
+      "integration": "delegated-overlay",
+      "expectation": "The request filter foreground leaves active criteria and cursor untouched until Apply. Back discards edits and Forward opens a clean draft.",
+      "tests": ["src/features/hr/HrListReturn.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrListReturn.test.tsx",
+          "name": "Request filter native Back and Forward reopen only the applied draft before returning to the localized origin"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/EmployeesScreen.tsx#EmployeeFilters:chosenSites",
       "policy": "presentation",
-      "expectation": "Unapplied date/text criteria stay local within the retained list filter form; submitting applies URL-backed filters.",
+      "expectation": "Scoped workplace labels cached for selected paged choices only annotate filter chips on the employee registry. The Sheet owns filter foreground navigation.",
+      "uses": ["branch", "url-state"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "li",
+            "src/components/system/FilterActions#AppliedFilterChip",
+            "ul"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/system/FilterActions#ClearFilterButton"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/hr/HrPagedRecovery.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrPagedRecovery.test.tsx",
+          "name": "pages the employee site filter and keeps a late site's label"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/HrPagedList.tsx#HrSearchField:state",
+      "policy": "presentation",
+      "expectation": "The button clears the inline search text only. Showing or hiding the button leaves the current page foreground in place.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/system/FilterActions#ClearFilterButton"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/hr/EmployeesNavigation.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/EmployeesNavigation.test.tsx",
+          "name": "Employee status chips edit and remove their own condition without clearing search"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/ReviewScreen.tsx#ReviewContent:fields",
+      "policy": "presentation",
+      "expectation": "Incomplete or invalid date text stays in inline inputs. Complete valid ranges update the existing queue criteria and retain other filters. The entered criteria restore on traversal.",
       "uses": ["url-state"],
-      "render": []
+      "render": [],
+      "tests": ["src/features/hr/HrPagedRecovery.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrPagedRecovery.test.tsx",
+          "name": "Review holds an invalid date draft locally and applies a preset without removing other criteria"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/HistoryScreen.tsx#HistoryMonthFilter:month",
+      "policy": "presentation",
+      "expectation": "The inline text field retains a partial YYYY-MM value while the user is typing. A valid month applies a range through HistoryContent and traversal restores its value.",
+      "uses": ["url-state"],
+      "render": [],
+      "tests": ["src/features/hr/HrListReturn.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrListReturn.test.tsx",
+          "name": "%s History keeps a cleared To bound local; a month pick, native Back and remount restore the URL range"
+        }
+      ]
     },
     {
       "id": "src/features/hr/ReviewDetail.tsx#AllDayCorrections:open",
@@ -7572,13 +7884,17 @@
     {
       "id": "src/features/aiUsage/UsageToolbar.tsx#UsageToolbar:open",
       "policy": "overlay",
-      "expectation": "Usage filters open in the shared Sheet; Back dismisses it before the report route.",
+      "expectation": "Usage filters open in the shared Sheet; Back dismisses it and discards uncommitted draft edits before the report route.",
       "integration": "sheet",
       "tests": ["src/features/aiUsage/AiUsageScreen.test.tsx"],
       "cases": [
         {
           "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
           "name": "filters by feature from the strip and the filter sheet"
+        },
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
+          "name": "drafts compound edits until Apply and discards on Cancel, Escape, and browser Back"
         }
       ]
     },
@@ -7592,6 +7908,10 @@
         {
           "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
           "name": "filters by feature from the strip and the filter sheet"
+        },
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
+          "name": "drafts compound edits until Apply and discards on Cancel, Escape, and browser Back"
         }
       ]
     },
@@ -9240,7 +9560,13 @@
       "policy": "presentation",
       "expectation": "The inline status announces canonical QR resolution inside the owning scan Dialog and does not create a new navigation entry.",
       "uses": ["branch"],
-      "render": [{ "shape": "and", "truthy": ["p[role=status]"], "falsy": [] }]
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#RecordCodeCapture:invalid",
@@ -9260,7 +9586,13 @@
       "policy": "presentation",
       "expectation": "A compact summary of the inferred filter values appears inside the same AI search Dialog. Editing resets the summary and Back dismisses the unchanged records query.",
       "uses": ["branch"],
-      "render": [{ "shape": "and", "truthy": ["p[role=status]"], "falsy": [] }],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ],
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx"
       ],
@@ -11485,9 +11817,31 @@
           "name": "replaces workspace scope without a Back step and pushes the jobs filter with a fresh cursor"
         }
       ]
+    },
+    {
+      "id": "src/components/system/FilterDateField.tsx#FilterDateField:$overlay:Dialog:controlled",
+      "policy": "overlay",
+      "expectation": "The calendar owns a nested Dialog. Choosing a day consumes its foreground before updating the filter draft. Cancel and native Back preserve the existing text.",
+      "integration": "dialog",
+      "tests": ["src/components/system/FilterDateField.test.tsx"],
+      "cases": [
+        {
+          "file": "src/components/system/FilterDateField.test.tsx",
+          "name": "selects a leap day by keyboard and consumes the calendar before returning to the actual origin"
+        },
+        {
+          "file": "src/components/system/FilterDateField.test.tsx",
+          "name": "restores a typed draft after native Back and reopens the localized calendar on Forward"
+        }
+      ]
     }
   ],
   "overlayDelegates": [
+    {
+      "component": "src/features/hr/HrFilterSheet#HrFilterSheet",
+      "owner": "src/features/hr/HrFilterSheet.tsx#HrFilterSheet:$overlay:Sheet:open",
+      "prop": "open"
+    },
     {
       "component": "src/components/shell/search/SearchDialog#SearchDialog",
       "owner": "src/components/shell/search/SearchDialog.tsx#SearchDialog:$overlay:Dialog:open",
