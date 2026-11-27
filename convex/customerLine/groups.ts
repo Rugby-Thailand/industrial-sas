@@ -565,8 +565,7 @@ export const queueReply = mutationWithOrg({
     });
     const delivery = { questionId: question._id };
     await ctx.scheduler!.runAfter(0, deliverReplyReference, delivery);
-    // A scheduled action can fail before it commits a lease. Dispatch once
-    // more independently so that failure cannot strand the queued reply.
+    // Retry dispatch independently in case the first action fails before claiming.
     await ctx.scheduler!.runAfter(
       LIMITS.leaseMs,
       deliverReplyReference,

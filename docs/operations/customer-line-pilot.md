@@ -1,6 +1,6 @@
 # Customer LINE group pilot
 
-Use a dedicated LINE Official Account and a test group. The first UI opens **Customers → LINE** for the organization's primary account. Each connected account has its own webhook and outgoing message queue. LINE allows one OA in a group at a time. [LINE group setup](https://developers.line.biz/en/docs/messaging-api/group-chats/)
+Use a dedicated LINE Official Account and a test group. Open **Customers → LINE** to manage the organization's primary account. Each connected account has its own webhook and outgoing message queue. LINE allows one OA in a group at a time. [LINE group setup](https://developers.line.biz/en/docs/messaging-api/group-chats/)
 
 ## Prepare the account and verify the first group
 
@@ -20,7 +20,7 @@ If the group hasn’t appeared, check the LINE member list. If the bot is alread
 
 ## Check both sides of a conversation
 
-Have two group members mention the OA with different questions. Check that the inbox creates one request per question, ordinary group chat stays out of the inbox, and group-safe staff replies go back to the same group. Check each reply on both LINE clients. A status of **Accepted by LINE** records acceptance of the API request.
+Have two group members mention the OA with different questions. Check that the inbox creates one request per question, ordinary group chat stays out of the inbox, and group-safe staff replies go back to the same group. Check each reply on both LINE clients. **Sent to LINE** records acceptance of the API request.
 
 Use a synthetic name and order number. Keep personal data, invoices, and other restricted information in a separately authorized channel. If a verified contact leaves the company, revoke the role. A signed LINE member departure also revokes the role, so returning members need fresh verification. The customer manages who remains a member in LINE. Pause replies that reveal customer details until the audience is confirmed if a former employee remains in the group.
 
@@ -32,4 +32,4 @@ Use a synthetic name and order number. Keep personal data, invoices, and other r
 
 A LINE request already in flight when staff pause or disconnect may still be accepted. Recheck the outgoing state before sending the same answer manually if a request timed out. [LINE retry keys](https://developers.line.biz/en/docs/messaging-api/retrying-api-request/)
 
-To end a pilot, disconnect its Official Account before running `customerLine/provision:revokeOrgAdminLineAccess` for the organization. Disconnecting stops intake and outgoing replies. Revoking the grants removes the organization's administrator access to the LINE screens.
+To end a pilot, disconnect its Official Account before running `customerLine/provision:revokeOrgAdminLineAccess` for the organization. Disconnecting stops intake and outgoing replies. Revoking the grants removes LINE access from the seeded administrator role.
