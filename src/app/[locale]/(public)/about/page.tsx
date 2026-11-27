@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
+import { PublicInfoLink } from "@/components/system/PublicInfoLink";
 
 export const metadata: Metadata = {
   title: "About · Yongkit",
@@ -41,10 +41,11 @@ export default async function AboutPage({
       </p>
       <h2>Privacy and terms</h2>
       <p>
-        Read our <Link href="/privacy">Privacy Policy</Link> for information
-        about account data, operational records and your choices. Our{" "}
-        <Link href="/terms">Terms of Service</Link> explain the responsibilities
-        that apply when using the application.
+        Read our <PublicInfoLink href="/privacy">Privacy Policy</PublicInfoLink>{" "}
+        for information about account data, operational records and your
+        choices. Our{" "}
+        <PublicInfoLink href="/terms">Terms of Service</PublicInfoLink> explain
+        the responsibilities that apply when using the application.
       </p>
       <h2>Contact</h2>
       <p>
@@ -53,7 +54,7 @@ export default async function AboutPage({
         .
       </p>
       <p>
-        <Link href="/sign-in">Sign in to Yongkit</Link>
+        <PublicInfoLink href="/sign-in">Sign in to Yongkit</PublicInfoLink>
       </p>
     </>
   );

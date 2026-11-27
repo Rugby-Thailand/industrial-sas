@@ -275,14 +275,15 @@ function HistorySummary({
   ];
   return (
     <div className="space-y-section">
-      <section aria-label={t("title")} className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section aria-label={t("title")} className="@container space-y-3">
+        <div className="grid gap-2 sm:gap-3 @min-[17rem]:grid-cols-2 lg:@min-[36rem]:grid-cols-4">
           {metrics.map((metric) => (
             <HrActionCard
               key={metric.key}
               icon={metric.icon}
               label={t(`metric.${metric.key}`)}
               value={metric.count}
+              compactOnMobile
               selected={filter === metric.key}
               onClick={() => setFilter(metric.key)}
             />

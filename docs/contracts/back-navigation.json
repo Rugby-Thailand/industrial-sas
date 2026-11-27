@@ -380,10 +380,11 @@
       "file": "src/app/[locale]/(auth)/sign-in/[...sign-in]/page.tsx",
       "policy": "auth",
       "targets": ["src/app/[locale]/(auth)/sign-in/SignInScreen#default"],
-      "expectation": "Authentication owns its entry flow; no synthetic Back loop. A live Clerk form requires both a valid publishable key and non-blank server secret, otherwise SetupChecklist owns the configuration state. Post-sign-in return intent must pass plannerReturnPath, preserving the exact desktop destination, including HR and AI usage, locale, query and hash.",
+      "expectation": "Authentication owns its entry flow; no synthetic Back loop. A live Clerk form requires both a valid publishable key and non-blank server secret, otherwise SetupChecklist owns the configuration state. Post-sign-in return intent must pass plannerReturnPath, preserving the exact desktop destination, including HR and AI usage, locale, query and hash. Public information links retain a validated same-locale sign-in destination.",
       "tests": [
         "src/lib/auth/returnPath.signIn.test.tsx",
-        "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx"
+        "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx",
+        "src/components/system/PublicInfoNav.test.tsx"
       ],
       "cases": [
         {
@@ -397,6 +398,10 @@
         {
           "file": "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx",
           "name": "allows a signed-in organization member when the server key is present"
+        },
+        {
+          "file": "src/components/system/PublicInfoNav.test.tsx",
+          "name": "keeps the %s task through public articles and both About sign-in links"
         }
       ]
     },
@@ -404,10 +409,11 @@
       "file": "src/app/[locale]/(auth)/sign-in/page.tsx",
       "policy": "auth",
       "targets": ["src/app/[locale]/(auth)/sign-in/SignInScreen#default"],
-      "expectation": "Authentication owns its entry flow; no synthetic Back loop. A live Clerk form requires both a valid publishable key and non-blank server secret, otherwise SetupChecklist owns the configuration state. Post-sign-in return intent must pass plannerReturnPath, preserving the exact desktop destination, including HR and AI usage, locale, query and hash.",
+      "expectation": "Authentication owns its entry flow; no synthetic Back loop. A live Clerk form requires both a valid publishable key and non-blank server secret, otherwise SetupChecklist owns the configuration state. Post-sign-in return intent must pass plannerReturnPath, preserving the exact desktop destination, including HR and AI usage, locale, query and hash. Public information links retain a validated same-locale sign-in destination.",
       "tests": [
         "src/lib/auth/returnPath.signIn.test.tsx",
-        "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx"
+        "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx",
+        "src/components/system/PublicInfoNav.test.tsx"
       ],
       "cases": [
         {
@@ -421,6 +427,10 @@
         {
           "file": "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx",
           "name": "allows a signed-in organization member when the server key is present"
+        },
+        {
+          "file": "src/components/system/PublicInfoNav.test.tsx",
+          "name": "keeps the %s task through public articles and both About sign-in links"
         }
       ]
     },
@@ -1202,20 +1212,41 @@
     {
       "file": "src/app/[locale]/(public)/about/page.tsx",
       "policy": "public",
-      "targets": ["src/i18n/navigation#Link"],
-      "expectation": "Read-only public information keeps native browser origin history; links remain locale-aware."
+      "targets": ["src/components/system/PublicInfoLink#PublicInfoLink"],
+      "expectation": "Read-only public information keeps native browser origin history; links remain locale-aware. Public information links retain a validated same-locale sign-in destination.",
+      "tests": ["src/components/system/PublicInfoNav.test.tsx"],
+      "cases": [
+        {
+          "file": "src/components/system/PublicInfoNav.test.tsx",
+          "name": "keeps the %s task through public articles and both About sign-in links"
+        }
+      ]
     },
     {
       "file": "src/app/[locale]/(public)/privacy/page.tsx",
       "policy": "public",
       "targets": [],
-      "expectation": "Read-only public information keeps native browser origin history; links remain locale-aware."
+      "expectation": "Read-only public information keeps native browser origin history; links remain locale-aware. Public information links retain a validated same-locale sign-in destination.",
+      "tests": ["src/components/system/PublicInfoNav.test.tsx"],
+      "cases": [
+        {
+          "file": "src/components/system/PublicInfoNav.test.tsx",
+          "name": "keeps the %s task through public articles and both About sign-in links"
+        }
+      ]
     },
     {
       "file": "src/app/[locale]/(public)/terms/page.tsx",
       "policy": "public",
-      "targets": ["src/i18n/navigation#Link"],
-      "expectation": "Read-only public information keeps native browser origin history; links remain locale-aware."
+      "targets": ["src/components/system/PublicInfoLink#PublicInfoLink"],
+      "expectation": "Read-only public information keeps native browser origin history; links remain locale-aware. Public information links retain a validated same-locale sign-in destination.",
+      "tests": ["src/components/system/PublicInfoNav.test.tsx"],
+      "cases": [
+        {
+          "file": "src/components/system/PublicInfoNav.test.tsx",
+          "name": "keeps the %s task through public articles and both About sign-in links"
+        }
+      ]
     },
     {
       "file": "src/app/[locale]/[...rest]/page.tsx",

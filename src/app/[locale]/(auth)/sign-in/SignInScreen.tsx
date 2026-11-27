@@ -5,7 +5,7 @@ import { SetupChecklist } from "@/components/system/SetupChecklist";
 import { PublicInfoNav } from "@/components/system/PublicInfoNav";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Link } from "@/i18n/navigation";
+import { PublicInfoLink } from "@/components/system/PublicInfoLink";
 import { clerkIdentityConfigured } from "@/lib/auth/appAccess";
 import { ROUTES } from "@/lib/navigation";
 import { plannerReturnPath } from "@/lib/auth/returnPath";
@@ -58,7 +58,7 @@ export default async function SignInScreen({
             },
           }}
         />
-        <PublicInfoNav />
+        <PublicInfoNav returnTo={returnTo ?? null} />
       </main>
     );
   }
@@ -72,13 +72,14 @@ export default async function SignInScreen({
         body={t("unavailableBody")}
       />
       <SetupChecklist />
-      <Link
+      <PublicInfoLink
+        returnTo={returnTo ?? null}
         href="/about"
         className="flex min-h-touch w-fit items-center rounded-md border border-border-strong px-4 font-medium text-text"
       >
         {t("viewAbout")}
-      </Link>
-      <PublicInfoNav />
+      </PublicInfoLink>
+      <PublicInfoNav returnTo={returnTo ?? null} />
     </main>
   );
 }

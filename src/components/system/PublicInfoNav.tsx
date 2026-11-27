@@ -1,9 +1,11 @@
-import { Link } from "@/i18n/navigation";
+import { PublicInfoLink } from "./PublicInfoLink";
 
 export function PublicInfoNav({
   showSignIn = false,
+  returnTo,
 }: {
   readonly showSignIn?: boolean;
+  readonly returnTo?: string | null | undefined;
 }) {
   return (
     <nav
@@ -11,31 +13,35 @@ export function PublicInfoNav({
       lang="en"
       className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted"
     >
-      <Link
+      <PublicInfoLink
+        returnTo={returnTo}
         href="/about"
         className="inline-flex min-h-touch items-center underline-offset-4 hover:underline"
       >
         About
-      </Link>
-      <Link
+      </PublicInfoLink>
+      <PublicInfoLink
+        returnTo={returnTo}
         href="/privacy"
         className="inline-flex min-h-touch items-center underline-offset-4 hover:underline"
       >
         Privacy
-      </Link>
-      <Link
+      </PublicInfoLink>
+      <PublicInfoLink
+        returnTo={returnTo}
         href="/terms"
         className="inline-flex min-h-touch items-center underline-offset-4 hover:underline"
       >
         Terms
-      </Link>
+      </PublicInfoLink>
       {showSignIn && (
-        <Link
+        <PublicInfoLink
+          returnTo={returnTo}
           href="/sign-in"
           className="inline-flex min-h-touch items-center font-medium text-text underline-offset-4 hover:underline"
         >
           Sign in
-        </Link>
+        </PublicInfoLink>
       )}
     </nav>
   );
