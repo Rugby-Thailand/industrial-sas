@@ -15,9 +15,9 @@ const port = Number(process.env.WORKSPACE_PORT ?? 3190);
 const baseURL = `http://127.0.0.1:${port}`;
 const barcodePort = Number(process.env.BARCODE_PORT ?? 3199);
 const reportName = process.env.WORKSPACE_REPORT_NAME ?? "workspace";
-if (!/^workspace(?:-[12])?$/.test(reportName))
+if (!/^workspace(?:-[1-3])?$/.test(reportName))
   throw new Error(
-    "WORKSPACE_REPORT_NAME must be workspace, workspace-1 or workspace-2",
+    "WORKSPACE_REPORT_NAME must be workspace or a workspace shard from 1 to 3",
   );
 const policy = runPolicy({ sensitive: false, outputName: reportName });
 const fullMatrix = process.env.WORKSPACE_FULL_MATRIX === "1";

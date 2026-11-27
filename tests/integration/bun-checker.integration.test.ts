@@ -101,7 +101,9 @@ describe("pinned Bun checker", () => {
     expect(scripts.typecheck).toBe(
       "next typegen && node scripts/ci/install-bun-checker.mjs --run --check --no-pretty",
     );
-    expect(scripts["typecheck:ts6"]).toBe("next typegen && tsc --noEmit");
+    expect(scripts["typecheck:ts6"]).toBe(
+      "next typegen && node node_modules/typescript/bin/tsc --noEmit",
+    );
     // Bare `bun check` would dispatch the aggregate `check` script.
     for (const command of Object.values(scripts))
       expect(command).not.toMatch(/\bbun check\b/);
@@ -384,7 +386,7 @@ describe("checker comparison harness helpers", () => {
     expect(
       diagnostics(
         [
-          "> next typegen && tsc --noEmit",
+          "> next typegen && node node_modules/typescript/bin/tsc --noEmit",
           "src/a.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.",
           "Found 1 error in 1 file, checked 2 files [14.00ms]",
         ].join("\n"),

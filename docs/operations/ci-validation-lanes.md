@@ -5,16 +5,16 @@ runs on PRs, main pushes and dispatch. The stable `check` requires validate,
 every Vitest shard, every browser suite and PR dependency review. CodeQL runs
 as a separate required check.
 
-| Previous owner          | New owner | Preserved commands                                                                                                        |
-| ----------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------- |
-| style                   | static    | `pnpm format:check`                                                                                                       |
-| lint                    | static    | `pnpm lint`, `pnpm check:navigation`                                                                                      |
-| types                   | contracts | `pnpm typecheck`                                                                                                          |
-| types                   | types     | `pnpm typecheck:ts6`, `pnpm exec tsc --noEmit -p convex/tsconfig.json`                                                    |
-| audit                   | contracts | workflow lint/pins, production audit, app and release exact-chain audits                                                  |
-| audit                   | contracts | `pnpm -C tools/release install --frozen-lockfile`, `node tools/release/check-compatibility.mjs`, `pnpm ci:test-discovery` |
-| codegen                 | contracts | `pnpm ci:codegen`                                                                                                         |
-| every validation runner | all lanes | final `pnpm ci:clean-tree`                                                                                                |
+| Previous owner          | New owner | Preserved commands                                                                                                          |
+| ----------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------- |
+| style                   | contracts | `pnpm format:check`                                                                                                         |
+| lint                    | static    | `pnpm lint`, `pnpm check:navigation`                                                                                        |
+| types                   | contracts | `pnpm typecheck`                                                                                                            |
+| types                   | types     | `pnpm typecheck:ts6`, `node node_modules/typescript/bin/tsc --noEmit -p convex/tsconfig.json`, `pnpm exec convex typecheck` |
+| audit                   | contracts | workflow lint/pins, production audit, app and release exact-chain audits                                                    |
+| audit                   | contracts | `pnpm -C tools/release install --frozen-lockfile`, `node tools/release/check-compatibility.mjs`, `pnpm ci:test-discovery`   |
+| codegen                 | contracts | `pnpm ci:codegen`                                                                                                           |
+| every validation runner | all lanes | final `pnpm ci:clean-tree`                                                                                                  |
 
 Each independent step requires successful setup and `!cancelled()`, so an earlier
 failure remains fatal while later checks report their own errors. The two app
@@ -34,7 +34,9 @@ and live smoke remain required release steps.
 [PR sample](https://github.com/Rugby-Thailand/industrial-sas/actions/runs/45908375702) ·
 [Main sample](https://github.com/Rugby-Thailand/industrial-sas/actions/runs/45868109703)
 
-The quality workflow uses six native Vitest shards. Navigation uses four
+The quality workflow uses six Vitest shards balanced with hosted JUnit timings.
+The test discovery gate checks that each tracked test file appears once.
+The workspace suite runs across three Playwright shards. Navigation uses four
 legs covering desktop and mobile Chromium together, Firefox, and two WebKit
 shards. Applying the new assignments to hosted JUnit timings gives these
 summed test times for the busiest runner. These figures exclude runner

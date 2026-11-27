@@ -2,13 +2,15 @@
   "name": "storage-planner-release-tools",
   "version": "0.0.0",
   "private": true,
-  "description": "Exactly pinned, separately locked deployment CLI used only by the gated release workflow.",
+  "description": "Exactly pinned, separately locked tooling used by the gated release workflow.",
   "license": "UNLICENSED",
   "packageManager": "pnpm@10.33.2",
   "engines": {
     "node": "24.x"
   },
   "dependencies": {
+    "@playwright/test": "1.62.1",
+    "convex": "1.46.0",
     "vercel": "63.1.0"
   }
 }

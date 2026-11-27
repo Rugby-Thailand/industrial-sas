@@ -574,6 +574,28 @@ function releaseJobProblems(id, job, spec) {
   )
     problems.push(`${at}: must install the locked release tools`);
   const target = id === "staging" ? "staging" : "production";
+  if (target === "production") {
+    const setup = steps.filter(
+      (step) => usesOf(step) === "./.github/actions/setup-node-pnpm",
+    );
+    if (
+      setup.length !== 1 ||
+      setup[0].with?.["install-dependencies"] !== "false"
+    )
+      problems.push(`${at}: production must use only the locked release tools`);
+  }
+  const browserCommand = [
+    ...(target === "production"
+      ? [
+          "mkdir -p node_modules/@playwright",
+          "ln -sT ../../tools/release/node_modules/@playwright/test node_modules/@playwright/test",
+          "ln -sT ../tools/release/node_modules/convex node_modules/convex",
+          "tools/release/node_modules/.bin/playwright install --only-shell chromium",
+        ]
+      : ["pnpm exec playwright install --only-shell chromium"]),
+    "node scripts/ci/verify-playwright-browsers.mjs chromium",
+    "",
+  ].join("\n");
   const browserInstalls = steps.filter((step) =>
     /\bplaywright\s+install\b/.test(runOf(step)),
   );
@@ -581,8 +603,7 @@ function releaseJobProblems(id, job, spec) {
   if (
     job?.defaults !== undefined ||
     browserInstalls.length !== 1 ||
-    install?.run !==
-      "pnpm exec playwright install --only-shell chromium\nnode scripts/ci/verify-playwright-browsers.mjs chromium\n" ||
+    install?.run !== browserCommand ||
     install?.if !== undefined ||
     install?.env !== undefined ||
     install?.shell !== undefined ||
@@ -649,7 +670,8 @@ export const VALIDATE_COMMANDS = Object.freeze([
   "pnpm format:check",
   "pnpm typecheck",
   "pnpm typecheck:ts6",
-  "pnpm exec tsc --noEmit -p convex/tsconfig.json",
+  "node node_modules/typescript/bin/tsc --noEmit -p convex/tsconfig.json",
+  "pnpm exec convex typecheck",
   "pnpm lint",
   "pnpm audit:prod",
   "node scripts/ci/audit-dependencies.mjs --scope=app",
@@ -662,7 +684,10 @@ export const VALIDATE_COMMANDS = Object.freeze([
 // package alias. CLI validation reads the package manifest before workflows.
 export function typecheckScriptProblems(manifest) {
   const problems = [];
-  if (manifest?.scripts?.["typecheck:ts6"] !== "next typegen && tsc --noEmit")
+  if (
+    manifest?.scripts?.["typecheck:ts6"] !==
+    "next typegen && node node_modules/typescript/bin/tsc --noEmit"
+  )
     problems.push(
       "package.json: typecheck:ts6 must generate route types and run tsc --noEmit",
     );
@@ -690,7 +715,7 @@ const isUpload = (step) => usesOf(step) === "actions/upload-artifact";
 const isBuild = (step) =>
   /\b(?:next|pnpm(?: run)?) build\b/.test(String(step?.run ?? ""));
 
-// Vitest shards (T11): every project in contiguous native shards. Each shard
+// Vitest shards (T11): every project in timing-balanced shards. Each shard
 // is gated by its own exit status and uploads only its own native JUnit file.
 export const TEST_SHARDS = 6;
 const SHARD_JUNIT = `test-results/vitest-junit/shard-\${{ matrix.shard }}-${TEST_SHARDS}.xml`;
@@ -744,7 +769,7 @@ function testShardProblems(job) {
   return problems;
 }
 
-// Browser suites (T4/T5): smoke, navigation and two workspace shards, all required.
+// Browser suites (T4/T5): smoke, navigation and three workspace shards, all required.
 // Smoke and the isolated navigation app own separate credential-free builds.
 // Smoke retains the Next.js cache; both builds must leave a clean tree.
 // The workspace leg runs the Vite harness without a build.
@@ -796,7 +821,10 @@ const BROWSER_STEPS = Object.freeze([
   [
     "setup",
     (step) => usesOf(step) === "./.github/actions/setup-node-pnpm",
-    { id: "setup", with: undefined },
+    {
+      id: "setup",
+      with: { "install-bun": "${{ !startsWith(matrix.suite, 'workspace-') }}" },
+    },
   ],
   [
     "Next.js cache",
@@ -853,7 +881,7 @@ const BROWSER_STEPS = Object.freeze([
     {
       id: "browsers",
       run: "pnpm exec playwright install --only-shell chromium",
-      if: "${{ matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2' }}",
+      if: "${{ startsWith(matrix.suite, 'workspace-') }}",
     },
   ],
   [
@@ -884,8 +912,8 @@ const BROWSER_STEPS = Object.freeze([
     "workspace suite",
     (step) => runOf(step).includes("test:e2e:workspace"),
     {
-      run: "pnpm test:e2e:workspace --shard=${{ matrix.shard }}/2",
-      if: "${{ !cancelled() && (matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2') && steps.browsers.outcome == 'success' }}",
+      run: "pnpm test:e2e:workspace --shard=${{ matrix.shard }}/3",
+      if: "${{ !cancelled() && startsWith(matrix.suite, 'workspace-') && steps.browsers.outcome == 'success' }}",
       env: { WORKSPACE_REPORT_NAME: "${{ matrix.suite }}" },
     },
   ],
@@ -935,11 +963,12 @@ function browserProblems(jobs) {
         ...NAVIGATION_LEGS,
         { suite: "workspace-1", shard: "1" },
         { suite: "workspace-2", shard: "2" },
+        { suite: "workspace-3", shard: "3" },
       ],
     })
   )
     problems.push(
-      `${at}: matrix must include smoke, Chromium, Firefox, both WebKit shards, and both workspace shards with fail-fast false`,
+      `${at}: matrix must include smoke, Chromium, Firefox, both WebKit shards, and all three workspace shards with fail-fast false`,
     );
   if (jobs.browser?.defaults !== undefined)
     problems.push(
@@ -1141,12 +1170,14 @@ function qualityProblems(workflow, { allowedGhsas }) {
   }
 
   const validationLanes = {
-    static: ["pnpm format:check", "pnpm lint", "pnpm check:navigation"],
+    static: ["pnpm lint", "pnpm check:navigation"],
     types: [
       "pnpm typecheck:ts6",
-      "pnpm exec tsc --noEmit -p convex/tsconfig.json",
+      "node node_modules/typescript/bin/tsc --noEmit -p convex/tsconfig.json",
+      "pnpm exec convex typecheck",
     ],
     contracts: [
+      "pnpm format:check",
       "pnpm typecheck",
       "node scripts/ci/validate-workflows.mjs --verify-pins",
       "pnpm audit:prod",
@@ -1346,17 +1377,19 @@ function auxiliaryProblems(name, workflow) {
   return problems;
 }
 
-// Every job that installs dependencies also gets the pinned Bun, exactly once
-// and only after the frozen install, so build/browser jobs can run Next on it.
+// Install the pinned Bun by default after the frozen install. Jobs that do
+// not run Bun can opt out without changing the Node/pnpm toolchain.
 function setupActionProblems(parsed) {
-  const runs = asList(parsed[SETUP_ACTION]?.runs?.steps).map((step) =>
-    String(step?.run ?? "").trim(),
-  );
-  const installs = runs.filter((run) => run === BUN_CHECKER_INSTALL).length;
-  const frozenAt = runs.indexOf(FROZEN_INSTALL);
-  return installs === 1 &&
-    frozenAt >= 0 &&
-    runs.indexOf(BUN_CHECKER_INSTALL) > frozenAt
+  const action = parsed[SETUP_ACTION];
+  const steps = asList(action?.runs?.steps);
+  const installs = steps.filter((step) => runOf(step) === BUN_CHECKER_INSTALL);
+  const frozen = steps.find((step) => runOf(step) === FROZEN_INSTALL);
+  return installs.length === 1 &&
+    frozen?.if === "${{ inputs.install-dependencies == 'true' }}" &&
+    steps.indexOf(installs[0]) > steps.indexOf(frozen) &&
+    action?.inputs?.["install-dependencies"]?.default === "true" &&
+    action?.inputs?.["install-bun"]?.default === "true" &&
+    installs[0].if === "${{ inputs.install-bun == 'true' }}"
     ? []
     : [
         `${SETUP_ACTION}: must run ${BUN_CHECKER_INSTALL} once, after ${FROZEN_INSTALL}`,

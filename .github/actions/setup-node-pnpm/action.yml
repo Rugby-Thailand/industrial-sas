@@ -1,9 +1,7 @@
 name: Setup Node and pnpm
 description: >-
   Install pnpm, Node.js, this workspace's dependencies from the committed
-  lockfile, and the pinned Bun runtime. Single place where the toolchain
-  versions and the dependency cache are configured, so every job installs
-  identically.
+  lockfile, and optionally the pinned Bun runtime.
 
 inputs:
   cache:
@@ -14,6 +12,16 @@ inputs:
     required: false
     default: "true"
 
+  install-dependencies:
+    description: Install the application dependencies.
+    required: false
+    default: "true"
+
+  install-bun:
+    description: Install the pinned Bun runtime for the Next.js and typecheck jobs.
+    required: false
+    default: "true"
+
 runs:
   using: composite
   steps:
@@ -21,10 +29,20 @@ runs:
       shell: bash
       env:
         CACHE_INPUT: ${{ inputs.cache }}
+        DEPENDENCIES_INPUT: ${{ inputs.install-dependencies }}
+        BUN_INPUT: ${{ inputs.install-bun }}
       run: |
         case "$CACHE_INPUT" in
           true | false) ;;
           *) echo "::error::setup-node-pnpm input cache must be true or false"; exit 1 ;;
+        esac
+        case "$DEPENDENCIES_INPUT" in
+          true | false) ;;
+          *) echo "::error::setup-node-pnpm input install-dependencies must be true or false"; exit 1 ;;
+        esac
+        case "$BUN_INPUT" in
+          true | false) ;;
+          *) echo "::error::setup-node-pnpm input install-bun must be true or false"; exit 1 ;;
         esac
 
     # pnpm must exist before actions/setup-node runs: its `cache: pnpm` mode
@@ -45,6 +63,7 @@ runs:
         package-manager-cache: ${{ inputs.cache == 'true' }}
 
     - name: Install dependencies
+      if: ${{ inputs.install-dependencies == 'true' }}
       shell: bash
       run: pnpm install --frozen-lockfile
 
@@ -53,5 +72,6 @@ runs:
     # SHA-256 pinned in the installer and verified before extraction (no
     # third-party action); it appends the binary directory to GITHUB_PATH.
     - name: Install pinned Bun
+      if: ${{ inputs.install-bun == 'true' }}
       shell: bash
       run: node scripts/ci/install-bun-checker.mjs

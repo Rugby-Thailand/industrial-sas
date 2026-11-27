@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { testDiscoveryProblems } from "../../scripts/ci/lib.mjs";
+import { TEST_SHARDS } from "../../scripts/ci/workflow-lib.mjs";
 
 const fixtures: string[] = [];
 const SCRIPT = join(process.cwd(), "scripts/ci/check-test-discovery.mjs");
@@ -30,7 +31,7 @@ interface Inventory {
   navigationProjects?: string[];
 }
 
-// Both executables return fixture inventories. Tests exercise the actual guard
+// The executables and Vitest module return fixture inventories. The actual guard runs
 // without invoking installed runners, a browser, git state or any network.
 const FAKE_COMMAND = `#!${process.execPath}
 const fs = require("node:fs");
@@ -39,8 +40,6 @@ const data = JSON.parse(fs.readFileSync("inventory.json", "utf8"));
 const args = process.argv.slice(2);
 if (path.basename(process.argv[1]) === "git") {
   process.stdout.write(data.tracked.join("\\0") + "\\0");
-} else if (args[1] === "vitest") {
-  process.stdout.write(JSON.stringify(data.vitest));
 } else {
   const config = args[args.indexOf("--config") + 1];
   const files = data.playwright[config] || [];
@@ -52,6 +51,35 @@ if (path.basename(process.argv[1]) === "git") {
 }
 `;
 
+const FAKE_VITEST = `
+import { readFileSync } from "node:fs";
+
+export async function createVitest() {
+  const { vitest } = JSON.parse(readFileSync("inventory.json", "utf8"));
+  const context = {
+    config: { sequence: { sequencer: class {
+      async shard(files) {
+        const { index, count } = context.config.shard;
+        return files.filter((_, position) => position % count === index - 1);
+      }
+    } } },
+    async getRelevantTestSpecifications() {
+      return vitest.map(({ file, projectName }) => ({
+        moduleId: file,
+        project: { name: projectName },
+      }));
+    },
+    async close() {},
+  };
+  return context;
+}
+`;
+
+const shardFixtures = Array.from({ length: TEST_SHARDS }, (_, index) => ({
+  file: `fixtures/shard-${index + 1}.test.ts`,
+  projectName: "fixture",
+}));
+
 function runInventory(inventory: Inventory) {
   // macOS's /var temp directory is an alias of /private/var; match the physical
   // cwd spelling returned by the child process when reporting absolute paths.
@@ -59,6 +87,13 @@ function runInventory(inventory: Inventory) {
   fixtures.push(root);
   mkdirSync(join(root, "scripts/ci"), { recursive: true });
   mkdirSync(join(root, "bin"));
+  const packageDir = join(root, "node_modules/vitest");
+  mkdirSync(packageDir, { recursive: true });
+  writeFileSync(
+    join(packageDir, "package.json"),
+    JSON.stringify({ exports: { "./node": "./node.mjs" } }),
+  );
+  writeFileSync(join(packageDir, "node.mjs"), FAKE_VITEST);
   cpSync(SCRIPT, join(root, "scripts/ci/check-test-discovery.mjs"));
   cpSync(join(dirname(SCRIPT), "lib.mjs"), join(root, "scripts/ci/lib.mjs"));
   cpSync(
@@ -71,12 +106,15 @@ function runInventory(inventory: Inventory) {
     join(root, "inventory.json"),
     JSON.stringify({
       ...inventory,
-      vitest: inventory.vitest.map(({ file, projectName }) => ({
-        file: file.startsWith("absolute:")
-          ? join(root, file.slice("absolute:".length))
-          : file,
-        projectName,
-      })),
+      tracked: [...inventory.tracked, ...shardFixtures.map(({ file }) => file)],
+      vitest: [...shardFixtures, ...inventory.vitest].map(
+        ({ file, projectName }) => ({
+          file: file.startsWith("absolute:")
+            ? join(root, file.slice("absolute:".length))
+            : file,
+          projectName,
+        }),
+      ),
       playwright: Object.fromEntries(
         Object.entries(inventory.playwright).map(([config, files]) => [
           config,
@@ -203,7 +241,9 @@ describe("complete tracked test discovery", () => {
       },
     });
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain("2 Vitest files, 4 Playwright spec files");
+    expect(result.stdout).toContain(
+      `${TEST_SHARDS + 2} Vitest files across ${TEST_SHARDS} shards, 4 Playwright spec files`,
+    );
   });
 
   it("fails the executable guard on a collected but untracked file", () => {
