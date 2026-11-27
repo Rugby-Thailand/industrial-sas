@@ -844,13 +844,15 @@ function EmployeeSavedReceipt({
         {...(saved === null
           ? {}
           : { body: `${saved.displayName} · ${saved.code}` })}
-      >
-        <Button type="button" variant="outline" onClick={onDismiss}>
-          {t("dismiss")}
-        </Button>
-      </Notice>
+        action={
+          <Button type="button" variant="outline" onClick={onDismiss}>
+            {t("dismiss")}
+          </Button>
+        }
+      />
       {missing.length === 0 ? null : (
         <Notice
+          layout="panel"
           tone="warning"
           title={t("accessMissingTitle")}
           testId="hr-employee-access-missing"

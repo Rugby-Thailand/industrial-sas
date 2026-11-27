@@ -389,29 +389,40 @@ function SavedClock({
   const locale = useLocale();
   return (
     <div
-      role="status"
-      className="flex flex-wrap items-center gap-3 rounded-lg border border-success bg-success-surface p-4"
+      className="min-w-0 rounded-lg border border-border bg-success-surface px-3 py-0.5 text-sm"
       data-testid="hr-clock-saved"
     >
-      <CheckCircle2 aria-hidden="true" className="size-6 text-success" />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-success">
-          {t(result.kind === "CLOCK_OUT" ? "savedOut" : "savedIn", {
-            time: formatTime(result.occurredAt, locale, timezone),
-          })}
-        </p>
-        {result.businessDate ? (
-          <p className="text-xs text-muted">
-            {formatBusinessDate(result.businessDate, locale, { weekday: true })}
-          </p>
-        ) : null}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+        <div
+          role="status"
+          className="flex min-w-0 flex-[1_1_10rem] items-start gap-2"
+        >
+          <CheckCircle2
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0 text-success"
+          />
+          <div className="min-w-0 wrap-anywhere">
+            <p className="leading-5 font-semibold text-success">
+              {t(result.kind === "CLOCK_OUT" ? "savedOut" : "savedIn", {
+                time: formatTime(result.occurredAt, locale, timezone),
+              })}
+            </p>
+            {result.businessDate ? (
+              <p className="leading-5 text-text">
+                {formatBusinessDate(result.businessDate, locale, {
+                  weekday: true,
+                })}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <Link
+          href={ROUTES.hrTime}
+          className="inline-flex min-h-touch items-center text-sm font-semibold text-link underline-offset-4 hover:underline"
+        >
+          {t("viewHistory")}
+        </Link>
       </div>
-      <Link
-        href={ROUTES.hrTime}
-        className="inline-flex min-h-touch items-center text-sm font-semibold text-link underline-offset-4 hover:underline"
-      >
-        {t("viewHistory")}
-      </Link>
     </div>
   );
 }
@@ -442,25 +453,26 @@ function StateNotice({
             : "openDayHint",
         )}
         testId="hr-open-day"
-      >
-        {today.openDay.pendingCorrection ? null : (
-          <Button asChild className="w-full sm:w-auto">
-            <Link
-              href={
-                destinationHref({
-                  key: "hr.selfDay",
-                  date: today.openDay.businessDate,
-                  focus: "correction",
-                }) ?? hrDayPath(today.openDay.businessDate)
-              }
-              data-testid="hr-open-day-correct"
-            >
-              {t("requestCorrection")}
-              <ArrowRight aria-hidden="true" />
-            </Link>
-          </Button>
-        )}
-      </Notice>
+        action={
+          today.openDay.pendingCorrection ? null : (
+            <Button asChild>
+              <Link
+                href={
+                  destinationHref({
+                    key: "hr.selfDay",
+                    date: today.openDay.businessDate,
+                    focus: "correction",
+                  }) ?? hrDayPath(today.openDay.businessDate)
+                }
+                data-testid="hr-open-day-correct"
+              >
+                {t("requestCorrection")}
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
+          )
+        }
+      />
     );
   if (today.state === "OUTSIDE_EMPLOYMENT")
     return <Notice tone="neutral" title={t("outsideEmployment")} />;

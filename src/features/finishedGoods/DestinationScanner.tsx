@@ -197,10 +197,14 @@ function DestinationScanSession({
               <Notice
                 tone="warning"
                 title={verificationError || rejected}
+                layout="row"
                 role="alert"
               >
-                <p className="text-sm text-muted">{scanText("scannedCode")}</p>
-                <p className="mt-1 text-sm break-all">{code}</p>
+                <p className="text-sm text-muted">
+                  <span>{scanText("scannedCode")}</span>
+                  {" · "}
+                  <span className="break-all text-text">{code}</span>
+                </p>
               </Notice>
               <Button
                 ref={retryScan}

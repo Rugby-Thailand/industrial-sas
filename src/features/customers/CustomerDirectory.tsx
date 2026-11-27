@@ -142,11 +142,15 @@ export function CustomerDirectory({
         </div>
       ) : outcome.value.status === "reset" ? (
         <div className="p-3">
-          <Notice tone="warning" title={t("loadError")}>
-            <Button variant="link" onClick={sync.retry}>
-              {t("workspace.retry")}
-            </Button>
-          </Notice>
+          <Notice
+            tone="warning"
+            title={t("loadError")}
+            action={
+              <Button variant="link" onClick={sync.retry}>
+                {t("workspace.retry")}
+              </Button>
+            }
+          />
         </div>
       ) : entries.length === 0 ? (
         <p className="p-4 text-sm text-muted">{t("workspace.noCustomers")}</p>

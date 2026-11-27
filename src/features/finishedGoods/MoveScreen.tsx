@@ -274,6 +274,7 @@ function MoveSelection({
       ) : !current ? (
         <Panel className="space-y-3">
           <Notice
+            layout="inline"
             title={t("copy.no-suitable-space-found")}
             body={t(
               "copy.the-pallet-remains-at-its-current-position-check-available-space-or-try-",

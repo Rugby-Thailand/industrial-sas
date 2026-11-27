@@ -185,19 +185,24 @@ function Limits({
         ) : null}
       </fieldset>
       {op.error && op.errorCode === "STACK_SETTINGS_STALE" ? (
-        <Notice tone="danger" role="alert" title={op.error}>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              load(live);
-              setSaved(false);
-              op.setError("");
-            }}
-          >
-            {t("copy.load-current-stacking-limits")}
-          </Button>
-        </Notice>
+        <Notice
+          tone="danger"
+          role="alert"
+          title={op.error}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                load(live);
+                setSaved(false);
+                op.setError("");
+              }}
+            >
+              {t("copy.load-current-stacking-limits")}
+            </Button>
+          }
+        />
       ) : (
         <ErrorNotice message={op.error} />
       )}
@@ -622,16 +627,16 @@ function StackChoiceControls({
           tone="danger"
           role="alert"
           title={t("paging.stackChoicesFailed")}
-        >
-          <Button
-            variant="outline"
-            className="mt-3"
-            disabled={disabled}
-            onClick={choices.retry}
-          >
-            {t("paging.retry")}
-          </Button>
-        </Notice>
+          action={
+            <Button
+              variant="outline"
+              disabled={disabled}
+              onClick={choices.retry}
+            >
+              {t("paging.retry")}
+            </Button>
+          }
+        />
       ) : choices.paused ? (
         <Button variant="outline" disabled={disabled} onClick={choices.resume}>
           {t("paging.continue")}

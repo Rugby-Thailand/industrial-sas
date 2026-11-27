@@ -103,7 +103,10 @@ export function DesktopShell({
                 </SkipToContentLink>
                 <HrLandingRedirect />
                 <AppSidebar menuOpener={menuOpener} />
-                <SidebarInset className="min-w-0 overflow-hidden">
+                {/* On a short viewport (a phone in landscape, large text)
+                    the header and page share one scroll flow, so wrapped
+                    notices and navigation cannot take all the height. */}
+                <SidebarInset className="min-w-0 overflow-hidden [@media(max-height:30rem)]:overflow-y-auto">
                   <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
                     <div className="flex items-center gap-1 sm:gap-2">
                       <MobileNavigationDisclosure menuOpener={menuOpener} />
@@ -114,13 +117,13 @@ export function DesktopShell({
                         <ThemeToggle />
                       </div>
                     </div>
-                    <ConnectionNotice />
+                    <ConnectionNotice focusFallbackId={MAIN_ID} />
                   </header>
                   <main
                     id={MAIN_ID}
                     tabIndex={0}
                     className={cn(
-                      "min-w-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+                      "min-w-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring [@media(max-height:30rem)]:flex-none [@media(max-height:30rem)]:overflow-visible",
                       usageReport
                         ? "bg-surface px-3.5 py-5 sm:px-6 sm:py-6 lg:px-9 lg:py-7"
                         : "p-3 sm:p-4 lg:px-6 lg:py-4",

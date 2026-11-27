@@ -509,6 +509,7 @@ function CustomerFormBody({
           </FormField>
           {matches.length > 0 ? (
             <Notice
+              layout="panel"
               tone="warning"
               role="status"
               title={t("similarTitle")}
@@ -745,40 +746,39 @@ function CustomerFormBody({
             title={t("errors.VERSION_CONFLICT")}
             body={t("versionConflictBody")}
             testId="customer-version-conflict"
-          >
-            {onReloadLatest ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-2"
-                onClick={onReloadLatest}
-              >
-                {t("reloadLatest")}
-              </Button>
-            ) : null}
-          </Notice>
+            action={
+              onReloadLatest ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onReloadLatest}
+                >
+                  {t("reloadLatest")}
+                </Button>
+              ) : null
+            }
+          />
         ) : failureMessage ? (
           <Notice
             tone="danger"
             role="alert"
             title={failureMessage}
             testId="customer-save-error"
-          >
-            {failure?.code === "DUPLICATE_CHECK_FAILED" ? (
-              // The person, not a failed lookup, decides to create without
-              // the duplicate check. Duplicate names are allowed.
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-2"
-                onClick={() =>
-                  void save(undefined, { skipDuplicateCheck: true })
-                }
-              >
-                {t("saveWithoutCheck")}
-              </Button>
-            ) : null}
-          </Notice>
+            action={
+              failure?.code === "DUPLICATE_CHECK_FAILED" ? (
+                // Only the person can decide to create without the duplicate check.
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    void save(undefined, { skipDuplicateCheck: true })
+                  }
+                >
+                  {t("saveWithoutCheck")}
+                </Button>
+              ) : null
+            }
+          />
         ) : operation.error ? (
           <Notice
             tone="danger"

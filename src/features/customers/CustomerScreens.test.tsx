@@ -168,6 +168,10 @@ vi.mock("@/i18n/navigation", () => ({
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { api } from "../../../convex/_generated/api";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
+import {
+  ConnectionStallContext,
+  type ConnectionStall,
+} from "@/components/system/connectionStall";
 import { WorkspaceAccessBoundary } from "@/components/providers/WorkspaceAccessBoundary";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import { CustomerCatalogue } from "./CustomerList";
@@ -1945,10 +1949,15 @@ describe("customer v2 linking, detail activity and review queue", () => {
     });
     render(<CustomerCatalogue />);
     const banner = screen.getByTestId("customer-review-banner");
-    expect(banner).toHaveTextContent("2 names from 5 job tickets");
+    expect(banner).toHaveTextContent("2 names · 5 tickets");
     expect(
-      within(banner).getByRole("link", { name: "Review" }),
-    ).toHaveAttribute("href", "/master-data/customers/review");
+      screen.getByRole("link", { name: /Review unlinked job-ticket names/ }),
+    ).toBe(banner);
+    expect(banner).toHaveAttribute("href", "/master-data/customers/review");
+    expect(
+      screen.getByRole("searchbox").compareDocumentPosition(banner) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     const table = screen.getByTestId("customer-table");
     expect(within(table).getByText("Products")).toBeInTheDocument();
     expect(within(table).getByText("Latest job")).toBeInTheDocument();
@@ -1979,8 +1988,62 @@ describe("customer v2 linking, detail activity and review queue", () => {
     });
     render(<CustomerCatalogue />);
     expect(screen.getByTestId("customer-review-banner")).toHaveTextContent(
-      "12+ names from 300+ job tickets not linked to a customer",
+      "At least 12 names · 300+ tickets",
     );
+  });
+
+  it("keeps a view-only queue link and qualifies an empty catalogue during a connection stall", () => {
+    const summary = {
+      canViewWarehouseData: true,
+      canReview: false,
+      unresolvedNameCount: 55,
+      unresolvedScanCount: 102,
+      hasMore: false,
+    };
+    mocks.queries.set(REVIEW_SUMMARY, { ok: true, value: summary });
+    const empty = {
+      ok: true,
+      requestId: "last-empty-read",
+      value: {
+        status: "ready",
+        page: [],
+        isDone: true,
+        continueCursor: "",
+        scanned: 0,
+      },
+    };
+    mocks.queries.set(LIST, empty);
+    const catalogue = (stall: ConnectionStall) => (
+      <DraftGuardProvider>
+        <ConnectionStallContext value={stall}>
+          <CustomerCatalogue />
+        </ConnectionStallContext>
+      </DraftGuardProvider>
+    );
+    const view = renderWithIntl(catalogue("dropped"), {
+      locale: "en",
+      preserveProviders: true,
+    });
+    expect(
+      screen.getByRole("link", { name: /View unlinked job-ticket names/ }),
+    ).toHaveTextContent("55 names · 102 tickets");
+    const lastResult = screen.getByText("No customers in the last result");
+    expect(lastResult).toBeVisible();
+    expect(screen.queryByText("No customers yet")).not.toBeInTheDocument();
+    expect(lastResult.closest('[role="status"]')).toBeNull();
+
+    view.rerender(catalogue(null));
+    expect(lastResult).toBeVisible();
+    mocks.queries.set(LIST, { ...empty, requestId: "fresh-empty-read" });
+    mocks.queries.set(REVIEW_SUMMARY, {
+      ok: true,
+      value: { ...summary, canViewWarehouseData: false },
+    });
+    view.rerender(catalogue(null));
+    expect(
+      screen.queryByTestId("customer-review-banner"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("No customers yet")).toBeVisible();
   });
 
   it("renders linked jobs, linked products, and manages job-ticket aliases on customer detail", async () => {

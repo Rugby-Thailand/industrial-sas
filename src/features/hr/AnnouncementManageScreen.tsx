@@ -573,6 +573,7 @@ function ScheduledActions({ row }: { readonly row: AnnouncementRow }) {
       </p>
       {row.scheduleError ? (
         <Notice
+          layout="panel"
           tone="warning"
           title={t("scheduleFailed")}
           body={t("scheduleFailureHint")}

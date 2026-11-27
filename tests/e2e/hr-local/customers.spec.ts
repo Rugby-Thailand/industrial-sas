@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { loadHrEnvironment } from "../../../scripts/lib/hr-e2e-env.mjs";
 import { randomUUID } from "node:crypto";
+import type { Page, WebSocketRoute } from "@playwright/test";
 
 import { test, expect, convexAs } from "./fixtures";
 import { readHrFixture } from "./setup";
@@ -11,8 +12,144 @@ import { readHrFixture } from "./setup";
  * customer grants because new organizations are seeded with them.
  */
 
+async function controlCustomerConnection(page: Page) {
+  let client: WebSocketRoute | undefined;
+  let blocked = false;
+  await page.routeWebSocket("ws://127.0.0.1:3320/**", (socket) => {
+    if (blocked) {
+      void socket.close();
+      return;
+    }
+    client = socket;
+    socket.connectToServer();
+  });
+  return {
+    async disconnect() {
+      expect(client).toBeDefined();
+      blocked = true;
+      await client!.close();
+    },
+    reconnect() {
+      blocked = false;
+    },
+  };
+}
+
 test.describe("customers on a 390px phone", () => {
   test.use({ viewport: { width: 390, height: 844 } });
+
+  test("both Thai customer notices leave the phone toolbar visible during a server disconnect", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => localStorage.setItem("theme", "dark"));
+    const api = await convexAs(page);
+    const ticket = `NOTICE-${randomUUID().slice(0, 8)}`;
+    const saved = await api.mutation("finishedGoods/jobScans:saveJobScans", {
+      requestId: randomUUID(),
+      warehouseId: readHrFixture().warehouseId,
+      locationText: "Dock",
+      items: [
+        {
+          source: "MANUAL",
+          customer: ticket,
+          factoryOrder: ticket,
+          productBarcodeText: ticket,
+        },
+      ],
+    });
+    expect(saved.value.written).toBe(true);
+
+    const network = await controlCustomerConnection(page);
+    await page.goto("/th/master-data/customers");
+    await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+    const backlog = page.getByTestId("customer-review-banner");
+    const connection = page.getByTestId("connection-notice");
+    const search = page.getByRole("searchbox");
+    const add = page.getByTestId("new-customer-action");
+    await expect(backlog).toBeVisible();
+    await expect(connection).toHaveCount(0);
+    await network.disconnect();
+    await expect(connection).toBeVisible();
+
+    for (const width of [360, 390, 430]) {
+      await page.setViewportSize({ width, height: 740 });
+      const [strip, review, searchField, addAction] = await Promise.all([
+        connection.boundingBox(),
+        backlog.boundingBox(),
+        search.boundingBox(),
+        add.boundingBox(),
+      ]);
+      expect(strip?.height).toBeLessThanOrEqual(64);
+      expect(review?.height).toBeGreaterThanOrEqual(48);
+      expect(review?.height).toBeLessThanOrEqual(64);
+      const gap = review!.y - (addAction!.y + addAction!.height);
+      expect(strip!.height + review!.height + gap).toBeLessThanOrEqual(144);
+      expect(searchField!.y + searchField!.height).toBeLessThan(review!.y);
+      expect(addAction!.y + addAction!.height).toBeLessThan(740);
+      expect(
+        await page
+          .getByRole("main")
+          .evaluate((main) => main.scrollWidth <= main.clientWidth),
+      ).toBe(true);
+    }
+
+    await page.setViewportSize({ width: 844, height: 390 });
+    await expect(page.locator('[data-slot="sidebar-inset"]')).toHaveCSS(
+      "overflow-y",
+      "auto",
+    );
+    await expect(page.getByRole("main")).toHaveCSS("overflow-y", "visible");
+
+    network.reconnect();
+    await expect(connection).toHaveCount(0);
+    await expect(backlog).toBeVisible();
+  });
+
+  test("the compact connection strip protects a queued customer edit until it saves once", async ({
+    page,
+  }) => {
+    const api = await convexAs(page);
+    const before = `Before reconnect ${randomUUID().slice(0, 8)}`;
+    const after = `After reconnect ${randomUUID().slice(0, 8)}`;
+    const created = await api.mutation("customers/writes:createCustomer", {
+      requestId: randomUUID(),
+      name: before,
+    });
+    expect(created.ok && created.value.ok).toBe(true);
+    const customerId = created.value.customerId;
+    const network = await controlCustomerConnection(page);
+
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto(`/en/master-data/customers/${customerId}/edit`);
+    const name = page.getByRole("textbox", { name: /Customer name/ });
+    await expect(name).toHaveValue(before);
+    await name.fill(after);
+    await network.disconnect();
+    const strip = page.getByTestId("connection-notice");
+    await expect(
+      strip.getByRole("button", { name: "Reload page" }),
+    ).toBeEnabled();
+
+    await page
+      .getByRole("button", { name: "Save changes", exact: true })
+      .click();
+    await expect(
+      strip.getByRole("button", { name: "Save pending" }),
+    ).toBeDisabled();
+    expect((await strip.boundingBox())?.height).toBeLessThanOrEqual(64);
+
+    network.reconnect();
+    await expect(
+      page.getByRole("heading", { level: 1, name: after, exact: true }),
+    ).toBeVisible();
+    await expect(strip).toHaveCount(0);
+    const verifier = await convexAs(page);
+    const stored = await verifier.query("customers/catalogue:getCustomer", {
+      customerId,
+    });
+    expect(stored.ok).toBe(true);
+    expect(stored.value).toMatchObject({ name: after, version: 2 });
+  });
 
   test("a Thai name-only customer saves in under 10 seconds and survives reload", async ({
     page,

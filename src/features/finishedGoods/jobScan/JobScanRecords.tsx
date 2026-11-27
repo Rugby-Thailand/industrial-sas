@@ -544,11 +544,16 @@ function Records({
             state={{ kind: "DENIED", requestId: outcome.requestId }}
           />
         ) : failed ? (
-          <Notice tone="danger" role="alert" title={t("recordList.loadFailed")}>
-            <Button variant="outline" className="mt-3" onClick={retry}>
-              {t("recordList.retry")}
-            </Button>
-          </Notice>
+          <Notice
+            tone="danger"
+            role="alert"
+            title={t("recordList.loadFailed")}
+            action={
+              <Button variant="outline" onClick={retry}>
+                {t("recordList.retry")}
+              </Button>
+            }
+          />
         ) : !records ? (
           searching ? (
             <p
@@ -602,11 +607,12 @@ function Records({
                 role="alert"
                 title={t("recordList.stalled")}
                 className="mb-3"
-              >
-                <Button variant="outline" className="mt-3" onClick={retry}>
-                  {t("recordList.retry")}
-                </Button>
-              </Notice>
+                action={
+                  <Button variant="outline" onClick={retry}>
+                    {t("recordList.retry")}
+                  </Button>
+                }
+              />
             )}
             {records.length > 0 && (
               <ul

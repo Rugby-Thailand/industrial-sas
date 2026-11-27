@@ -232,15 +232,16 @@ export function WriteFeedback({
                 : "uncertainHint",
           )}
           testId="hr-write-uncertain"
-        >
-          {state.recovery ? (
-            <RecoverWrite recovery={state.recovery} />
-          ) : onRetry === undefined || state.recoveryUnavailable ? null : (
-            <Button type="button" variant="outline" onClick={onRetry}>
-              {t("retrySafely")}
-            </Button>
-          )}
-        </Notice>
+          action={
+            state.recovery ? (
+              <RecoverWrite recovery={state.recovery} />
+            ) : onRetry === undefined || state.recoveryUnavailable ? null : (
+              <Button type="button" variant="outline" onClick={onRetry}>
+                {t("retrySafely")}
+              </Button>
+            )
+          }
+        />
       );
   }
 }

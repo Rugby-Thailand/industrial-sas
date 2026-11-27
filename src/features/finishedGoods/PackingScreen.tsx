@@ -765,17 +765,18 @@ function PackingForm({
           body={t(
             "copy.the-previous-result-is-part-of-history-load-the-latest-batch-before-choo",
           )}
-        >
-          <Button
-            onClick={() => {
-              if (batch) persist(initialDraft(product, batch));
-              else if (currentBatch)
-                router.push(batchPath(currentBatch._id, crossWarehouseId));
-            }}
-          >
-            {t("copy.load-latest-batch")}
-          </Button>
-        </Notice>
+          action={
+            <Button
+              onClick={() => {
+                if (batch) persist(initialDraft(product, batch));
+                else if (currentBatch)
+                  router.push(batchPath(currentBatch._id, crossWarehouseId));
+              }}
+            >
+              {t("copy.load-latest-batch")}
+            </Button>
+          }
+        />
       </>
     );
   if (draft.completed)
@@ -866,11 +867,12 @@ function PackingForm({
           <Notice
             tone="warning"
             title={t("copy.this-batch-changed-in-another-session")}
-          >
-            <Button onClick={() => persist(initialDraft(product, batch))}>
-              {t("copy.load-latest-batch")}
-            </Button>
-          </Notice>
+            action={
+              <Button onClick={() => persist(initialDraft(product, batch))}>
+                {t("copy.load-latest-batch")}
+              </Button>
+            }
+          />
         )}
         {storageWarning && (
           <Notice
@@ -890,14 +892,15 @@ function PackingForm({
             body={t(
               "copy.retry-the-same-request-to-recover-the-result-safely-do-not-start-a-new-b",
             )}
-          >
-            <Button
-              disabled={op.busy}
-              onClick={() => void send(draft.pending!.kind)}
-            >
-              {t("copy.retry-saved-request")}
-            </Button>
-          </Notice>
+            action={
+              <Button
+                disabled={op.busy}
+                onClick={() => void send(draft.pending!.kind)}
+              >
+                {t("copy.retry-saved-request")}
+              </Button>
+            }
+          />
         )}
         <fieldset disabled={!editable} className="min-w-0 space-y-5">
           <Panel className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1008,6 +1011,7 @@ function PackingForm({
           )}
           {draft.splitPending && (
             <Notice
+              layout="panel"
               tone="warning"
               title={t(
                 "copy.review-the-new-split-before-replacing-your-entries",

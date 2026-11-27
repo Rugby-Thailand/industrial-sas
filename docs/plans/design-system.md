@@ -31,6 +31,13 @@ The requested 21st.dev toggle registry returned an authentication error. A local
 | Mobile            | Wrap header controls and toolbars, stack forms, keep page-wide overflow absent, and scroll tables within their own container.               |
 | Interactions      | 48px primary/touch controls, visible keyboard focus, clear disabled states, reduced-motion support.                                         |
 
+## Notices and recovery
+
+- Use the default compact `Notice` row for a short message or a retry scoped to a section. Pass a single control through `action` so the message and action can share a line and retain the 48 px touch target. Let copy and actions wrap when space is tight.
+- Use `ErrorNotice` for an inline form or save error near the affected controls. Keep request references and reasons visible. Use `layout="panel"` for a selector, a list of blockers, a field comparison, or multiple recovery controls.
+- Place routine task links below the relevant toolbar. For example, the Customers catalogue offers one link with the Job-ticket review counts, while the app shell owns the persistent connection strip and guarded reload.
+- Use compact `EmptyState` for a loaded list with no results. A waiting query or a denied read uses its own status. A cached empty result shown during a connection stall describes the last result.
+
 ## Implementation priorities
 
 1. **P1 — Normalize shared primitives.** Audit Button, StatusBadge, Notice, select, table, dialogs, and sidebar against both themes. Separate brand color from selected/hover surfaces and muted text from muted backgrounds. Verify text contrast at 4.5:1 and meaningful controls at 3:1, including links, placeholders, destructive states, and focus rings. Acceptance: shared specimens cover every state in both languages and modes.

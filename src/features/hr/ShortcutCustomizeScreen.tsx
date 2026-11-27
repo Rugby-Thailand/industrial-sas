@@ -318,13 +318,16 @@ function ShortcutEditor({
   );
   useEffect(() => {
     if (activeKey === null || sorting.current?.pointerId === undefined) return;
+    const main = list.current?.closest("main");
+    const inset = main?.closest<HTMLElement>('[data-slot="sidebar-inset"]');
+    const container =
+      inset && getComputedStyle(inset).overflowY === "auto" ? inset : main;
     let frame = 0;
     const scroll = () => {
       const operation = sorting.current;
       if (operation?.y === undefined || operation.pointerId === undefined)
         return;
-      const main = list.current?.closest("main");
-      const bounds = main?.getBoundingClientRect();
+      const bounds = container?.getBoundingClientRect();
       const step =
         operation.y < (bounds?.top ?? 0) + 80
           ? -12
@@ -332,8 +335,8 @@ function ShortcutEditor({
             ? 12
             : 0;
       if (step !== 0) {
-        const container = main ?? document.scrollingElement;
-        if (container !== null) container.scrollTop += step;
+        const scroller = container ?? document.scrollingElement;
+        if (scroller !== null) scroller.scrollTop += step;
         moveAtPointer(operation);
       }
       frame = requestAnimationFrame(scroll);

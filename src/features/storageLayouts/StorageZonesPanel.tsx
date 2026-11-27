@@ -940,6 +940,7 @@ export function StorageZonesPanel({
         )}
         {conflict ? (
           <Notice
+            layout="panel"
             tone="warning"
             role="alert"
             title={t("layoutActions.conflict.title")}

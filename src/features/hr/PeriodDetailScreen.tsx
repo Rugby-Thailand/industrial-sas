@@ -762,16 +762,17 @@ function CloseControls({
             ? { body: t(`blocker.${blocker}`) }
             : {})}
           testId="hr-period-blocker"
-        >
-          {reviewHref === null ? null : (
-            <Button asChild>
-              <Link href={reviewHref} data-testid="hr-period-review">
-                {t("reviewOpen")}
-                <ArrowRight aria-hidden="true" />
-              </Link>
-            </Button>
-          )}
-        </Notice>
+          action={
+            reviewHref === null ? null : (
+              <Button asChild>
+                <Link href={reviewHref} data-testid="hr-period-review">
+                  {t("reviewOpen")}
+                  <ArrowRight aria-hidden="true" />
+                </Link>
+              </Button>
+            )
+          }
+        />
       )}
       {blocker !== null ? null : (
         <div className="flex flex-wrap items-center gap-3">
@@ -832,16 +833,17 @@ function CloseFailureNotice({ failure }: { readonly failure: CloseFailure }) {
       title={t("closeFailed")}
       body={message(failure.code)}
       testId="hr-period-close-failed"
-    >
-      {reviewHref === null ? null : (
-        <Button asChild>
-          <Link href={reviewHref}>
-            {t("reviewOpen")}
-            <ArrowRight aria-hidden="true" />
-          </Link>
-        </Button>
-      )}
-    </Notice>
+      action={
+        reviewHref === null ? null : (
+          <Button asChild>
+            <Link href={reviewHref}>
+              {t("reviewOpen")}
+              <ArrowRight aria-hidden="true" />
+            </Link>
+          </Button>
+        )
+      }
+    />
   );
 }
 

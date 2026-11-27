@@ -85,11 +85,16 @@ export function MoveHistory({ detail }: { detail: PalletDetail }) {
         {tr("Movement history", "ประวัติการย้าย")}
       </h2>
       {failed ? (
-        <Notice tone="danger" role="alert" title={t("paging.historyFailed")}>
-          <Button variant="outline" className="mt-3" onClick={retry}>
-            {t("paging.retry")}
-          </Button>
-        </Notice>
+        <Notice
+          tone="danger"
+          role="alert"
+          title={t("paging.historyFailed")}
+          action={
+            <Button variant="outline" onClick={retry}>
+              {t("paging.retry")}
+            </Button>
+          }
+        />
       ) : tracked.paused ? (
         <Button variant="outline" onClick={recovery.resume}>
           {t("paging.continue")}

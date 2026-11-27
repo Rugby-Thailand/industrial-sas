@@ -674,15 +674,16 @@ function CorrectionDecision({
           role="alert"
           title={form("recordChanged")}
           body={form("recordChangedHint")}
-        >
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setLoaded(correction)}
-          >
-            {form("recordChangedUse")}
-          </Button>
-        </Notice>
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLoaded(correction)}
+            >
+              {form("recordChangedUse")}
+            </Button>
+          }
+        />
       ) : null}
       {!available || changed ? (
         <Button
@@ -948,11 +949,12 @@ function DispositionForm({
           title={form("recordChanged")}
           body={form("recordChangedHint")}
           testId="hr-dispose-changed"
-        >
-          <Button type="button" variant="outline" onClick={adoptCurrent}>
-            {form("recordChangedUse")}
-          </Button>
-        </Notice>
+          action={
+            <Button type="button" variant="outline" onClick={adoptCurrent}>
+              {form("recordChangedUse")}
+            </Button>
+          }
+        />
       ) : null}
       <Button
         type="submit"

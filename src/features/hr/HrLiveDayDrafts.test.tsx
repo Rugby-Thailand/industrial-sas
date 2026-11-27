@@ -1,4 +1,10 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -177,9 +183,12 @@ describe("live attendance updates keep unsent HR drafts", () => {
     expect(reason()).toHaveValue("Keep my unsent decision rationale");
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(changedNotice()).toBeVisible();
-    expect(screen.getByTestId("hr-dispose-changed")).toHaveAttribute(
-      "role",
-      "alert",
+    const changedAlert = within(
+      screen.getByTestId("hr-dispose-changed"),
+    ).getByRole("alert");
+    expect(changedAlert).toBeVisible();
+    expect(changedAlert).not.toContainElement(
+      screen.getByRole("button", { name: "Use the current record" }),
     );
     expect(screen.getByLabelText("Clock-out")).toHaveValue("17:30");
     expect(screen.getByTestId("hr-dispose-submit")).toBeDisabled();

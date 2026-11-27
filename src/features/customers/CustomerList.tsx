@@ -4,10 +4,12 @@ import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { ChevronRight, Link2, Plus } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { CollectionToolbar } from "@/components/system/CollectionToolbar";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { useConnectionStall } from "@/components/system/connectionStall";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Notice } from "@/components/ui/Notice";
@@ -59,10 +61,49 @@ function NewCustomerAction() {
   );
 }
 
+function CustomerReviewLink({
+  names,
+  scans,
+  hasMore,
+  canReview,
+}: {
+  readonly names: number;
+  readonly scans: number;
+  readonly hasMore: boolean;
+  readonly canReview: boolean;
+}) {
+  const t = useTranslations("Customers");
+  const title = canReview
+    ? t(scans === 0 ? "reviewTitle" : "reviewUnlinkedNames")
+    : t("reviewViewNames");
+  return (
+    <Link
+      href={ROUTES.customerReview}
+      data-testid="customer-review-banner"
+      className="flex min-h-touch min-w-0 items-center gap-2.5 rounded-md border border-border bg-surface px-3 py-1.5 focus-ring hover:bg-raised dense:min-h-control"
+    >
+      <Link2 aria-hidden="true" className="size-4 shrink-0 text-link" />
+      <span className="min-w-0 flex-1 text-sm leading-5 wrap-anywhere">
+        <span className="block font-semibold text-link">{title}</span>
+        {scans === 0 ? null : (
+          <span className="block text-muted tabular-nums">
+            {t(hasMore ? "reviewCountsPartial" : "reviewCounts", {
+              names,
+              scans,
+            })}
+          </span>
+        )}
+      </span>
+      <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted" />
+    </Link>
+  );
+}
+
 function CatalogueContent() {
   const t = useTranslations("Customers");
   const format = useFormatter();
   const locale = useLocale();
+  const stalled = useConnectionStall() !== null;
   const { userId, orgId } = useAuth();
   const { canManage } = useCustomerAccess();
   const review = useQuery(api.customers.linking.reviewSummary, {});
@@ -94,10 +135,25 @@ function CatalogueContent() {
     hasRows: (value) => Boolean(value.page?.length),
   });
   const ready = outcome?.ok && outcome.value.status === "ready";
-  const denied = outcome !== undefined && !outcome.ok;
-  const failed =
-    denied || (outcome?.ok === true && outcome.value.status === "reset");
+  const failed = outcome?.ok === true && outcome.value.status === "reset";
   const customers = ready ? outcome.value.page : [];
+  const emptyRead =
+    ready && customers.length === 0
+      ? JSON.stringify([scope, outcome.requestId])
+      : null;
+  const [staleEmptyRead, setStaleEmptyRead] = useState<string | null>(null);
+  // Reopening the socket does not refresh the last query response.
+  if (stalled && emptyRead !== null && staleEmptyRead !== emptyRead)
+    setStaleEmptyRead(emptyRead);
+  else if (
+    !stalled &&
+    ready &&
+    staleEmptyRead !== null &&
+    staleEmptyRead !== emptyRead
+  )
+    setStaleEmptyRead(null);
+  const lastResult =
+    stalled || (emptyRead !== null && staleEmptyRead === emptyRead);
   const filtered = settled.trim() !== "" || filters.status !== "ACTIVE";
   const clear = () => update({ search: "", status: "ACTIVE" });
   const canViewWarehouseData = Boolean(
@@ -119,33 +175,7 @@ function CatalogueContent() {
   const unresolvedScans = review?.ok ? review.value.unresolvedScanCount : 0;
   const reviewHasMore = Boolean(review?.ok && review.value.hasMore);
   return (
-    <div className="space-y-4">
-      {unresolvedScans > 0 || reviewHasMore ? (
-        <Notice
-          tone="accent"
-          title={
-            unresolvedScans === 0
-              ? t("reviewTitle")
-              : t(
-                  reviewHasMore ? "reviewBannerTitleMore" : "reviewBannerTitle",
-                  {
-                    names: unresolvedNames,
-                    scans: unresolvedScans,
-                  },
-                )
-          }
-          testId="customer-review-banner"
-        >
-          <div className="mt-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href={ROUTES.customerReview}>
-                <Link2 aria-hidden="true" className="size-4" />
-                {t("reviewBannerAction")}
-              </Link>
-            </Button>
-          </div>
-        </Notice>
-      ) : null}
+    <div className="space-y-3">
       <CollectionToolbar
         value={filters.search}
         // A search-only patch: typing coalesces into one history entry.
@@ -175,6 +205,16 @@ function CatalogueContent() {
           </div>
         }
       />
+      {review?.ok &&
+      review.value.canViewWarehouseData &&
+      (unresolvedScans > 0 || reviewHasMore) ? (
+        <CustomerReviewLink
+          names={unresolvedNames}
+          scans={unresolvedScans}
+          hasMore={reviewHasMore}
+          canReview={review.value.canReview}
+        />
+      ) : null}
       {outcome !== undefined && !outcome.ok ? (
         // A refused read is an access decision, not a connection problem.
         <LedgerPanelStatus
@@ -189,35 +229,44 @@ function CatalogueContent() {
           title={t("loadError")}
           body={t("loadErrorBody")}
           testId="customer-list-changed"
-        >
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-2"
-            onClick={sync.retry}
-          >
-            {t("reload")}
-          </Button>
-        </Notice>
+          action={
+            <Button type="button" variant="outline" onClick={sync.retry}>
+              {t("reload")}
+            </Button>
+          }
+        />
       ) : !ready ? (
         <LedgerPanelStatus state={{ kind: "LOADING" }} label={t("loading")} />
       ) : customers.length === 0 ? (
-        filtered ? (
-          <EmptyState
-            title={t("noMatches")}
-            body={t("noMatchesBody")}
-            action={
+        <EmptyState
+          compact
+          announce={!lastResult}
+          title={t(
+            lastResult
+              ? "lastResultEmpty"
+              : filtered
+                ? "noMatches"
+                : "emptyTitle",
+          )}
+          body={
+            lastResult
+              ? undefined
+              : t(
+                  filtered
+                    ? "noMatchesBody"
+                    : canManage
+                      ? "emptyBody"
+                      : "emptyBodyViewOnly",
+                )
+          }
+          action={
+            filtered ? (
               <Button type="button" variant="ghost" onClick={clear}>
                 {t("clearFilters")}
               </Button>
-            }
-          />
-        ) : (
-          <EmptyState
-            title={t("emptyTitle")}
-            body={canManage ? t("emptyBody") : t("emptyBodyViewOnly")}
-          />
-        )
+            ) : undefined
+          }
+        />
       ) : (
         <>
           <div className="hidden md:block">

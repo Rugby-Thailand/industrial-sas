@@ -76,9 +76,12 @@ describe("WorkspaceAccessBoundary", () => {
       ).toBeVisible();
       expect(screen.getAllByText(title, { exact: true })).toHaveLength(1);
       const notice = screen.getByTestId("workspace-query-error");
-      expect(screen.getByRole("alert")).toBe(notice);
-      expect(notice).toHaveTextContent(hint);
-      expect(screen.getByRole("button", { name: retry })).toBeVisible();
+      const alert = screen.getByRole("alert");
+      const retryButton = screen.getByRole("button", { name: retry });
+      expect(notice).toContainElement(alert);
+      expect(alert).toHaveTextContent(hint);
+      expect(alert).not.toContainElement(retryButton);
+      expect(retryButton).toBeVisible();
     },
   );
 

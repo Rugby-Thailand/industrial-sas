@@ -144,21 +144,21 @@ export function OperationFailure({
           : storageWriteMessage(t, failure.code)
       }
       testId="layout-operation-failure"
-    >
-      {onRetry && failure.thrown ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="mt-3"
-          disabled={retrying}
-          onClick={onRetry}
-        >
-          <RotateCcw aria-hidden="true" className="size-4" />
-          {t("layoutActions.failure.retry")}
-        </Button>
-      ) : null}
-    </Notice>
+      action={
+        onRetry && failure.thrown ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={retrying}
+            onClick={onRetry}
+          >
+            <RotateCcw aria-hidden="true" className="size-4" />
+            {t("layoutActions.failure.retry")}
+          </Button>
+        ) : null
+      }
+    />
   );
 }
 
@@ -185,13 +185,14 @@ export function BlockedImpact({
   const units = uniqueStoragePallets(placements);
   return (
     <Notice
+      layout="panel"
       tone="warning"
       role="alert"
       title={t("layoutActions.blocked.title")}
       body={t("layoutActions.blocked.description")}
       testId="layout-blocked-impact"
     >
-      <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+      <dl className="grid grid-cols-2 gap-3 text-sm">
         <div>
           <dt className="text-xs text-muted">
             {t("layoutActions.blocked.measured")}
@@ -223,7 +224,7 @@ export function BlockedImpact({
             <li key={unit.placementId}>
               <Link
                 href={palletPath(unit.handlingUnitId)}
-                className="inline-flex min-h-11 items-center rounded-md border border-border px-2.5 font-mono text-xs text-link underline-offset-4 hover:underline"
+                className="inline-flex min-h-touch min-w-touch items-center justify-center rounded-md border border-border px-2.5 font-mono text-xs text-link underline-offset-4 hover:underline"
                 aria-label={t("layoutActions.blocked.openUnit", {
                   lpn: unit.lpn,
                 })}

@@ -229,7 +229,12 @@ export function CorrectionForm({
 
   if (write.state.kind === "SAVED")
     return (
-      <Panel role="status" aria-live="polite" data-testid="hr-correction-saved">
+      <Panel
+        role="status"
+        aria-live="polite"
+        data-testid="hr-correction-saved"
+        className="px-3 py-2.5"
+      >
         <p className="text-sm font-semibold text-success">{t("submitted")}</p>
         <p className="mt-1 text-sm text-muted">{t("submittedHint")}</p>
       </Panel>
@@ -250,6 +255,7 @@ export function CorrectionForm({
       <p className="mb-4 text-sm text-muted">{t("intro")}</p>
       {returned === undefined ? null : (
         <Notice
+          layout="panel"
           tone="warning"
           title={t("returnedTitle")}
           {...(returnReason ? { body: returnReason } : {})}
@@ -300,11 +306,12 @@ export function CorrectionForm({
             title={form("recordChanged")}
             body={form("recordChangedHint")}
             testId="hr-correction-changed"
-          >
-            <Button type="button" variant="outline" onClick={adoptCurrent}>
-              {form("recordChangedUse")}
-            </Button>
-          </Notice>
+            action={
+              <Button type="button" variant="outline" onClick={adoptCurrent}>
+                {form("recordChangedUse")}
+              </Button>
+            }
+          />
         ) : null}
         <Button
           type="submit"

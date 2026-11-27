@@ -3,14 +3,14 @@ import { cn } from "@/lib/utils";
 
 import { type BadgeTone } from "./StatusBadge";
 
-const TONE_CLASSES: Readonly<Record<BadgeTone, string>> = {
-  neutral: "border-border-strong",
-  accent: "border-link",
-  success: "border-success",
-  warning: "border-warning",
-  danger: "border-danger",
-  pending: "border-pending",
-  muted: "border-border",
+const TONE_SURFACE: Readonly<Record<BadgeTone, string>> = {
+  neutral: "bg-surface",
+  accent: "bg-accent-surface",
+  success: "bg-success-surface",
+  warning: "bg-warning-surface",
+  danger: "bg-danger-surface",
+  pending: "bg-pending-surface",
+  muted: "bg-surface",
 };
 
 const TONE_TITLE_CLASSES: Readonly<Record<BadgeTone, string>> = {
@@ -29,6 +29,8 @@ export function Notice({
   body,
   role = "status",
   testId,
+  layout,
+  action,
   children,
   className,
 }: {
@@ -36,33 +38,56 @@ export function Notice({
   readonly title: string;
   readonly body?: string;
   readonly role?: "status" | "alert";
-
   readonly testId?: string;
-
+  readonly layout?: "inline" | "row" | "panel";
+  readonly action?: ReactNode;
   readonly children?: ReactNode;
   readonly className?: string;
 }) {
+  const hasDetails = children != null && children !== false;
+  const presentation = layout ?? (hasDetails ? "panel" : "row");
+  const hasAction = action != null && action !== false;
   return (
     <div
-      role={role}
+      role={hasAction ? undefined : role}
       {...(testId === undefined ? {} : { "data-testid": testId })}
       className={cn(
-        "rounded-lg border border-l-4 bg-surface p-4",
-        TONE_CLASSES[tone],
+        "min-w-0 text-sm",
+        presentation === "inline"
+          ? "py-1"
+          : cn(
+              "rounded-lg border border-border px-3",
+              TONE_SURFACE[tone],
+              presentation === "panel" ? "py-3" : hasAction ? "py-0.5" : "py-2",
+            ),
         className,
       )}
     >
-      <p className={`text-sm font-semibold ${TONE_TITLE_CLASSES[tone]}`}>
-        {title}
-      </p>
-      {body === undefined ? null : (
-        <p className="mt-1 text-sm leading-5 text-muted">{body}</p>
-      )}
-      {children === undefined ? null : <div className="mt-3">{children}</div>}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+        <div
+          role={hasAction ? role : undefined}
+          className="min-w-0 flex-[1_1_10rem] wrap-anywhere"
+        >
+          <p
+            className={cn("leading-5 font-semibold", TONE_TITLE_CLASSES[tone])}
+          >
+            {title}
+          </p>
+          {body ? <p className="leading-5 text-text">{body}</p> : null}
+        </div>
+        {hasAction ? (
+          <div className="max-w-full [&_a]:whitespace-normal [&_button]:whitespace-normal">
+            {action}
+          </div>
+        ) : null}
+      </div>
+      {hasDetails ? <div className="mt-2">{children}</div> : null}
     </div>
   );
 }
 
 export function ErrorNotice({ message }: { readonly message?: string | null }) {
-  return message ? <Notice tone="danger" title={message} role="alert" /> : null;
+  return message ? (
+    <Notice layout="inline" tone="danger" title={message} role="alert" />
+  ) : null;
 }

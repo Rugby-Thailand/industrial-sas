@@ -431,7 +431,7 @@ export function HrInterrupted({
       className={
         compact
           ? "space-y-2 text-sm"
-          : "space-y-3 rounded-lg border border-border bg-surface p-4"
+          : "space-y-2 rounded-lg border border-border bg-surface px-3 py-3"
       }
       data-testid="hr-paged-interrupted"
     >

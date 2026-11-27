@@ -186,6 +186,7 @@ function BatchMeasurementLink({ detail }: { detail: PalletDetail }) {
       />
       <Summary detail={detail} />
       <Notice
+        layout="panel"
         title={tr(
           "Edit measurements in this preparation batch",
           "แก้ไขขนาดในชุดจัดเตรียมสินค้านี้",
@@ -627,6 +628,7 @@ function Recommendations({
           breadcrumbs={crumbs}
         />
         <Notice
+          layout="panel"
           title={tr("Measurements are incomplete", "ยังวัดขนาดไม่ครบ")}
           {...(canStoreByLabel(detail)
             ? {
@@ -669,11 +671,12 @@ function Recommendations({
             "Your saved measurements are unchanged. Try loading again.",
             "ขนาดที่บันทึกไว้ยังคงเดิม กรุณาลองโหลดอีกครั้ง",
           )}
-        >
-          <Button onClick={() => window.location.reload()}>
-            {tr("Try again", "ลองอีกครั้ง")}
-          </Button>
-        </Notice>
+          action={
+            <Button onClick={() => window.location.reload()}>
+              {tr("Try again", "ลองอีกครั้ง")}
+            </Button>
+          }
+        />
       </>
     );
   const list: RecommendationList = outcome.value;
