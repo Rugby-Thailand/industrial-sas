@@ -60,18 +60,21 @@ function read(value: unknown): JobScanRecordState {
   const searchField = search.trim()
     ? SEARCH_FIELDS.find((field) => field === state.searchField)
     : undefined;
+  const exactCode =
+    !locationId &&
+    search.trim() &&
+    state.exactCode === true &&
+    (!searchField ||
+      searchField === "factoryOrder" ||
+      searchField === "productBarcodeText");
   return {
     filter: FILTERS.includes(state.filter as JobScanFilter)
       ? (state.filter as JobScanFilter)
       : initial.filter,
     search,
-    ...(locationId
-      ? { locationId }
-      : searchField
-        ? { searchField }
-        : search.trim() && state.exactCode === true
-          ? { exactCode: true }
-          : {}),
+    ...(locationId ? { locationId } : {}),
+    ...(!locationId && searchField ? { searchField } : {}),
+    ...(exactCode ? { exactCode: true } : {}),
     ...(facets ? { facets } : {}),
   };
 }

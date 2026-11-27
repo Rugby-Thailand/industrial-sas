@@ -20,6 +20,9 @@ export const fgRefs = Object.freeze({
     api.finishedGoods.jobScanLocations.searchPage,
   ),
   extractJobTicket: typedClientRef(api.finishedGoods.jobScans.extractJobTicket),
+  readJobTicketForSearch: typedClientRef(
+    api.finishedGoods.jobScans.readJobTicketForSearch,
+  ),
   interpretJobScanSearch: typedClientRef(
     api.finishedGoods.jobScans.interpretJobScanSearch,
   ),

@@ -37,6 +37,8 @@ import {
   MAX_JOB_SCAN_ITEMS,
   JOB_TICKET_JSON_SCHEMA,
   JOB_TICKET_PROMPT,
+  JOB_TICKET_SEARCH_PHOTO_JSON_SCHEMA,
+  JOB_TICKET_SEARCH_PHOTO_PROMPT,
   isSavedFactoryOrderCode,
   isSavedLocationAddress,
   jobScanEditRequestBody,
@@ -46,9 +48,11 @@ import {
   parseJobScanEditContent,
   parseJobScanSearchContent,
   parseJobTicket,
+  parseJobTicketSearchCandidatesContent,
   validJobScanAiPrompt,
   type JobScanInterpretResult,
 } from "../model/finishedGoods/jobScans";
+import { validLocationImage } from "../model/finishedGoods/locationImage";
 
 import {
   jobLocationReader,
@@ -189,11 +193,45 @@ export const JOB_SCAN_SEARCH_AI_RATE_LIMIT = Object.freeze({
   windowMs: 10 * 60_000,
 });
 
+export const JOB_SCAN_PHOTO_SEARCH_AI_RATE_LIMIT = Object.freeze({
+  key: "finishedGoods.jobScanPhotoSearch.ai",
+  limit: 20,
+  windowMs: 10 * 60_000,
+});
+
 export const JOB_SCAN_EDIT_AI_RATE_LIMIT = Object.freeze({
   key: "finishedGoods.jobScanEdit.ai",
   limit: 30,
   windowMs: 10 * 60_000,
 });
+
+const jobTicketSearchCandidates = v.object({
+  factoryOrder: optionalText,
+  productBarcodeText: optionalText,
+});
+
+const jobTicketPhotoSearchOutcome = v.union(
+  v.object({
+    ok: v.literal(true),
+    candidates: jobTicketSearchCandidates,
+  }),
+  v.object({
+    ok: v.literal(false),
+    error: v.object({
+      code: v.union(
+        v.literal("IMAGE_URL_INVALID"),
+        v.literal("AI_UNAVAILABLE"),
+        v.literal("AI_TIMEOUT"),
+        v.literal("AI_UNREADABLE"),
+      ),
+    }),
+  }),
+  v.object({
+    ok: v.literal(false),
+    error: v.object({ code: v.literal("RATE_LIMITED") }),
+    retryAfterMs: v.number(),
+  }),
+);
 
 const jobScanFilter = v.union(
   v.literal("ALL"),
@@ -564,6 +602,90 @@ export const extractJobTicket = actionWithOrg({
       );
       return { ok: false as const, error: { code: "AI_UNREADABLE" } };
     }
+  },
+});
+
+/**
+ * Reads only the searchable job-ticket codes from an inline photo for saved-record lookup.
+ * Performs no storage, asset, or job-scan writes and never returns an intake provenance token.
+ */
+export const readJobTicketForSearch = actionWithOrg({
+  args: { warehouseId: v.id("warehouses"), imageDataUrl: v.string() },
+  returns: jobTicketPhotoSearchOutcome,
+  permissionCode: MANAGE,
+  target: { table: TABLE },
+  warehouseId: (args) => args.warehouseId,
+  rateLimit: JOB_SCAN_PHOTO_SEARCH_AI_RATE_LIMIT,
+  handler: async (
+    ctx,
+    args,
+  ): Promise<Infer<typeof jobTicketPhotoSearchOutcome>> => {
+    if (!validLocationImage(args.imageDataUrl))
+      return { ok: false as const, error: { code: "IMAGE_URL_INVALID" } };
+    if (ctx.quota === undefined || !ctx.quota.allowed)
+      return {
+        ok: false as const,
+        error: { code: "RATE_LIMITED" },
+        retryAfterMs:
+          ctx.quota?.retryAfterMs ??
+          JOB_SCAN_PHOTO_SEARCH_AI_RATE_LIMIT.windowMs,
+      };
+    const request = imageProviderRequest({
+      prompt: JOB_TICKET_SEARCH_PHOTO_PROMPT,
+      instruction:
+        "Read the JOB NO. and product barcode text printed on this job ticket.",
+      imageUrl: args.imageDataUrl,
+      name: "job_ticket_search_candidates",
+      schema: JOB_TICKET_SEARCH_PHOTO_JSON_SCHEMA,
+    });
+    if (!request)
+      return { ok: false as const, error: { code: "AI_UNAVAILABLE" } };
+    let outcome: JobTicketProviderOutcome;
+    try {
+      outcome = await requestJobTicketProvider(request.send, {
+        adapter: request.adapter,
+        tracking: {
+          port: ctx.aiUsage,
+          feature: "AI_SEARCH",
+          model: request.model,
+        },
+        validateContent: (content) =>
+          parseJobTicketSearchCandidatesContent(content) !== null,
+      });
+    } catch {
+      return { ok: false as const, error: { code: "AI_UNAVAILABLE" } };
+    }
+    if (!outcome.ok) {
+      // Static fields only: never the photo, provider body, model text or key.
+      console.warn(
+        JSON.stringify({
+          event: "jobScan.photoSearch.provider.failed",
+          reason: outcome.reason,
+          ...(outcome.status === undefined ? {} : { status: outcome.status }),
+          attempts: outcome.attempts,
+          elapsedMs: outcome.elapsedMs,
+        }),
+      );
+      const code =
+        outcome.reason === "timeout"
+          ? ("AI_TIMEOUT" as const)
+          : outcome.reason === "too_large" || outcome.reason === "malformed"
+            ? ("AI_UNREADABLE" as const)
+            : ("AI_UNAVAILABLE" as const);
+      return { ok: false as const, error: { code } };
+    }
+    const candidates = parseJobTicketSearchCandidatesContent(outcome.content);
+    if (candidates === null) {
+      console.warn(
+        JSON.stringify({
+          event: "jobScan.photoSearch.provider.unreadable",
+          attempts: outcome.attempts,
+          elapsedMs: outcome.elapsedMs,
+        }),
+      );
+      return { ok: false as const, error: { code: "AI_UNREADABLE" } };
+    }
+    return { ok: true as const, candidates };
   },
 });
 
@@ -1197,7 +1319,10 @@ export const listJobScans = queryWithOrg({
     warehouseId: v.id("warehouses"),
     filter: jobScanFilter,
     search: v.optional(v.string()),
-    /** Match a whole job number, barcode, or current location (captured text only without a current code). */
+    /**
+     * Match a whole job number, barcode, or current location (captured text only without a current code).
+     * When paired with `searchField: "factoryOrder" | "productBarcodeText"`, matches exact code only in that field.
+     */
     exactCode: v.optional(v.boolean()),
     searchField: v.optional(jobScanSearchField),
     /** A resolved storage QR searches current assignments by identity. */
@@ -1268,6 +1393,11 @@ export const listJobScans = queryWithOrg({
         ])
       : [null, null];
     const searchField = requestedNeedle ? args.searchField : undefined;
+    const exactCodeField =
+      args.exactCode === true &&
+      (searchField === "factoryOrder" || searchField === "productBarcodeText")
+        ? searchField
+        : undefined;
     const exactFactoryOrder =
       searchField === "factoryOrder" &&
       isSavedFactoryOrderCode(requestedNeedle);
@@ -1347,9 +1477,14 @@ export const listJobScans = queryWithOrg({
       storageFormatFacet !== undefined;
     // Bind the full predicate to the cursor while retaining existing cursor scopes.
     const criteriaScope =
-      exact || searchField || hasFacets || args.locationId !== undefined
+      exact ||
+      exactCodeField ||
+      searchField ||
+      hasFacets ||
+      args.locationId !== undefined
         ? {
             ...(exact ? { exactCode: true, locationCodeNeedle } : {}),
+            ...(exactCodeField ? { exactCode: true } : {}),
             ...(searchField ? { searchField } : {}),
             ...(registeredLocation
               ? { registeredLocationId: registeredLocation._id }
@@ -1465,6 +1600,8 @@ export const listJobScans = queryWithOrg({
           return false;
       }
       if (!needle || exact) return true;
+      if (exactCodeField)
+        return normalizeJobScanSearch(scan[exactCodeField]) === needle;
       if (exactFactoryOrder)
         return normalizeJobScanSearch(scan.factoryOrder) === needle;
       if (searchField === "location") {
@@ -1510,7 +1647,8 @@ export const listJobScans = queryWithOrg({
         readiness: index,
         filter: args.filter,
         needle,
-        exactCode: exact,
+        exactCode: exact || exactCodeField !== undefined,
+        ...(exactCodeField ? { exactCodeField } : {}),
         ...(criteriaScope !== undefined ? { scopeExtra: criteriaScope } : {}),
         pageSize,
         cursor: args.cursor,

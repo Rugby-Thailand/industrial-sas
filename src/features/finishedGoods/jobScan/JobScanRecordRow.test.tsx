@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { expect, it, vi } from "vitest";
@@ -23,6 +23,7 @@ function show(
     onChangeLocation?: (opener?: HTMLElement | null) => void;
     onEdit?: () => void;
     onDelete?: () => void;
+    onAssist?: () => void;
   } = {},
 ) {
   const record = {
@@ -47,6 +48,7 @@ function show(
         onChangeLocation={options.onChangeLocation ?? (() => {})}
         onDelete={options.onDelete ?? (() => {})}
         onEdit={options.onEdit ?? (() => {})}
+        {...(options.onAssist ? { onAssist: options.onAssist } : {})}
       />
     </ul>,
     { locale: options.locale ?? "en", workspace: false },
@@ -160,4 +162,43 @@ it("hides the direct location pencil button for viewers and disables it when bus
   expect(
     screen.getByRole("button", { name: "Delete record FO004" }),
   ).toBeDisabled();
+});
+
+it("offers AI edit inside the row actions menu after focus returns to it, in English and Thai", async () => {
+  const user = userEvent.setup();
+  const onAssist = vi.fn();
+  const onEdit = vi.fn();
+  show(
+    { mapped: true, locationCode: "F1-L1" },
+    { canManage: true, onAssist, onEdit },
+  );
+  expect(
+    screen.queryByRole("button", { name: /with AI/ }),
+  ).not.toBeInTheDocument();
+  const menu = screen.getByRole("button", { name: "Actions for record FO001" });
+  await user.click(menu);
+  expect(
+    screen.getAllByRole("menuitem").map((item) => item.textContent),
+  ).toEqual(["Correct ticket details", "Edit with AI", "Change location"]);
+  await user.click(screen.getByRole("menuitem", { name: "Edit with AI" }));
+  await waitFor(() => expect(onAssist).toHaveBeenCalledOnce());
+  expect(menu).toHaveFocus();
+  expect(onEdit).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole("button", { name: "Delete record FO001" }),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Change location for FO001" }),
+  ).toBeVisible();
+
+  show(
+    { factoryOrder: "FO005", mapped: true, locationCode: "F1-L1" },
+    { canManage: true, locale: "th", onAssist },
+  );
+  await user.click(
+    screen.getByRole("button", { name: "ตัวเลือกรายการ FO005" }),
+  );
+  expect(
+    screen.getByRole("menuitem", { name: "AI ช่วยแก้ไข" }),
+  ).toBeInTheDocument();
 });

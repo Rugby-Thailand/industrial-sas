@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { useConvex } from "convex/react";
-import { Search, Sparkles, X } from "lucide-react";
+import { Camera, Search, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,20 +21,29 @@ import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import type { JobScanSearchIntent } from "../../../../convex/model/finishedGoods/jobScans";
 import { BarcodeCameraBox } from "../BarcodeCameraBox";
+import {
+  JobScanRecordPhotoSearch,
+  type TicketPhotoReadResult,
+} from "./JobScanRecordPhotoSearch";
 import type { JobScanRecordState } from "./useJobScanRecordState";
 
 export function JobScanRecordSearch({
   warehouseId,
   criteria,
+  canManage,
   disabled,
   onChange,
   interpret,
+  readTicketPhoto,
 }: {
   warehouseId: string;
   criteria: JobScanRecordState;
+  /** Managers search by ticket photo; viewers keep the typed AI search. */
+  canManage: boolean;
   disabled: boolean;
   onChange: (next: Partial<JobScanRecordState>) => void;
   interpret: (prompt: string) => Promise<JobScanSearchIntent | null>;
+  readTicketPhoto?: (imageDataUrl: string) => Promise<TicketPhotoReadResult>;
 }) {
   const t = useTranslations("JobScan");
   const [scanOpen, setScanOpen] = useState(false);
@@ -43,6 +52,10 @@ export function JobScanRecordSearch({
   const [aiEpoch, setAiEpoch] = useState(0);
   const scan = useRef<DialogCompletionHandle>(null);
   const ai = useRef<DialogCompletionHandle>(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [photoEpoch, setPhotoEpoch] = useState(0);
+  const photo = useRef<DialogCompletionHandle>(null);
+  const photoSearch = canManage ? readTicketPhoto : undefined;
   const { search, searchField, facets, exactCode, locationId } = criteria;
   const activeFacets = [
     searchField && t(searchField),
@@ -69,6 +82,17 @@ export function JobScanRecordSearch({
     if (!ai.current?.completeOwned?.(retireAiSearch)) retireAiSearch();
   }
 
+  function retirePhotoSearch() {
+    setPhotoOpen(false);
+    setPhotoEpoch((epoch) => epoch + 1);
+  }
+
+  function cancelPhotoSearch() {
+    if (!photo.current?.completeOwned?.(retirePhotoSearch)) retirePhotoSearch();
+  }
+
+  if (photoOpen && !photoSearch) retirePhotoSearch();
+
   return (
     <div className="space-y-2">
       <div className="relative">
@@ -87,16 +111,29 @@ export function JobScanRecordSearch({
           scanLabel={t("recordTools.scanSearch")}
           onScan={() => setScanOpen(true)}
           trailingAction={
-            <IconButton
-              aria-haspopup="dialog"
-              label={t("recordTools.aiSearch")}
-              variant="ghost"
-              disabled={disabled}
-              className="text-accent"
-              onClick={() => setAiOpen(true)}
-            >
-              <Sparkles className="size-5" aria-hidden="true" />
-            </IconButton>
+            photoSearch ? (
+              <IconButton
+                aria-haspopup="dialog"
+                label={t("recordTools.photoSearch")}
+                variant="ghost"
+                disabled={disabled}
+                className="text-accent"
+                onClick={() => setPhotoOpen(true)}
+              >
+                <Camera className="size-5" aria-hidden="true" />
+              </IconButton>
+            ) : (
+              <IconButton
+                aria-haspopup="dialog"
+                label={t("recordTools.aiSearch")}
+                variant="ghost"
+                disabled={disabled}
+                className="text-accent"
+                onClick={() => setAiOpen(true)}
+              >
+                <Sparkles className="size-5" aria-hidden="true" />
+              </IconButton>
+            )
           }
           onChange={(event) => {
             const search = event.target.value;
@@ -188,6 +225,65 @@ export function JobScanRecordSearch({
           </Button>
         </DialogContent>
       </Dialog>
+      {photoSearch && (
+        <Dialog
+          open={photoOpen}
+          onOpenChange={setPhotoOpen}
+          completionRef={photo}
+          backRevocationEpoch={photoEpoch}
+        >
+          <DialogContent
+            size="camera"
+            showCloseButton={false}
+            onEscapeKeyDown={(event) => {
+              event.preventDefault();
+              cancelPhotoSearch();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{t("recordTools.photoSearch")}</DialogTitle>
+              <DialogDescription>
+                {t("recordTools.photoSearchHint")}
+              </DialogDescription>
+            </DialogHeader>
+            {photoOpen && (
+              <JobScanRecordPhotoSearch
+                active={photoOpen && !disabled}
+                read={photoSearch}
+                onSearch={({ search, searchField }) => {
+                  photo.current?.completeOwned?.(() => {
+                    retirePhotoSearch();
+                    onChange({
+                      filter: "ALL",
+                      search,
+                      searchField,
+                      exactCode: true,
+                      locationId: undefined,
+                      facets: undefined,
+                    });
+                  });
+                }}
+                onTypeInstead={() => {
+                  photo.current?.completeOwned?.(() => {
+                    retirePhotoSearch();
+                    setAiOpen(true);
+                  });
+                }}
+              />
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="fixed top-[max(.75rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-10 size-11 rounded-full border border-border bg-surface text-text"
+              onClick={cancelPhotoSearch}
+            >
+              <X aria-hidden="true" className="size-5" />
+              <span className="sr-only">{t("cancel")}</span>
+            </Button>
+          </DialogContent>
+        </Dialog>
+      )}
       <Dialog
         open={aiOpen}
         onOpenChange={setAiOpen}

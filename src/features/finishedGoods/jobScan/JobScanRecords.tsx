@@ -473,6 +473,7 @@ function Records({
         <JobScanRecordSearch
           warehouseId={warehouseId}
           criteria={criteria}
+          canManage={canManage}
           disabled={operation.busy || editing !== null || assisting !== null}
           onChange={(next) => {
             updateCriteria(next);
@@ -484,6 +485,15 @@ function Records({
               prompt,
             });
             return outcome.ok && outcome.value.ok ? outcome.value.value : null;
+          }}
+          readTicketPhoto={async (imageDataUrl) => {
+            const outcome = await convex.action(fgRefs.readJobTicketForSearch, {
+              warehouseId,
+              imageDataUrl,
+            });
+            return outcome.ok
+              ? outcome.value
+              : { ok: false, error: { code: "AI_DENIED" } };
           }}
         />
       </div>

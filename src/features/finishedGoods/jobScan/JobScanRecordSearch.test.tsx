@@ -76,6 +76,7 @@ function show() {
     <JobScanRecordSearch
       warehouseId="warehouse-a"
       criteria={{ filter: "UNMAPPED", search: "current" }}
+      canManage={false}
       disabled={false}
       onChange={mocks.change}
       interpret={mocks.interpret}
