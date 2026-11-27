@@ -304,13 +304,31 @@ async function onJoin(ctx: MutationCtx, connection: Connection, e: LineEvent) {
 
 async function onLeave(ctx: MutationCtx, connection: Connection, e: LineEvent) {
   const latest = await latestEnrollment(ctx, connection, e.groupId);
-  if (
-    latest === null ||
-    latest.leftAt !== undefined ||
-    e.timestamp < latest.lifecycleAt
-  )
-    return "stale";
   const now = Date.now();
+  if (latest === null || latest.leftAt !== undefined) {
+    if (latest !== null && e.timestamp <= latest.leftAt!) return "stale";
+    // No live enrollment to end: the join was lost or arrives later. Keep a
+    // signed departure barrier (never current, so never listed) so an older
+    // redelivered join cannot open a pending review for a group the bot left.
+    await ctx.db.insert("customerLineGroups", {
+      orgId: connection.orgId,
+      connectionId: connection._id,
+      lineGroupId: e.groupId,
+      current: false,
+      name: "LINE group",
+      state: "disconnected",
+      version: 1,
+      joinedAt: e.timestamp,
+      leftAt: e.timestamp,
+      providerDeparture: "left",
+      lifecycleAt: e.timestamp,
+      lastActivityAt: e.timestamp,
+      contactCount: 0,
+      updatedAt: now,
+    });
+    return "applied";
+  }
+  if (e.timestamp < latest.lifecycleAt) return "stale";
   await ctx.db.patch("customerLineGroups", latest._id, {
     leftAt: e.timestamp,
     state: "disconnected",
@@ -365,11 +383,18 @@ async function onMembers(
   for (const lineUserId of members) {
     if (!isLineId(lineUserId)) continue;
     const contact = await contactBy(ctx, group, lineUserId);
-    if (contact === null || e.timestamp <= contact.presenceAt) continue;
+    if (contact === null) continue;
+    const newer = e.timestamp > contact.presenceAt;
+    // Any signed departure after the verification ends it, even when a newer
+    // rejoin was delivered first and already owns the presence clock.
+    const revoke =
+      !present &&
+      contact.verification === "verified" &&
+      (newer || e.timestamp > (contact.verifiedAt ?? 0));
+    if (!newer && !revoke) continue;
     await ctx.db.patch("customerLineContacts", contact._id, {
-      present,
-      presenceAt: e.timestamp,
-      ...(!present && contact.verification === "verified"
+      ...(newer ? { present, presenceAt: e.timestamp } : {}),
+      ...(revoke
         ? {
             verification: "revoked" as const,
             verifiedAt: undefined,
@@ -395,6 +420,17 @@ async function onMessage(
     return "ignored";
   const group = await approvedEnrollment(ctx, connection, e);
   if (group === null || group.state !== "active") return "ignored";
+  // Same customer gate as sends: an archived customer takes no new intake.
+  const customer =
+    group.customerId === undefined
+      ? null
+      : await ctx.db.get("customers", group.customerId);
+  if (
+    customer === null ||
+    customer.orgId !== group.orgId ||
+    customer.status !== "ACTIVE"
+  )
+    return "ignored";
   const unsent = await ctx.db
     .query("customerLineEvents")
     .withIndex("by_orgId_connectionId_unsentMessageId", (q) =>

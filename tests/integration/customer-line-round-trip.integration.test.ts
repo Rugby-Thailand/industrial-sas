@@ -341,8 +341,22 @@ it("sets up a test OA and routes reviewed replies from two employees back to the
       ),
     ).toBeNull();
   }
-  // Simulate a worker stopping after claiming. The lease recovery must use
-  // the original retry key and still send exactly one reply per question.
+  // Simulate a worker that never claimed the second reply by suppressing only
+  // its immediate dispatch. The independent recovery dispatch remains queued.
+  await world.t.run(async (ctx) => {
+    const jobs = await ctx.db.system.query("_scheduled_functions").collect();
+    const immediate = jobs.filter(
+      (job) =>
+        job.name === "customerLine/transport:deliverReply" &&
+        job.args[0]?.questionId === requests[1]!._id &&
+        job.scheduledTime <= Date.now(),
+    );
+    expect(immediate).toHaveLength(1);
+    await ctx.scheduler.cancel(immediate[0]!._id);
+  });
+  // The first worker does claim, then stops before sending. Its recovery
+  // must reuse the original retry key.
+
   const abandoned = await world.t.mutation(
     internal.customerLine.events.claimReply,
     {
@@ -354,10 +368,8 @@ it("sets up a test OA and routes reviewed replies from two employees back to the
   await vi.advanceTimersByTimeAsync(1);
   await world.t.finishInProgressScheduledFunctions();
   expect(
-    pushes
-      .filter(({ text }) => text.startsWith("Reviewed reply"))
-      .map(({ text }) => text),
-  ).toEqual(["Reviewed reply 2"]);
+    pushes.filter(({ text }) => text.startsWith("Reviewed reply")),
+  ).toEqual([]);
   await vi.advanceTimersByTimeAsync(LIMITS.leaseMs + 1);
   await world.t.finishInProgressScheduledFunctions();
   expect(groupSummaryCalls).toBe(2);

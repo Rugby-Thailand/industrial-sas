@@ -31,3 +31,5 @@ Use a synthetic name and order number. Keep personal data, invoices, and other r
 - **Disconnect the OA** to stop the account's sends. Record the prior webhook endpoint before a change to an existing OA, so it can be restored during an agreed cutover. On reconnect, check the OA identity, signed webhook, and test group again before using it. If the OA remains in every existing group, use a dedicated new test group or request reapproval for an existing test group.
 
 A LINE request already in flight when staff pause or disconnect may still be accepted. Recheck the outgoing state before sending the same answer manually if a request timed out. [LINE retry keys](https://developers.line.biz/en/docs/messaging-api/retrying-api-request/)
+
+To end a pilot, disconnect its Official Account before running `customerLine/provision:revokeOrgAdminLineAccess` for the organization. Disconnecting stops intake and outgoing replies. Revoking the grants removes the organization's administrator access to the LINE screens.

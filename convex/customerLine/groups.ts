@@ -563,9 +563,15 @@ export const queueReply = mutationWithOrg({
       finishedAt: undefined,
       ...(sameSeries ? {} : { attempts: 0 }),
     });
-    await ctx.scheduler!.runAfter(0, deliverReplyReference, {
-      questionId: question._id,
-    });
+    const delivery = { questionId: question._id };
+    await ctx.scheduler!.runAfter(0, deliverReplyReference, delivery);
+    // A scheduled action can fail before it commits a lease. Dispatch once
+    // more independently so that failure cannot strand the queued reply.
+    await ctx.scheduler!.runAfter(
+      LIMITS.leaseMs,
+      deliverReplyReference,
+      delivery,
+    );
     return null;
   },
 });

@@ -1198,3 +1198,125 @@ describe("customer LINE replies", () => {
     await world.t.finishAllScheduledFunctions(vi.runAllTimers);
   });
 });
+
+describe("customer LINE redelivery order", () => {
+  it("keeps a bot departure that arrives before its join from opening a pending review", async () => {
+    const world = await setup();
+    const { webhookPath } = await world.activate(world.admin, BOT_A);
+    const pendingNames = async () =>
+      value(await world.admin.query(line.listPendingGroups, {})).page.map(
+        ({ name }) => name,
+      );
+    expect(
+      await world.accept(webhookPath, [
+        ev({ type: "leave", groupId: GROUP, timestamp: T0 + 20 }),
+        ev({
+          type: "join",
+          groupId: GROUP,
+          timestamp: T0 + 10,
+          groupName: "Dispatch",
+        }),
+      ]),
+    ).toEqual({ status: "ok", applied: 1, skipped: 1 });
+    expect(await pendingNames()).not.toContain("Dispatch");
+    expect(
+      value(await world.admin.query(line.listGroups, {})).page.map(
+        ({ name }) => name,
+      ),
+    ).not.toContain("Dispatch");
+    // An older leave is no newer barrier; a later invite is a real join.
+    await world.accept(webhookPath, [
+      ev({ type: "leave", groupId: GROUP, timestamp: T0 + 15 }),
+      ev({
+        type: "join",
+        groupId: GROUP,
+        timestamp: T0 + 30,
+        groupName: "Dispatch",
+      }),
+    ]);
+    expect(await pendingNames()).toContain("Dispatch");
+  });
+
+  it("revokes a verified contact whose departure arrives after a newer rejoin", async () => {
+    const world = await setup();
+    const { webhookPath } = await world.activate(world.admin, BOT_A);
+    const group = await world.enroll(
+      world.admin,
+      webhookPath,
+      await world.customer(world.orgA, "Alpha"),
+    );
+    await world.accept(webhookPath, [ask(GROUP, ALICE, T0 + 20)]);
+    const [alice] = await world.contacts(world.admin, group._id);
+    vi.setSystemTime(T0 + 25);
+    value(
+      await world.admin.mutation(line.setContact, {
+        groupId: group._id,
+        contactId: alice!._id,
+        verified: true,
+        name: "Alice Buyer",
+      }),
+    );
+    await world.accept(webhookPath, [
+      ev({
+        type: "memberJoined",
+        groupId: GROUP,
+        timestamp: T0 + 40,
+        memberIds: [ALICE],
+      }),
+      ev({
+        type: "memberLeft",
+        groupId: GROUP,
+        timestamp: T0 + 30,
+        memberIds: [ALICE],
+      }),
+    ]);
+    // Present (the rejoin is newest), but the departure ended verification.
+    expect((await world.contacts(world.admin, group._id))[0]).toMatchObject({
+      name: "Alice Buyer",
+      state: "revoked",
+    });
+    // A verification made after a late-delivered departure stands.
+    vi.setSystemTime(T0 + 50);
+    value(
+      await world.admin.mutation(line.setContact, {
+        groupId: group._id,
+        contactId: alice!._id,
+        verified: true,
+        name: "Alice Buyer",
+      }),
+    );
+    await world.accept(webhookPath, [
+      ev({
+        type: "memberLeft",
+        groupId: GROUP,
+        timestamp: T0 + 35,
+        memberIds: [ALICE],
+      }),
+    ]);
+    expect((await world.contacts(world.admin, group._id))[0]).toMatchObject({
+      state: "verified",
+    });
+  });
+
+  it("takes no intake for an archived customer", async () => {
+    const world = await setup();
+    const { webhookPath } = await world.activate(world.admin, BOT_A);
+    const customerId = await world.customer(world.orgA, "Alpha");
+    const group = await world.enroll(world.admin, webhookPath, customerId);
+    await world.t.run((ctx) =>
+      ctx.db.patch("customers", customerId, { status: "ARCHIVED" }),
+    );
+    await world.accept(webhookPath, [ask(GROUP, ALICE, T0 + 20)]);
+    expect(await world.storedQuestions()).toEqual([]);
+    expect(
+      await world.t.run((ctx) =>
+        ctx.db.query("customerLineContacts").collect(),
+      ),
+    ).toEqual([]);
+    await world.t.run((ctx) =>
+      ctx.db.patch("customers", customerId, { status: "ACTIVE" }),
+    );
+    await world.accept(webhookPath, [ask(GROUP, ALICE, T0 + 21)]);
+    expect(await world.questions(world.admin, group._id)).toHaveLength(1);
+  });
+});
