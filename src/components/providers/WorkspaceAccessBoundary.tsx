@@ -26,11 +26,12 @@ function QueryFailure() {
         role="alert"
         title={t("errorHint")}
         testId="workspace-query-error"
-      >
-        <Button type="button" onClick={() => window.location.reload()}>
-          {t("retry")}
-        </Button>
-      </Notice>
+        action={
+          <Button type="button" onClick={() => window.location.reload()}>
+            {t("retry")}
+          </Button>
+        }
+      />
     </main>
   );
 }

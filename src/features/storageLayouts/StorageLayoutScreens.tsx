@@ -876,15 +876,19 @@ function ArchivedBuildingNotice({
   const t = useTranslations("StorageLayouts");
   const canActivate = useCan("masterData.storageLayout.activate");
   return (
-    <Notice tone="muted" title={t("layoutActions.archivedNotice")}>
-      {canActivate ? (
-        <Button asChild variant="outline" size="sm" className="mt-3">
-          <Link href={storageReviewPath(buildingId)}>
-            {t("layoutActions.reactivate")}
-          </Link>
-        </Button>
-      ) : null}
-    </Notice>
+    <Notice
+      tone="muted"
+      title={t("layoutActions.archivedNotice")}
+      action={
+        canActivate ? (
+          <Button asChild variant="outline" size="sm">
+            <Link href={storageReviewPath(buildingId)}>
+              {t("layoutActions.reactivate")}
+            </Link>
+          </Button>
+        ) : null
+      }
+    />
   );
 }
 
@@ -2272,21 +2276,21 @@ function FloorForm({
               title={t("layoutActions.floorConflict.title")}
               body={t("layoutActions.floorConflict.description")}
               testId="floor-version-conflict"
-            >
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="mt-3"
-                disabled={pending}
-                onClick={() => {
-                  setConfirmingImpact(false);
-                  adoptSaved();
-                }}
-              >
-                {t("layoutActions.floorConflict.reload")}
-              </Button>
-            </Notice>
+              action={
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => {
+                    setConfirmingImpact(false);
+                    adoptSaved();
+                  }}
+                >
+                  {t("layoutActions.floorConflict.reload")}
+                </Button>
+              }
+            />
           ) : null}
           <OperationFailure
             failure={layoutFailure(refusal, operation)}
@@ -3747,6 +3751,7 @@ function ReviewContent({
           </p>
         ) : blocking.length > 0 ? (
           <Notice
+            layout="panel"
             tone="warning"
             title={t("layoutActions.readinessBlocked")}
             testId="readiness-blocking"
@@ -3762,7 +3767,11 @@ function ReviewContent({
           />
         )}
         {current && advisory.length > 0 ? (
-          <Notice tone="muted" title={t("layoutActions.readinessAdvisory")}>
+          <Notice
+            layout="panel"
+            tone="muted"
+            title={t("layoutActions.readinessAdvisory")}
+          >
             {issueList(advisory)}
           </Notice>
         ) : null}

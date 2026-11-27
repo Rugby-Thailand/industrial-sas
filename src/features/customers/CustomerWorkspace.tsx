@@ -374,16 +374,16 @@ function WorkspaceContent({
               tone="warning"
               title={t("workspace.scopeUnavailable")}
               body={t("workspace.scopeUnavailableBody")}
-            >
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => chooseWarehouse("all")}
-              >
-                {t("workspace.allWarehouses")}
-              </Button>
-            </Notice>
+              action={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => chooseWarehouse("all")}
+                >
+                  {t("workspace.allWarehouses")}
+                </Button>
+              }
+            />
           ) : null}
           {section === "overview" ? (
             <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">

@@ -89,14 +89,15 @@ export function NamedLocationCatalogue({
             code: completed.code,
             floor: completed.floorNumber,
           })}
-        >
-          <Link
-            className="mt-2 inline-flex min-h-11 items-center text-sm text-link underline-offset-4 hover:underline"
-            href={`${storageBuildingPath(completed.buildingId)}?floor=${completed.floorNumber}`}
-          >
-            {tl("openFloor", { floor: completed.floorNumber })}
-          </Link>
-        </Notice>
+          action={
+            <Link
+              className="inline-flex min-h-touch min-w-touch items-center text-sm text-link underline-offset-4 hover:underline"
+              href={`${storageBuildingPath(completed.buildingId)}?floor=${completed.floorNumber}`}
+            >
+              {tl("openFloor", { floor: completed.floorNumber })}
+            </Link>
+          }
+        />
       ) : null}
       <CompleteNamedLayoutDialog
         warehouseId={warehouseId}

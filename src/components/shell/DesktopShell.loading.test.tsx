@@ -163,6 +163,22 @@ describe("shell while the organization loads", () => {
 });
 
 describe("shell connection status", () => {
+  it("lets the banner and the page share one scroll flow on short viewports", () => {
+    const { header } = renderShell();
+    const main = screen.getByRole("main");
+    const inset = header.parentElement!;
+    expect(inset).toBe(main.parentElement);
+    // Normal heights pin the banner and scroll the page under it.
+    expect(inset).toHaveClass("overflow-hidden");
+    expect(main).toHaveClass("flex-1", "overflow-auto");
+    // At most 30rem (480 CSS px) high, the inset scrolls both together.
+    expect(inset).toHaveClass("[@media(max-height:30rem)]:overflow-y-auto");
+    expect(main).toHaveClass(
+      "[@media(max-height:30rem)]:flex-none",
+      "[@media(max-height:30rem)]:overflow-visible",
+    );
+  });
+
   it("shows the unreachable-backend warning inside the banner, not over the page", () => {
     vi.useFakeTimers();
     state.connected = false;
@@ -174,8 +190,11 @@ describe("shell connection status", () => {
     });
 
     const warning = within(header).getByTestId("connection-notice");
-    expect(warning).toHaveAttribute("role", "status");
-    expect(warning).toHaveTextContent("Can't reach the server");
+    expect(within(warning).getByRole("status")).toHaveTextContent(
+      "Connecting to the server",
+    );
+    // Flush with the bottom of the banner, below the navigation controls.
+    expect(header.lastElementChild).toBe(warning);
     expect(screen.getByRole("main")).toHaveTextContent("Page");
   });
 
@@ -198,7 +217,11 @@ describe("shell connection status", () => {
       screen
         .getAllByRole("status")
         .filter((region) => region.textContent !== ""),
-    ).toEqual([within(header).getByTestId("connection-notice")]);
+    ).toEqual([
+      within(within(header).getByTestId("connection-notice")).getByRole(
+        "status",
+      ),
+    ]);
     expect(
       within(sidebar).getByTestId("sidebar-navigation-loading"),
     ).toHaveTextContent("Menu not loaded");

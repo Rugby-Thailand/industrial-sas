@@ -739,11 +739,15 @@ function QuickMenuOverview({
   if (denied) return <Notice title={t("denied")} />;
   if (readFailed)
     return (
-      <Notice tone="warning" title={t("readError")}>
-        <Button type="button" variant="outline" onClick={onRetry}>
-          {t("retry")}
-        </Button>
-      </Notice>
+      <Notice
+        tone="warning"
+        title={t("readError")}
+        action={
+          <Button type="button" variant="outline" onClick={onRetry}>
+            {t("retry")}
+          </Button>
+        }
+      />
     );
   if (loading)
     return (

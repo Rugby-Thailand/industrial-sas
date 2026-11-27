@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { loadHrEnvironment } from "../../../scripts/lib/hr-e2e-env.mjs";
 import { randomUUID } from "node:crypto";
+import type { WebSocketRoute } from "@playwright/test";
 
 import { test, expect, convexAs } from "./fixtures";
 import { readHrFixture } from "./setup";
@@ -13,6 +14,77 @@ import { readHrFixture } from "./setup";
 
 test.describe("customers on a 390px phone", () => {
   test.use({ viewport: { width: 390, height: 844 } });
+
+  test("both Thai customer notices leave the phone toolbar visible during a server disconnect", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => localStorage.setItem("theme", "dark"));
+    const api = await convexAs(page);
+    const ticket = `NOTICE-${randomUUID().slice(0, 8)}`;
+    const saved = await api.mutation("finishedGoods/jobScans:saveJobScans", {
+      requestId: randomUUID(),
+      warehouseId: readHrFixture().warehouseId,
+      locationText: "Dock",
+      items: [
+        {
+          source: "MANUAL",
+          customer: ticket,
+          factoryOrder: ticket,
+          productBarcodeText: ticket,
+        },
+      ],
+    });
+    expect(saved.value.written).toBe(true);
+
+    let client: WebSocketRoute | undefined;
+    let connected = true;
+    await page.routeWebSocket("ws://127.0.0.1:3320/**", (socket) => {
+      if (!connected) {
+        void socket.close();
+        return;
+      }
+      client = socket;
+      socket.connectToServer();
+    });
+    await page.goto("/th/master-data/customers");
+    await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+    const backlog = page.getByTestId("customer-review-banner");
+    const connection = page.getByTestId("connection-notice");
+    const search = page.getByRole("searchbox");
+    const add = page.getByTestId("new-customer-action");
+    await expect(backlog).toBeVisible();
+    await expect(connection).toHaveCount(0);
+    expect(client).toBeDefined();
+    connected = false;
+    await client!.close();
+    await expect(connection).toBeVisible();
+
+    for (const width of [360, 390, 430]) {
+      await page.setViewportSize({ width, height: 740 });
+      const [strip, review, searchField, addAction] = await Promise.all([
+        connection.boundingBox(),
+        backlog.boundingBox(),
+        search.boundingBox(),
+        add.boundingBox(),
+      ]);
+      expect(strip?.height).toBeLessThanOrEqual(64);
+      expect(review?.height).toBeGreaterThanOrEqual(48);
+      expect(review?.height).toBeLessThanOrEqual(64);
+      const gap = review!.y - (addAction!.y + addAction!.height);
+      expect(strip!.height + review!.height + gap).toBeLessThanOrEqual(144);
+      expect(searchField!.y + searchField!.height).toBeLessThan(review!.y);
+      expect(addAction!.y + addAction!.height).toBeLessThan(740);
+      expect(
+        await page
+          .getByRole("main")
+          .evaluate((main) => main.scrollWidth <= main.clientWidth),
+      ).toBe(true);
+    }
+
+    connected = true;
+    await expect(connection).toHaveCount(0);
+    await expect(backlog).toBeVisible();
+  });
 
   test("a Thai name-only customer saves in under 10 seconds and survives reload", async ({
     page,

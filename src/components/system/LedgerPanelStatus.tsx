@@ -40,7 +40,11 @@ export function LedgerPanelStatus({
         key={waiting ? "waiting" : "loading"}
         {...(waiting ? { "data-waiting": "connection" } : { role: "status" })}
         data-testid="panel-LOADING"
-        className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
+        className={
+          waiting
+            ? "py-2"
+            : "flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
+        }
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-muted">
           {waiting ? (
@@ -122,6 +126,11 @@ export function LedgerPanelStatus({
 
   return (
     <Notice
+      layout={
+        presentation.code === undefined && action === undefined
+          ? "row"
+          : "panel"
+      }
       tone={presentation.tone}
       role={presentation.role}
       title={presentation.title}
@@ -132,7 +141,7 @@ export function LedgerPanelStatus({
       {presentation.code === undefined && action === undefined ? undefined : (
         <div className="flex flex-wrap items-center gap-3">
           {presentation.code === undefined ? null : (
-            <code className="rounded bg-raised px-2 py-1 font-mono text-xs text-text">
+            <code className="min-w-0 rounded bg-raised px-2 py-1 font-mono text-xs wrap-anywhere text-text">
               {presentation.code}
             </code>
           )}

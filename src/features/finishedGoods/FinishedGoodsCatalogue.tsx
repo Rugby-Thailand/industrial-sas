@@ -187,11 +187,6 @@ function Catalogue({
   const filtered = Boolean(search.trim()) || hasFilters(filters, tab);
   return (
     <>
-      {!canManage && (
-        <div className="mb-5">
-          <ViewOnlyNotice />
-        </div>
-      )}
       {summaryOutcome?.ok &&
         summaryOutcome.value.status === "not_ready" &&
         !(outcome?.ok && outcome.value.status === "not_ready") && (
@@ -242,11 +237,6 @@ function Catalogue({
           </div>
         ))}
       </div>
-      {!!summary?.moving && (
-        <p role="status" className="mb-4 text-sm text-warning">
-          {t("copy.moving-units")}: {summary?.moving}
-        </p>
-      )}
       <div
         className="mb-4 flex flex-wrap items-center gap-2"
         role="group"
@@ -310,6 +300,16 @@ function Catalogue({
         onClearSearch={() => updateState({ search: "" })}
         onClearAll={clearFilters}
       />
+      {!canManage && (
+        <div className="mb-3">
+          <ViewOnlyNotice />
+        </div>
+      )}
+      {!!summary?.moving && (
+        <p role="status" className="mb-3 text-sm text-warning">
+          {t("copy.moving-units")}: {summary?.moving}
+        </p>
+      )}
       {ready && (
         <p role="status" className="mb-3 text-xs text-muted">
           {t("copy.showing")}{" "}

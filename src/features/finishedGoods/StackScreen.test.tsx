@@ -588,9 +588,11 @@ it("keeps a dirty stacking draft over live changes and reloads only after a stal
     screen.getByText("Save the edited stacking limits before reserving."),
   ).toBeVisible();
   mocks.write.mockResolvedValue(success("lower"));
-  fireEvent.click(
-    within(alert).getByRole("button", { name: "Load current limits" }),
-  );
+  const loadCurrent = screen.getByRole("button", {
+    name: "Load current limits",
+  });
+  expect(alert).not.toContainElement(loadCurrent);
+  fireEvent.click(loadCurrent);
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   expect(levelsField()).toHaveValue(5);
   expect(

@@ -209,15 +209,18 @@ export function RecentActivity({
         <p className="sr-only">{t("recentHint", { timezone })}</p>
       </div>
       {shown && shown.signature !== signature ? (
-        <Notice tone="accent" title={t("recentStale")}>
-          <Button
-            variant="outline"
-            className="mt-3"
-            onClick={() => setReload((value) => value + 1)}
-          >
-            {t("recentRefresh")}
-          </Button>
-        </Notice>
+        <Notice
+          tone="accent"
+          title={t("recentStale")}
+          action={
+            <Button
+              variant="outline"
+              onClick={() => setReload((value) => value + 1)}
+            >
+              {t("recentRefresh")}
+            </Button>
+          }
+        />
       ) : null}
       <UsageTable
         label={t("recent")}
@@ -341,15 +344,19 @@ export function RecentActivity({
         })}
       </UsageTable>
       {shown?.error ? (
-        <Notice tone="danger" role="alert" title={t("recentError")}>
-          <Button
-            variant="outline"
-            className="mt-3"
-            onClick={() => setReload((value) => value + 1)}
-          >
-            {t("recentRetry")}
-          </Button>
-        </Notice>
+        <Notice
+          tone="danger"
+          role="alert"
+          title={t("recentError")}
+          action={
+            <Button
+              variant="outline"
+              onClick={() => setReload((value) => value + 1)}
+            >
+              {t("recentRetry")}
+            </Button>
+          }
+        />
       ) : null}
       {shown?.cursor && !shown.error ? (
         <Button

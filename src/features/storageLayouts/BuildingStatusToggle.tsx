@@ -413,14 +413,18 @@ function StatusConfirmation({
           {t("layoutActions.readinessChecking")}
         </p>
       ) : !active && ready === false ? (
-        <Notice tone="warning" title={t("layoutActions.statusNotReady")}>
-          <Link
-            href={storageReviewPath(buildingId)}
-            className="mt-2 inline-flex min-h-11 items-center text-sm text-link underline-offset-4 hover:underline"
-          >
-            {t("review")}
-          </Link>
-        </Notice>
+        <Notice
+          tone="warning"
+          title={t("layoutActions.statusNotReady")}
+          action={
+            <Link
+              href={storageReviewPath(buildingId)}
+              className="inline-flex min-h-touch min-w-touch items-center text-sm text-link underline-offset-4 hover:underline"
+            >
+              {t("review")}
+            </Link>
+          }
+        />
       ) : null}
     </ConfirmDialog>
   );

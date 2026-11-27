@@ -191,7 +191,7 @@ function QuickMenuEditor({
           {announcement}
         </div>
         {status && (
-          <div className="space-y-2 rounded-lg border border-border bg-raised p-3">
+          <div className="space-y-2 rounded-lg border border-border bg-raised p-3 text-sm leading-5">
             <p role="status">{status}</p>
             {(readRetry ||
               resend ||

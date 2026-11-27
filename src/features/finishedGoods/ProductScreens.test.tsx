@@ -623,6 +623,13 @@ describe("read-only product access", () => {
       locale: "en",
       workspace: false,
     });
+    const search = screen.getByRole("textbox", {
+      name: "Search finished goods",
+    });
+    const access = screen.getByText("View-only access");
+    expect(search.compareDocumentPosition(access)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
     expect(
       screen.getByRole("link", { name: "Packaging cartons" }),
     ).toBeVisible();

@@ -80,17 +80,22 @@ const show = (label = "Today") =>
 const saveButton = () => screen.getByRole("button", { name: "Save" });
 const cancelButton = () => screen.getByRole("button", { name: "Cancel" });
 
-function Harness() {
+function Harness({ shellScrolls }: { shellScrolls: boolean }) {
   return (
     <DraftGuardProvider>
-      <main tabIndex={-1}>
-        <HrShortcutCustomizeScreen />
-      </main>
+      <div
+        data-slot="sidebar-inset"
+        style={shellScrolls ? { overflowY: "auto" } : undefined}
+      >
+        <main tabIndex={-1}>
+          <HrShortcutCustomizeScreen />
+        </main>
+      </div>
     </DraftGuardProvider>
   );
 }
-function start() {
-  return renderWithIntl(<Harness />, {
+function start(shellScrolls = false) {
+  return renderWithIntl(<Harness shellScrolls={shellScrolls} />, {
     locale: "en",
     preserveProviders: true,
   });
@@ -129,8 +134,10 @@ function setupPointer() {
       const index = this.dataset.shortcutKey
         ? [...list().children].indexOf(this)
         : 0;
-      const top = this.tagName === "MAIN" ? 0 : 40 + index * 50;
-      const height = this.tagName === "MAIN" ? 300 : 50;
+      const scrolls =
+        this.tagName === "MAIN" || this.dataset.slot === "sidebar-inset";
+      const top = scrolls ? 0 : 40 + index * 50;
+      const height = scrolls ? 300 : 50;
       return DOMRect.fromRect({ x: 0, y: top, width: 500, height });
     },
   );
@@ -334,36 +341,43 @@ describe("pointer sorting", () => {
     },
   );
 
-  it("scrolls the overflowing main landmark during dragging and stops after cancellation", () => {
-    start();
-    setupPointer();
-    const frames = new Map<number, FrameRequestCallback>();
-    let frameId = 0;
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      frames.set(++frameId, callback);
-      return frameId;
-    });
-    const cancel = vi
-      .spyOn(window, "cancelAnimationFrame")
-      .mockImplementation((id) => {
-        frames.delete(id);
+  it.each([false, true])(
+    "scrolls the active container during dragging and stops after cancellation (short shell: %s)",
+    (shellScrolls) => {
+      start(shellScrolls);
+      setupPointer();
+      const frames = new Map<number, FrameRequestCallback>();
+      let frameId = 0;
+      vi.spyOn(window, "requestAnimationFrame").mockImplementation(
+        (callback) => {
+          frames.set(++frameId, callback);
+          return frameId;
+        },
+      );
+      const cancel = vi
+        .spyOn(window, "cancelAnimationFrame")
+        .mockImplementation((id) => {
+          frames.delete(id);
+        });
+      const main = screen.getByRole("main");
+      const inset = main.parentElement!;
+      document.documentElement.scrollTop = 0;
+      const today = handle();
+      pointerDown(today);
+      pointerMove(today, 290);
+      const first = [...frames.entries()][0]!;
+      act(() => {
+        frames.delete(first[0]);
+        first[1](0);
       });
-    const main = screen.getByRole("main");
-    document.documentElement.scrollTop = 0;
-    const today = handle();
-    pointerDown(today);
-    pointerMove(today, 290);
-    const first = [...frames.entries()][0]!;
-    act(() => {
-      frames.delete(first[0]);
-      first[1](0);
-    });
-    expect(main.scrollTop).toBeGreaterThan(0);
-    expect(document.documentElement.scrollTop).toBe(0);
-    fireEvent.pointerCancel(today, { pointerId: 7 });
-    expect(cancel).toHaveBeenCalled();
-    expect(frames.size).toBe(0);
-  });
+      expect((shellScrolls ? inset : main).scrollTop).toBeGreaterThan(0);
+      expect((shellScrolls ? main : inset).scrollTop).toBe(0);
+      expect(document.documentElement.scrollTop).toBe(0);
+      fireEvent.pointerCancel(today, { pointerId: 7 });
+      expect(cancel).toHaveBeenCalled();
+      expect(frames.size).toBe(0);
+    },
+  );
 
   it("releases active pointer capture when the editor unmounts", () => {
     const view = start();
