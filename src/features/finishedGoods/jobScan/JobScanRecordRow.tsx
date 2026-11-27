@@ -18,7 +18,6 @@ import { Link } from "@/i18n/navigation";
 import { customerPath } from "@/lib/navigation";
 import type { RefValue } from "@/lib/convex/clientRef";
 import type { fgRefs } from "@/lib/convex/finishedGoodsApi";
-import { cn } from "@/lib/utils";
 import { JobScanPhotoPreview } from "./JobScanPhotoPreview";
 
 type JobScanRecord = RefValue<typeof fgRefs.listJobScans>["items"][number];
@@ -47,6 +46,8 @@ export function JobScanRecordRow({
   const t = useTranslations("JobScan");
   const format = useFormatter();
   const changingLocation = useRef(false);
+  // AI edit opens once focus is back on the trigger, so its Dialog restores there.
+  const assisting = useRef(false);
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const locationCode = record.locationCode ?? record.locationText;
   // A distinct name or original label adds information; an equal one repeats the code.
@@ -189,26 +190,7 @@ export function JobScanRecordRow({
         </p>
       </div>
       {canManage && (
-        <div
-          className={cn(
-            "col-start-4 row-start-1 flex items-center gap-0.5 lg:col-start-5",
-            onAssist && "max-[400px]:grid max-[400px]:grid-cols-2",
-          )}
-        >
-          {onAssist && (
-            <IconButton
-              variant="ghost"
-              aria-haspopup="dialog"
-              className="text-link hover:bg-accent-surface max-[400px]:col-start-2 max-[400px]:row-start-2"
-              label={t("recordTools.aiEditRecord", {
-                job: record.factoryOrder,
-              })}
-              disabled={disabled}
-              onClick={onAssist}
-            >
-              <Sparkles aria-hidden="true" className="size-5" />
-            </IconButton>
-          )}
+        <div className="col-start-4 row-start-1 flex items-center gap-0.5 lg:col-start-5">
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <IconButton
@@ -231,6 +213,11 @@ export function JobScanRecordRow({
                   if (changingLocation.current) {
                     event.preventDefault();
                     changingLocation.current = false;
+                  } else if (assisting.current) {
+                    event.preventDefault();
+                    assisting.current = false;
+                    menuTrigger.current?.focus();
+                    onAssist?.();
                   }
                 }}
                 className="z-50 min-w-44 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg"
@@ -242,6 +229,20 @@ export function JobScanRecordRow({
                   <Pencil aria-hidden="true" className="size-4" />
                   {t("editRecord")}
                 </DropdownMenu.Item>
+                {onAssist && (
+                  <DropdownMenu.Item
+                    onSelect={() => {
+                      assisting.current = true;
+                    }}
+                    className="flex min-h-touch cursor-pointer items-center gap-2 rounded-md px-3 text-sm outline-none data-highlighted:bg-raised"
+                  >
+                    <Sparkles
+                      aria-hidden="true"
+                      className="size-4 text-accent"
+                    />
+                    {t("recordTools.aiEdit")}
+                  </DropdownMenu.Item>
+                )}
                 <DropdownMenu.Item
                   onSelect={() => {
                     changingLocation.current = true;

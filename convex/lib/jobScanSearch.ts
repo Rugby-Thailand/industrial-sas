@@ -768,6 +768,8 @@ class Stream<T> implements CandidateStream {
   }
 }
 
+export type JobScanExactCodeField = "factoryOrder" | "productBarcodeText";
+
 export interface JobScanSearchOptions<Row> {
   warehouseId: Id<"warehouses">;
   /** The warehouse's current readiness row (`jobScanSearchIndex`). */
@@ -776,6 +778,8 @@ export interface JobScanSearchOptions<Row> {
   needle: string;
   /** True when only whole normalized factoryOrder/barcode/location text or code match. */
   exactCode?: boolean;
+  /** When set with `exactCode`, stream only that field's exact normalized term. */
+  exactCodeField?: JobScanExactCodeField;
   /** Additional normalized criteria (exactCode, facets) bound into the cursor scope. */
   scopeExtra?: unknown;
   pageSize: number;
@@ -870,7 +874,7 @@ export async function searchJobScans<Row>(
   options: JobScanSearchOptions<Row>,
 ): Promise<BoundedRecordPage<Row>> {
   const db = ctx.tenantDb;
-  const { warehouseId, filter, needle, pageSize } = options;
+  const { warehouseId, filter, needle, pageSize, exactCodeField } = options;
   const exactCode = options.exactCode === true;
   const scopeParts: unknown[] = [
     "finishedGoodsJobScans:search",
@@ -915,89 +919,115 @@ export async function searchJobScans<Row>(
   };
   const wh = { field: "warehouseId", value: warehouseId } as const;
 
-  // A layout write that did not maintain the index moved the layout counter
-  // without it: building names come from history then (same order, same
-  // cursors). Job scans written by code that does not maintain the index are
-  // re-indexed by `reconcile` (lib/searchReadiness.ts); readers do not pay
-  // for that guard on every search.
-  const generation = await layoutGeneration(db, warehouseId);
-  work += 1;
-  let exhaustive = generation !== options.readiness.layoutGeneration;
-
-  // Shared terms containing the needle: through their rarest gram.
-  const probes = probeGrams(needle, 3, MAX_PROBES);
+  let exhaustive = false;
   let termGram = state.h;
+  let scanGram = state.g;
   const matchingTerms = new Map<string, TermGram>();
-  if (!exhaustive) {
-    let termRows: TermGram[] | null = null;
-    if (!termGram) {
+  const exactFieldTerms: { slot: (typeof SLOTS)[number]; termId: string }[] =
+    [];
+
+  if (exactCodeField !== undefined) {
+    // Every indexed scan with >= 3 code points links its normalized value in
+    // `TERMS` + `SEARCH_ROWS` (both shared and unshared, posted and deferred),
+    // independent of building-name layout generations.
+    const fieldIndex = JOB_SCAN_SEARCH_FIELDS.indexOf(exactCodeField);
+    const slot = SLOTS[fieldIndex]!;
+    const key = await termKey(needle);
+    const rows = await take<Term>(
+      TERMS,
+      "by_orgId_warehouseId_field_key",
+      [wh, { field: "field", value: fieldIndex }, { field: "key", value: key }],
+      8,
+    );
+    if (rows.length >= 8) {
+      exhaustive = true;
+    } else {
+      for (const row of rows)
+        if (row.text === needle)
+          exactFieldTerms.push({ slot, termId: row._id });
+    }
+  } else {
+    // A layout write that did not maintain the index moved the layout counter
+    // without it: building names come from history then (same order, same
+    // cursors). Job scans written by code that does not maintain the index are
+    // re-indexed by `reconcile` (lib/searchReadiness.ts); readers do not pay
+    // for that guard on every search.
+    const generation = await layoutGeneration(db, warehouseId);
+    work += 1;
+    exhaustive = generation !== options.readiness.layoutGeneration;
+
+    // Shared terms containing the needle: through their rarest gram.
+    const probes = probeGrams(needle, 3, MAX_PROBES);
+    if (!exhaustive) {
+      let termRows: TermGram[] | null = null;
+      if (!termGram) {
+        const sampled = await Promise.all(
+          probes.map((gram) =>
+            take<TermGram>(
+              TERM_GRAMS,
+              "by_orgId_warehouseId_gram",
+              [wh, { field: "gram", value: gram }],
+              TERM_PROBE + 1,
+            ),
+          ),
+        );
+        let best = 0;
+        for (let index = 1; index < probes.length; index++)
+          if (sampled[index]!.length < sampled[best]!.length) best = index;
+        termGram = probes[best]!;
+        if (sampled[best]!.length <= TERM_PROBE) termRows = sampled[best]!;
+      }
+      termRows ??= await take<TermGram>(
+        TERM_GRAMS,
+        "by_orgId_warehouseId_gram",
+        [wh, { field: "gram", value: termGram }],
+        TERM_LIMIT + 1,
+      );
+      const unpostedTerms = await take<TermGram>(
+        TERM_GRAMS,
+        "by_orgId_warehouseId_gram",
+        [wh, { field: "gram", value: UNPOSTED_GRAM }],
+        TERM_LIMIT + 1,
+      );
+      for (const row of [...termRows, ...unpostedTerms])
+        if (
+          exactCode
+            ? EXACT_CODE_FIELD_INDICES.has(row.field) && row.text === needle
+            : row.text.includes(needle)
+        )
+          matchingTerms.set(row.termId, row);
+      exhaustive =
+        termRows.length > TERM_LIMIT ||
+        unpostedTerms.length > TERM_LIMIT ||
+        matchingTerms.size > STREAM_CAP;
+    }
+
+    // Per-scan postings: the gram whose postings are fewest (or sparsest).
+    // Not needed when the history merge answers (too many shared terms).
+    if (!scanGram && !exhaustive) {
       const sampled = await Promise.all(
         probes.map((gram) =>
-          take<TermGram>(
-            TERM_GRAMS,
-            "by_orgId_warehouseId_gram",
+          take<ScanGram>(
+            SCAN_GRAMS,
+            "by_orgId_warehouseId_gram_createdAt",
             [wh, { field: "gram", value: gram }],
-            TERM_PROBE + 1,
+            SCAN_PROBE,
           ),
         ),
       );
       let best = 0;
-      for (let index = 1; index < probes.length; index++)
-        if (sampled[index]!.length < sampled[best]!.length) best = index;
-      termGram = probes[best]!;
-      if (sampled[best]!.length <= TERM_PROBE) termRows = sampled[best]!;
+      // Exhausted grams by count; otherwise the one reaching furthest back.
+      const rank = (rows: ScanGram[]) =>
+        rows.length < SCAN_PROBE
+          ? [0, rows.length]
+          : [1, rows[rows.length - 1]!.createdAt];
+      for (let index = 1; index < probes.length; index++) {
+        const [a0, a1] = rank(sampled[index]!);
+        const [b0, b1] = rank(sampled[best]!);
+        if (a0! < b0! || (a0 === b0 && a1! < b1!)) best = index;
+      }
+      scanGram = probes[best]!;
     }
-    termRows ??= await take<TermGram>(
-      TERM_GRAMS,
-      "by_orgId_warehouseId_gram",
-      [wh, { field: "gram", value: termGram }],
-      TERM_LIMIT + 1,
-    );
-    const unpostedTerms = await take<TermGram>(
-      TERM_GRAMS,
-      "by_orgId_warehouseId_gram",
-      [wh, { field: "gram", value: UNPOSTED_GRAM }],
-      TERM_LIMIT + 1,
-    );
-    for (const row of [...termRows, ...unpostedTerms])
-      if (
-        exactCode
-          ? EXACT_CODE_FIELD_INDICES.has(row.field) && row.text === needle
-          : row.text.includes(needle)
-      )
-        matchingTerms.set(row.termId, row);
-    exhaustive =
-      termRows.length > TERM_LIMIT ||
-      unpostedTerms.length > TERM_LIMIT ||
-      matchingTerms.size > STREAM_CAP;
-  }
-
-  // Per-scan postings: the gram whose postings are fewest (or sparsest).
-  // Not needed when the history merge answers (too many shared terms).
-  let scanGram = state.g;
-  if (!scanGram && !exhaustive) {
-    const sampled = await Promise.all(
-      probes.map((gram) =>
-        take<ScanGram>(
-          SCAN_GRAMS,
-          "by_orgId_warehouseId_gram_createdAt",
-          [wh, { field: "gram", value: gram }],
-          SCAN_PROBE,
-        ),
-      ),
-    );
-    let best = 0;
-    // Exhausted grams by count; otherwise the one reaching furthest back.
-    const rank = (rows: ScanGram[]) =>
-      rows.length < SCAN_PROBE
-        ? [0, rows.length]
-        : [1, rows[rows.length - 1]!.createdAt];
-    for (let index = 1; index < probes.length; index++) {
-      const [a0, a1] = rank(sampled[index]!);
-      const [b0, b1] = rank(sampled[best]!);
-      if (a0! < b0! || (a0 === b0 && a1! < b1!)) best = index;
-    }
-    scanGram = probes[best]!;
   }
   const start = state.pos;
   const scanKey = (row: Scan): Key => [
@@ -1040,6 +1070,19 @@ export async function searchJobScans<Row>(
       },
       100,
     );
+  } else if (exactCodeField !== undefined) {
+    for (const term of exactFieldTerms)
+      add<SearchRow>(
+        {
+          table: SEARCH_ROWS,
+          index: `by_orgId_warehouseId_${term.slot}_createdAt`,
+          equality: [wh, { field: term.slot, value: term.termId }],
+          timeField: "scanCreationTime",
+          key: rowKey,
+          propose: mappedOk,
+        },
+        pageSize + 1,
+      );
   } else {
     for (const gram of [scanGram, UNPOSTED_GRAM])
       add<ScanGram>(

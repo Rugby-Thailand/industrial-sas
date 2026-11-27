@@ -18,6 +18,7 @@ import {
   writeSuccess,
 } from "@tests/fixtures/finished-goods-ui";
 import { JobScanRecordsScreen } from "./JobScanRecords";
+import type { StillPhotoCamera } from "./StillPhotoCamera";
 
 const mocks = vi.hoisted(() => ({
   manage: true,
@@ -68,6 +69,26 @@ vi.mock("../BarcodeCameraBox", () => ({
       </button>
     </>
   ),
+}));
+vi.mock("./StillPhotoCamera", () => ({
+  StillPhotoCamera: ({
+    onPhoto,
+    dock,
+  }: ComponentProps<typeof StillPhotoCamera>) => {
+    const shutter = (
+      <button
+        onClick={() =>
+          onPhoto(new File(["photo"], "ticket.jpg", { type: "image/jpeg" }))
+        }
+      >
+        Capture test ticket
+      </button>
+    );
+    return dock ? dock(shutter) : shutter;
+  },
+}));
+vi.mock("./prepareLocationImage", () => ({
+  prepareLocationImage: async () => "data:image/jpeg;base64,dGVzdA==",
 }));
 
 const row = {
@@ -215,8 +236,13 @@ it("applies scanned codes and AI filters to the actual records query and restore
       }),
     ),
   );
-  await user.click(screen.getByRole("button", { name: "AI search" }));
-  const dialog = within(screen.getByRole("dialog", { name: "AI search" }));
+  await user.click(
+    screen.getByRole("button", { name: "Search by ticket photo" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Type instead" }));
+  const dialog = within(
+    await screen.findByRole("dialog", { name: "AI search" }),
+  );
   await user.type(
     dialog.getByRole("textbox", { name: "Find tickets" }),
     "pallets on floor 2",
@@ -247,6 +273,7 @@ it("applies scanned codes and AI filters to the actual records query and restore
 
 it("reviews an explicit location search, restores its query scope, and clears the scope when typing", async () => {
   const user = userEvent.setup();
+  mocks.manage = false;
   mocks.action.mockResolvedValue(
     querySuccess({
       ok: true,
@@ -289,22 +316,110 @@ it("reviews an explicit location search, restores its query scope, and clears th
   expect(mocks.list.mock.lastCall?.[0]).not.toHaveProperty("searchField");
 });
 
-it("keeps the existing record actions beside AI edit and limits writes to managers", async () => {
+it("applies reviewed photo identifiers as scoped exact searches and restores them after remount", async () => {
+  const user = userEvent.setup();
+  mocks.action.mockResolvedValue(
+    querySuccess({
+      ok: true,
+      candidates: { factoryOrder: "FO1234" },
+    }),
+  );
+  const renderScreen = () =>
+    renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+  const view = renderScreen();
+  await user.click(
+    screen.getByRole("button", { name: "Search by ticket photo" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Capture test ticket" }));
+  const apply = await screen.findByRole("button", { name: "Search" });
+  expect(mocks.action).toHaveBeenCalledWith(fgRefs.readJobTicketForSearch, {
+    warehouseId: "warehouse-a",
+    imageDataUrl: "data:image/jpeg;base64,dGVzdA==",
+  });
+  expect(mocks.list.mock.lastCall?.[0]).not.toHaveProperty("exactCode");
+  await user.click(apply);
+  const exact = expect.objectContaining({
+    warehouseId: "warehouse-a",
+    filter: "ALL",
+    search: "FO1234",
+    searchField: "factoryOrder",
+    exactCode: true,
+  });
+  await waitFor(() => expect(mocks.list).toHaveBeenLastCalledWith(exact));
+  expect(window.location.hash).toBe("#records");
+  view.unmount();
+  renderScreen();
+  await waitFor(() => expect(mocks.list).toHaveBeenLastCalledWith(exact));
+  const search = screen.getByRole("textbox", { name: /search/i });
+  expect(search).toHaveValue("FO1234");
+  await user.type(search, "5");
+  await waitFor(() =>
+    expect(mocks.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: "FO12345" }),
+    ),
+  );
+  expect(mocks.list.mock.lastCall?.[0]).not.toHaveProperty("searchField");
+  expect(mocks.list.mock.lastCall?.[0]).not.toHaveProperty("exactCode");
+  expect(mocks.save).not.toHaveBeenCalled();
+});
+
+it("retires photo search on permission loss and ignores the late read when access returns", async () => {
+  trackAppHistory();
+  const original = window.location.href;
+  const user = userEvent.setup();
+  let reply!: (value: unknown) => void;
+  mocks.action.mockReturnValueOnce(
+    new Promise((resolve) => {
+      reply = resolve;
+    }),
+  );
+  const view = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+    preserveProviders: true,
+  });
+  await user.click(
+    screen.getByRole("button", { name: "Search by ticket photo" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Capture test ticket" }));
+  await waitFor(() => expect(mocks.action).toHaveBeenCalledOnce());
+  mocks.manage = false;
+  view.rerender(<JobScanRecordsScreen />);
+  await waitFor(() => expect(window.location.href).toBe(original));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("button", { name: "AI search" })).toBeVisible();
+  await act(async () =>
+    reply(querySuccess({ ok: true, candidates: { factoryOrder: "FO1234" } })),
+  );
+  mocks.manage = true;
+  view.rerender(<JobScanRecordsScreen />);
+  expect(
+    screen.getByRole("button", { name: "Search by ticket photo" }),
+  ).toBeVisible();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(mocks.list.mock.lastCall?.[0]).not.toHaveProperty("exactCode");
+  expect(mocks.action).toHaveBeenCalledOnce();
+});
+
+it("opens AI edit from the row menu, restores focus, and limits writes to managers", async () => {
   const user = userEvent.setup();
   const view = renderWithIntl(<JobScanRecordsScreen />, {
     locale: "en",
     workspace: false,
     preserveProviders: true,
   });
-  expect(
-    screen.getByRole("button", { name: "Actions for record FO12345" }),
-  ).toBeInTheDocument();
+  const menu = screen.getByRole("button", {
+    name: "Actions for record FO12345",
+  });
   expect(
     screen.getByRole("button", { name: "Delete record FO12345" }),
   ).toBeInTheDocument();
-  await user.click(
-    screen.getByRole("button", { name: "Edit FO12345 with AI" }),
-  );
+  expect(screen.queryByRole("button", { name: /edit.*with AI/i })).toBeNull();
+  await openRowAiEdit(user);
   expect(
     screen.getByRole("dialog", { name: "Edit with AI" }),
   ).toHaveTextContent("FO12345");
@@ -325,17 +440,31 @@ it("keeps the existing record actions beside AI edit and limits writes to manage
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
+  await waitFor(() => expect(menu).toHaveFocus());
   mocks.manage = false;
   view.rerender(<JobScanRecordsScreen />);
   expect(
-    screen.queryByRole("button", { name: "Edit FO12345 with AI" }),
-  ).not.toBeInTheDocument();
+    screen.queryByRole("button", { name: "Actions for record FO12345" }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Search by ticket photo" }),
+  ).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Scan to search" }),
+  ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "AI search" })).toBeInTheDocument();
 });
 
 const origin = "/th/finished-goods/scan?warehouse=one#camera";
 const recordsPath = "/en/finished-goods/scan/records?warehouse=one#records";
 const editPrompt = "Set part name to Widget";
+
+async function openRowAiEdit(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    screen.getByRole("button", { name: "Actions for record FO12345" }),
+  );
+  await user.click(screen.getByRole("menuitem", { name: /edit.*with AI/i }));
+}
 
 async function openManualEditorFromAi() {
   window.history.replaceState({ __NA: true }, "", origin);
@@ -348,9 +477,7 @@ async function openManualEditorFromAi() {
     { locale: "en", workspace: false },
   );
   const user = userEvent.setup();
-  await user.click(
-    screen.getByRole("button", { name: "Edit FO12345 with AI" }),
-  );
+  await openRowAiEdit(user);
   await user.type(
     screen.getByRole("textbox", { name: "What should change?" }),
     editPrompt,

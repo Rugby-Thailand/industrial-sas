@@ -9025,14 +9025,14 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:assisting",
       "policy": "overlay",
       "integration": "delegated-overlay",
-      "expectation": "A manager's saved-record selection opens the AI correction Dialog. The prompt remains available beneath review or manual correction. Cancel restores it, while a successful correction settles the draft and consumes both entries.",
+      "expectation": "A manager opens the AI correction Dialog from a saved record's actions menu, which regains focus after dismissal. The prompt remains available beneath review or manual correction. Cancel restores it, while a successful correction settles the draft and consumes both entries.",
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
       ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
-          "name": "keeps the existing record actions beside AI edit and limits writes to managers"
+          "name": "opens AI edit from the row menu, restores focus, and limits writes to managers"
         },
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
@@ -9158,10 +9158,11 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:aiOpen",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "The shared read-only AI search Dialog owns its foreground. Reviewed criteria, including the explicitly requested field, apply to the underlay only after confirmation consumes and retires that entry.",
+      "expectation": "The shared read-only AI search Dialog owns its foreground; a manager reaches it from photo search through Type instead after that entry is consumed. Reviewed criteria, including the explicitly requested field, apply to the underlay only after confirmation consumes and retires that entry.",
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
-        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx"
       ],
       "cases": [
         {
@@ -9175,6 +9176,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
           "name": "%s retires AI search before Forward and the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "Type instead swaps the photo camera for typed AI search and consumes its entry"
         }
       ]
     },
@@ -9234,6 +9239,251 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecordSearch.test.tsx",
           "name": "clears a search review when its request changes and Back dismisses an unapplied search"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:photoOpen",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "A manager's shared full-screen ticket photo search Dialog owns camera, gallery, temporary single-image preparation, AI reading and review; nothing is stored. Search consumes and retires its entry before applying a scoped exact job-number or product-barcode search. Type instead consumes it before opening typed AI search. Cancel or Escape retires it so Forward cannot restart the camera. Back and permission loss ignore late reads, and restoring permission does not reopen the camera.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "reads a ticket photo, lets the manager choose and correct a code, and Search consumes the camera before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "Type instead swaps the photo camera for typed AI search and consumes its entry"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "%s retires photo search before Forward and the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "Back during reading ignores the late answer and Forward offers a fresh camera"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "retires photo search on permission loss and ignores the late read when access returns"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordSearch.tsx#JobScanRecordSearch:$overlay:Dialog:photoOpen",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "A manager's shared full-screen ticket photo search Dialog owns camera, gallery, temporary single-image preparation, AI reading and review; nothing is stored. Search consumes and retires its entry before applying a scoped exact job-number or product-barcode search. Type instead consumes it before opening typed AI search. Cancel or Escape retires it so Forward cannot restart the camera. Back and permission loss ignore late reads, and restoring permission does not reopen the camera.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "gives managers photo search in the AI slot while viewers keep typed AI search, in English and Thai"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "reads a ticket photo, lets the manager choose and correct a code, and Search consumes the camera before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "%s retires photo search before Forward and the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "Back during reading ignores the late answer and Forward offers a fresh camera"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordsTools.test.tsx",
+          "name": "retires photo search on permission loss and ignores the late read when access returns"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.tsx#JobScanRecordPhotoSearch:$overlay:Dialog:photo+retaking",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "A retake over a reviewed photo owns a nested full-screen Dialog. Native Back restores the existing photo and corrected code. Closing, pressing Escape, or capturing or choosing a replacement consumes and retires the retake entry. The initial capture belongs to the outer photo search Dialog.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "native Back from a retake returns to the reviewed photo and corrected code, and a replacement is read"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "%s retires retake without losing the reviewed code"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.tsx#JobScanRecordPhotoSearch:retaking",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "A retake over a reviewed photo owns a nested full-screen Dialog. Native Back restores the existing photo and corrected code. Closing, pressing Escape, or capturing or choosing a replacement consumes and retires the retake entry. The initial capture belongs to the outer photo search Dialog.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "native Back from a retake returns to the reviewed photo and corrected code, and a replacement is read"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "%s retires retake without losing the reviewed code"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.tsx#JobScanRecordPhotoSearch:photo",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The presence of a captured photo distinguishes the initial camera in the owning photo search Dialog from the review. Retake owns a nested Back entry while the reviewed photo and corrected code stay mounted below it.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "reads a ticket photo, lets the manager choose and correct a code, and Search consumes the camera before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "native Back from a retake returns to the reviewed photo and corrected code, and a replacement is read"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.tsx#JobScanRecordPhotoSearch:busy",
+      "policy": "presentation",
+      "expectation": "Reading shows inline progress with Stop reading inside the owning photo search Dialog. Stopping keeps the photo, ignores a late answer and offers Read again; it creates no predecessor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "p[role=status]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "Stop reading keeps the photo, ignores the late answer and reads again on request"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.tsx#JobScanRecordPhotoSearch:candidates",
+      "policy": "presentation",
+      "expectation": "Read identifiers move focus to the inline review heading and reveal choices and a correctable code inside the owning photo search Dialog. Search completes through the outer Dialog's owned entry; Back dismisses without applying.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "div[role=group]",
+            "form",
+            "h3",
+            "label",
+            "span",
+            "src/components/ui/button#Button",
+            "src/components/ui/input#Input"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": [
+            "div[role=group]",
+            "span",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "reads a ticket photo, lets the manager choose and correct a code, and Search consumes the camera before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "Stop reading keeps the photo, ignores the late answer and reads again on request"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.tsx#JobScanRecordPhotoSearch:error",
+      "policy": "presentation",
+      "expectation": "A quota, unreadable or unavailable answer shows one inline alert over the retained photo with Read again, Retake and Type instead; no foreground or Back entry is added.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
+        }
+      ],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "keeps the photo with recovery actions after a %s answer"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.tsx#JobScanRecordPhotoSearch:fileError",
+      "policy": "presentation",
+      "expectation": "An unsupported gallery or device-camera file shows one inline alert in the active camera or review without replacing the photo or adding a foreground entry.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
+        }
+      ],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordPhotoSearch.test.tsx",
+          "name": "rejects an unsupported gallery file and offers the device camera when the in-app camera fails"
         }
       ]
     },

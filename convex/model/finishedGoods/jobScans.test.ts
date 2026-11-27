@@ -3,6 +3,8 @@ import {
   JOB_SCAN_AI_MAX_COMPLETION_TOKENS,
   JOB_SCAN_EDIT_JSON_SCHEMA,
   JOB_SCAN_SEARCH_JSON_SCHEMA,
+  JOB_TICKET_CODE_LIMITS,
+  JOB_TICKET_SEARCH_PHOTO_JSON_SCHEMA,
   MAX_JOB_SCAN_AI_CONTENT_LENGTH,
   MAX_JOB_SCAN_AI_PROMPT_LENGTH,
   classifyTicketBarcode,
@@ -14,6 +16,8 @@ import {
   parseJobScanSearchContent,
   parseJobScanSearchIntent,
   parseJobTicket,
+  parseJobTicketSearchCandidates,
+  parseJobTicketSearchCandidatesContent,
   validJobScanAiPrompt,
 } from "./jobScans";
 
@@ -1643,5 +1647,97 @@ describe("parseJobScanEditProposal", () => {
         ),
       ).toEqual({ kind: "OK", value: { locationCode } });
     }
+  });
+});
+
+describe("parseJobTicketSearchCandidates", () => {
+  it("keeps only trimmed lookup code candidates and strips all other ticket fields", () => {
+    expect(JOB_TICKET_SEARCH_PHOTO_JSON_SCHEMA.required).toEqual([
+      "factory_order",
+      "product_barcode_text",
+    ]);
+    expect(
+      parseJobTicketSearchCandidates({
+        factory_order: " FO69070073 ",
+        product_barcode_text: " FBN-BXVMI004-BOX-00F ",
+        part_name: "Secret part",
+        customer: "Secret customer",
+        delivery_date: "6/7/2569",
+        quantity: 1000,
+        unexpected: "ignored",
+      }),
+    ).toEqual({
+      factoryOrder: "FO69070073",
+      productBarcodeText: "FBN-BXVMI004-BOX-00F",
+    });
+    expect(
+      parseJobTicketSearchCandidates({
+        factory_order: "FOM6908062",
+        product_barcode_text: null,
+      }),
+    ).toEqual({ factoryOrder: "FOM6908062" });
+    expect(
+      parseJobTicketSearchCandidates({
+        factory_order: null,
+        product_barcode_text: "FBN-BOX-01",
+      }),
+    ).toEqual({ productBarcodeText: "FBN-BOX-01" });
+    expect(
+      parseJobTicketSearchCandidates({
+        factory_order: null,
+        product_barcode_text: null,
+      }),
+    ).toEqual({});
+    expect(
+      parseJobTicketSearchCandidates({
+        factory_order: "   ",
+        product_barcode_text: "",
+      }),
+    ).toEqual({});
+    expect(
+      parseJobTicketSearchCandidatesContent(
+        '```json\n{"factory_order":"FO-1","product_barcode_text":null}\n```',
+      ),
+    ).toEqual({ factoryOrder: "FO-1" });
+  });
+
+  it.each([
+    null,
+    undefined,
+    [],
+    "FO69070073",
+    42,
+    {},
+    { part_name: "Only non-code field" },
+    { factory_order: 123, product_barcode_text: null },
+    { factory_order: null, product_barcode_text: true },
+    { factory_order: "FO\u00001", product_barcode_text: null },
+    { factory_order: "FO\n1", product_barcode_text: null },
+    { factory_order: null, product_barcode_text: "BAR\u001b[31m" },
+    { factory_order: "ISAS:LOCATION:1:abc", product_barcode_text: null },
+    { factory_order: "https://example.test/x", product_barcode_text: null },
+    { factory_order: null, product_barcode_text: "javascript:alert(1)" },
+    {
+      factory_order: "A".repeat(JOB_TICKET_CODE_LIMITS.factoryOrder + 1),
+      product_barcode_text: null,
+    },
+    {
+      factory_order: null,
+      product_barcode_text: "B".repeat(
+        JOB_TICKET_CODE_LIMITS.productBarcodeText + 1,
+      ),
+    },
+  ])("rejects malformed, oversized, or unsafe payload %#", (raw) => {
+    expect(parseJobTicketSearchCandidates(raw)).toBeNull();
+  });
+
+  it("rejects empty, non-JSON, and oversized content envelopes", () => {
+    expect(parseJobTicketSearchCandidatesContent("")).toBeNull();
+    expect(parseJobTicketSearchCandidatesContent("not json")).toBeNull();
+    expect(
+      parseJobTicketSearchCandidatesContent(
+        " ".repeat(MAX_JOB_SCAN_AI_CONTENT_LENGTH + 1),
+      ),
+    ).toBeNull();
   });
 });
