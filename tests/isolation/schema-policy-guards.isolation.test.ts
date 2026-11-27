@@ -174,11 +174,12 @@ describe("a global table masquerading as tenant-scoped is caught", () => {
     ).toEqual([]);
   });
 
-  it("keeps the root allowlist at exactly three tables", () => {
+  it("keeps the root allowlist at exactly four tables", () => {
     expect([...GLOBAL_TABLES]).toEqual([
       "organizations",
       "users",
       "permissions",
+      "customerLineRoutes",
     ]);
     expect(classifyTable("organizations")).toBe("global");
     expect(classifyTable("users")).toBe("global");

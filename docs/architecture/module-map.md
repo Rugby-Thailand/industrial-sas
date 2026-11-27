@@ -31,12 +31,15 @@ specifiers with `/./` or `//` segments. `module-boundaries` resolves every
 import path, so it also catches static, namespace and dynamic (string or
 template) access outside exact owners, and re-exports from an exact owner.
 Convex sources must be TypeScript (only the root `convex/_generated` is exempt), so no `.js` entry escapes these checks. Named `internal*` constructors and type-only imports remain
-allowed. The two sessionless public ingress exceptions are:
+allowed. The sessionless ingress exceptions are:
 
 - `convex/lib/clerkWebhook.ts#clerkWebhook`: verifies the Clerk webhook signature.
+- `convex/customerLine/transportWebhook.ts#lineWebhook`: resolves the OA from its opaque route key, then verifies the raw-body signature and destination before applying events.
 - `convex/finishedGoods/attachments.ts#finalizeUpload`: verifies an HMAC receipt
   for a provider callback before finalizing its existing organization-owned
   intent ([review](../reviews/architecture-current-2026-11-09/ai-attachments.md)).
+
+`convex/customerLine/transport.ts#connectPrimary` and `#testConnection` use the raw action context to call internal authorization and persistence across LINE API requests. Both require the active tenant actor and the LINE settings grant. The final mutation rechecks the actor and connection before recording setup. The exact registration owner test covers these actions. The authenticated internal `connectAdditional` action registers a separate account with its own webhook and credentials without changing the primary account shown in v1.
 
 The navigation cycle check follows runtime edges through intermediate frontend
 modules, starting at each of the four history-core modules. Only whole-statement `import type` / `export type` and import-type expressions

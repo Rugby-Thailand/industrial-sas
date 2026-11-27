@@ -36,7 +36,12 @@ describe("uniqueness and bounded-lookup contracts", () => {
   it("scopes every tenant contract to one organization", () => {
     const tenantContracts = UNIQUENESS_CONTRACTS.filter(
       (contract) =>
-        !["organizations", "users", "permissions"].includes(contract.table),
+        ![
+          "organizations",
+          "users",
+          "permissions",
+          "customerLineRoutes",
+        ].includes(contract.table),
     );
     const unscoped = tenantContracts.filter(
       (contract) => contract.key[0] !== "orgId",

@@ -159,6 +159,18 @@ export default tseslint.config(
     },
   },
   {
+    files: ["convex/customerLine/transport.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": rawBuilders(["action"]),
+    },
+  },
+  {
+    files: ["convex/customerLine/transportWebhook.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": rawBuilders(["httpAction"]),
+    },
+  },
+  {
     files: ["convex/finishedGoods/attachments.ts"],
     rules: {
       "@typescript-eslint/no-restricted-imports": rawBuilders(["mutation"]),

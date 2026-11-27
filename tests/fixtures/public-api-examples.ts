@@ -232,6 +232,11 @@ function example<K extends Kind>(
 export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("aiUsage/reports:summary", "query", () => ({})),
   example("aiUsage/dimensions:warehouseOptions", "query", () => ({})),
+  example("customerLine/groups:viewer", "query", () => ({})),
+  example("customerLine/transport:connectPrimary", "action", () => ({
+    channelSecret: "synthetic-channel-secret",
+    accessToken: "synthetic-channel-token",
+  })),
   example("customers/catalogue:viewer", "query", () => ({})),
   example("customers/writes:createCustomer", "mutation", () => ({
     requestId: "public-customer-create",

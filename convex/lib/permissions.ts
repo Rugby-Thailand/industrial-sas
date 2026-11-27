@@ -41,6 +41,22 @@ export const CUSTOMER_PERMISSION_CODES = Object.freeze([
   NAVIGATION_PERMISSION.customerManage,
 ] as const);
 
+/**
+ * Customer LINE group grants. Each also requires the customer read grant.
+ * Deliberately absent from DEFAULT_ROLES: an organization opts in through
+ * `customerLine/provision:grantOrgAdminLineAccess`, so no existing role is
+ * broadened by deployment.
+ */
+export const CUSTOMER_LINE_PERMISSION = Object.freeze({
+  read: "customerLine.groups.read",
+  manageGroups: "customerLine.groups.manage",
+  send: "customerLine.reply.send",
+  manageConnection: "customerLine.connection.manage",
+} as const);
+export const CUSTOMER_LINE_PERMISSION_CODES = Object.freeze(
+  Object.values(CUSTOMER_LINE_PERMISSION),
+);
+
 export const PERMISSION_CATALOGUE = Object.freeze([
   permission("masterData.warehouse.read", "ORG"),
   permission("masterData.storageLayout.read", "WAREHOUSE"),
@@ -49,6 +65,7 @@ export const PERMISSION_CATALOGUE = Object.freeze([
   ...AI_USAGE_PERMISSION_CODES.map((code) => permission(code, "ORG")),
   ...HR_PERMISSION_CODES.map((code) => permission(code, "ORG")),
   ...CUSTOMER_PERMISSION_CODES.map((code) => permission(code, "ORG")),
+  ...CUSTOMER_LINE_PERMISSION_CODES.map((code) => permission(code, "ORG")),
 ]);
 export const PERMISSIONS_BY_CODE: ReadonlyMap<string, PermissionDefinition> =
   new Map(PERMISSION_CATALOGUE.map((entry) => [entry.code, entry]));

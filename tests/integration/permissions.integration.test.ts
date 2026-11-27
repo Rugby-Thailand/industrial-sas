@@ -28,6 +28,10 @@ const SHIPPING_CATALOGUE = [
   ["hr.period.export", "ORG"],
   ["masterData.customer.read", "ORG"],
   ["masterData.customer.manage", "ORG"],
+  ["customerLine.groups.read", "ORG"],
+  ["customerLine.groups.manage", "ORG"],
+  ["customerLine.reply.send", "ORG"],
+  ["customerLine.connection.manage", "ORG"],
 ] as const;
 const PLANNER = SHIPPING_CATALOGUE.slice(0, 4).map(([code]) => code);
 const HR = SHIPPING_CATALOGUE.slice(6, 11).map(([code]) => code);

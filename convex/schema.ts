@@ -1,5 +1,9 @@
 import { aiUsageTables } from "./aiUsage/schema";
 import {
+  customerLineGlobalTables,
+  customerLineTables,
+} from "./customerLine/schema";
+import {
   customerAliasFields,
   customerFields,
   customerLinkSource,
@@ -219,6 +223,8 @@ const schema = defineSchema({
   ...hrAnnouncementTables,
   ...hrRosterTables,
   ...aiUsageTables,
+  ...customerLineTables,
+  ...customerLineGlobalTables,
   hrEmployees: defineTable(
     tenantFields({
       ...employeeOrgFields,

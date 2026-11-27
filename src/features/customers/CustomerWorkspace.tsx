@@ -33,6 +33,7 @@ import { warehouseLabel } from "@/lib/workspace/workspace";
 import { CustomerGate, useCustomerAccess } from "./customerAccess";
 import { CustomerAliasesCard, LifecycleAction } from "./CustomerDetail";
 import { CustomerDetailCard } from "./CustomerDetailCard";
+import { CustomerLineEntry } from "./CustomerLineEntry";
 import { CustomerDelivery, CustomerRegistration } from "./CustomerProfileCards";
 import { CustomerDirectory } from "./CustomerDirectory";
 import {
@@ -250,6 +251,7 @@ function WorkspaceContent({
             }
           >
             <div inert={changingUrl} className="contents">
+              <CustomerLineEntry customerId={customerId} />
               {showWarehouse && access?.canScan && !archived ? (
                 <Button asChild>
                   <Link

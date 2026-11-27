@@ -94,6 +94,7 @@ export function moduleBackFallback(currentHref: string): string | null {
   }
   if (path.startsWith(`${ROUTES.customers}/`)) {
     const suffix = path.slice(ROUTES.customers.length + 1).split("/");
+    if (suffix.length === 2 && suffix[0] === "line") return ROUTES.customerLine;
     if (suffix.length === 2 && suffix[1] === "edit")
       return `${ROUTES.customers}/${suffix[0]}`;
     return ROUTES.customers;

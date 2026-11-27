@@ -1201,6 +1201,3372 @@
       "type": "any"
     }
   },
+  "customerLine/events:acceptEvents": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "connectionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "revision": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "destination": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "events": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "object",
+              "value": {
+                "eventId": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                "timestamp": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                },
+                "groupId": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                "type": {
+                  "fieldType": {
+                    "type": "union",
+                    "value": [
+                      {
+                        "type": "literal",
+                        "value": "join"
+                      },
+                      {
+                        "type": "literal",
+                        "value": "leave"
+                      },
+                      {
+                        "type": "literal",
+                        "value": "memberJoined"
+                      },
+                      {
+                        "type": "literal",
+                        "value": "memberLeft"
+                      },
+                      {
+                        "type": "literal",
+                        "value": "message"
+                      },
+                      {
+                        "type": "literal",
+                        "value": "unsend"
+                      }
+                    ]
+                  },
+                  "optional": false
+                },
+                "senderId": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": true
+                },
+                "memberIds": {
+                  "fieldType": {
+                    "type": "array",
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "optional": true
+                },
+                "messageId": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": true
+                },
+                "text": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": true
+                },
+                "mentionsSelf": {
+                  "fieldType": {
+                    "type": "boolean"
+                  },
+                  "optional": true
+                },
+                "groupName": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": true
+                }
+              }
+            }
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "status": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "ok"
+              },
+              {
+                "type": "literal",
+                "value": "stale"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "applied": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "skipped": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "customerLine/events:authorizeConnection": {
+    "kind": "query",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {}
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "value": {
+            "orgId": {
+              "fieldType": {
+                "type": "id",
+                "tableName": "organizations"
+              },
+              "optional": false
+            },
+            "actorId": {
+              "fieldType": {
+                "type": "id",
+                "tableName": "users"
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/events:authorizeReply": {
+    "kind": "query",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "questionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "leaseId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "boolean"
+    }
+  },
+  "customerLine/events:claimReply": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "questionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "value": {
+            "to": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "tokenCiphertext": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "text": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "retryKey": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "leaseId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/events:findConnection": {
+    "kind": "query",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "webhookKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "value": {
+            "_id": {
+              "fieldType": {
+                "type": "id",
+                "tableName": "customerLineConnections"
+              },
+              "optional": false
+            },
+            "botUserId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "secretCiphertext": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "tokenCiphertext": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "state": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "literal",
+                    "value": "setup"
+                  },
+                  {
+                    "type": "literal",
+                    "value": "active"
+                  }
+                ]
+              },
+              "optional": false
+            },
+            "revision": {
+              "fieldType": {
+                "type": "number"
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/events:finishConnectionTest": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "actorId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "connectionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "groupId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "revision": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "groupVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "boolean"
+    }
+  },
+  "customerLine/events:finishReply": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "questionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "leaseId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "state": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "accepted"
+              },
+              {
+                "type": "literal",
+                "value": "failed"
+              },
+              {
+                "type": "literal",
+                "value": "unknown"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "acceptedRequestId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "boolean"
+    }
+  },
+  "customerLine/events:readConnectionTest": {
+    "kind": "query",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "actorId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "connectionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "groupId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "value": {
+            "to": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "tokenCiphertext": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "revision": {
+              "fieldType": {
+                "type": "number"
+              },
+              "optional": false
+            },
+            "groupVersion": {
+              "fieldType": {
+                "type": "number"
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/events:saveConnection": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "actorId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "botUserId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "basicId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "name": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "secretCiphertext": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "tokenCiphertext": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "webhookKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "primary": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "connection": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "_id": {
+                    "fieldType": {
+                      "type": "id",
+                      "tableName": "customerLineConnections"
+                    },
+                    "optional": false
+                  },
+                  "name": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "basicId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "state": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "literal",
+                          "value": "setup"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "active"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "disconnected"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  },
+                  "webhookPath": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "identityVerifiedAt": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": false
+                  },
+                  "webhookVerifiedAt": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": true
+                  },
+                  "testSentAt": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": true
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "code": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:approveGroup": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "groupId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "customerId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "confirmed": {
+          "fieldType": {
+            "type": "literal",
+            "value": true
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "code": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:disconnectConnection": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "connectionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "code": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:getGroup": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "groupId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "_id": {
+                        "fieldType": {
+                          "type": "id",
+                          "tableName": "customerLineGroups"
+                        },
+                        "optional": false
+                      },
+                      "name": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "state": {
+                        "fieldType": {
+                          "type": "union",
+                          "value": [
+                            {
+                              "type": "literal",
+                              "value": "pending"
+                            },
+                            {
+                              "type": "literal",
+                              "value": "active"
+                            },
+                            {
+                              "type": "literal",
+                              "value": "paused"
+                            },
+                            {
+                              "type": "literal",
+                              "value": "disconnected"
+                            }
+                          ]
+                        },
+                        "optional": false
+                      },
+                      "customerId": {
+                        "fieldType": {
+                          "type": "id",
+                          "tableName": "customers"
+                        },
+                        "optional": true
+                      },
+                      "customerName": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": true
+                      },
+                      "version": {
+                        "fieldType": {
+                          "type": "number"
+                        },
+                        "optional": false
+                      },
+                      "lastActivityAt": {
+                        "fieldType": {
+                          "type": "number"
+                        },
+                        "optional": false
+                      },
+                      "providerDeparture": {
+                        "fieldType": {
+                          "type": "union",
+                          "value": [
+                            {
+                              "type": "literal",
+                              "value": "pending"
+                            },
+                            {
+                              "type": "literal",
+                              "value": "left"
+                            },
+                            {
+                              "type": "literal",
+                              "value": "failed"
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:getPrimaryConnection": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {}
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "_id": {
+                        "fieldType": {
+                          "type": "id",
+                          "tableName": "customerLineConnections"
+                        },
+                        "optional": false
+                      },
+                      "name": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "basicId": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "state": {
+                        "fieldType": {
+                          "type": "union",
+                          "value": [
+                            {
+                              "type": "literal",
+                              "value": "setup"
+                            },
+                            {
+                              "type": "literal",
+                              "value": "active"
+                            },
+                            {
+                              "type": "literal",
+                              "value": "disconnected"
+                            }
+                          ]
+                        },
+                        "optional": false
+                      },
+                      "webhookPath": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "identityVerifiedAt": {
+                        "fieldType": {
+                          "type": "number"
+                        },
+                        "optional": false
+                      },
+                      "webhookVerifiedAt": {
+                        "fieldType": {
+                          "type": "number"
+                        },
+                        "optional": true
+                      },
+                      "testSentAt": {
+                        "fieldType": {
+                          "type": "number"
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:getPrimaryConnectionSummary": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {}
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "name": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "basicId": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      "state": {
+                        "fieldType": {
+                          "type": "union",
+                          "value": [
+                            {
+                              "type": "literal",
+                              "value": "setup"
+                            },
+                            {
+                              "type": "literal",
+                              "value": "active"
+                            },
+                            {
+                              "type": "literal",
+                              "value": "disconnected"
+                            }
+                          ]
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:listContacts": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "groupId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "page": {
+                    "fieldType": {
+                      "type": "array",
+                      "value": {
+                        "type": "object",
+                        "value": {
+                          "_id": {
+                            "fieldType": {
+                              "type": "id",
+                              "tableName": "customerLineContacts"
+                            },
+                            "optional": false
+                          },
+                          "name": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "state": {
+                            "fieldType": {
+                              "type": "union",
+                              "value": [
+                                {
+                                  "type": "literal",
+                                  "value": "observed"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "verified"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "revoked"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "left"
+                                }
+                              ]
+                            },
+                            "optional": false
+                          }
+                        }
+                      }
+                    },
+                    "optional": false
+                  },
+                  "continueCursor": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:listGroups": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "customerId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "page": {
+                    "fieldType": {
+                      "type": "array",
+                      "value": {
+                        "type": "object",
+                        "value": {
+                          "_id": {
+                            "fieldType": {
+                              "type": "id",
+                              "tableName": "customerLineGroups"
+                            },
+                            "optional": false
+                          },
+                          "name": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "state": {
+                            "fieldType": {
+                              "type": "union",
+                              "value": [
+                                {
+                                  "type": "literal",
+                                  "value": "pending"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "active"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "paused"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "disconnected"
+                                }
+                              ]
+                            },
+                            "optional": false
+                          },
+                          "customerId": {
+                            "fieldType": {
+                              "type": "id",
+                              "tableName": "customers"
+                            },
+                            "optional": true
+                          },
+                          "customerName": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": true
+                          },
+                          "version": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": false
+                          },
+                          "lastActivityAt": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": false
+                          },
+                          "providerDeparture": {
+                            "fieldType": {
+                              "type": "union",
+                              "value": [
+                                {
+                                  "type": "literal",
+                                  "value": "pending"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "left"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "failed"
+                                }
+                              ]
+                            },
+                            "optional": true
+                          }
+                        }
+                      }
+                    },
+                    "optional": false
+                  },
+                  "continueCursor": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:listPendingGroups": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "page": {
+                    "fieldType": {
+                      "type": "array",
+                      "value": {
+                        "type": "object",
+                        "value": {
+                          "_id": {
+                            "fieldType": {
+                              "type": "id",
+                              "tableName": "customerLineGroups"
+                            },
+                            "optional": false
+                          },
+                          "name": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "state": {
+                            "fieldType": {
+                              "type": "union",
+                              "value": [
+                                {
+                                  "type": "literal",
+                                  "value": "pending"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "active"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "paused"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "disconnected"
+                                }
+                              ]
+                            },
+                            "optional": false
+                          },
+                          "customerId": {
+                            "fieldType": {
+                              "type": "id",
+                              "tableName": "customers"
+                            },
+                            "optional": true
+                          },
+                          "customerName": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": true
+                          },
+                          "version": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": false
+                          },
+                          "lastActivityAt": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": false
+                          },
+                          "providerDeparture": {
+                            "fieldType": {
+                              "type": "union",
+                              "value": [
+                                {
+                                  "type": "literal",
+                                  "value": "pending"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "left"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "failed"
+                                }
+                              ]
+                            },
+                            "optional": true
+                          }
+                        }
+                      }
+                    },
+                    "optional": false
+                  },
+                  "continueCursor": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:listQuestions": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "groupId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "page": {
+                    "fieldType": {
+                      "type": "array",
+                      "value": {
+                        "type": "object",
+                        "value": {
+                          "_id": {
+                            "fieldType": {
+                              "type": "id",
+                              "tableName": "customerLineQuestions"
+                            },
+                            "optional": false
+                          },
+                          "text": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "senderLabel": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "createdAt": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": false
+                          },
+                          "state": {
+                            "fieldType": {
+                              "type": "union",
+                              "value": [
+                                {
+                                  "type": "literal",
+                                  "value": "open"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "queued"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "accepted"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "failed"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "unknown"
+                                },
+                                {
+                                  "type": "literal",
+                                  "value": "canceled"
+                                }
+                              ]
+                            },
+                            "optional": false
+                          },
+                          "replyText": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": true
+                          }
+                        }
+                      }
+                    },
+                    "optional": false
+                  },
+                  "continueCursor": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:queueReply": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "groupId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "questionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "text": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "confirmedAudience": {
+          "fieldType": {
+            "type": "literal",
+            "value": true
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "code": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:setContact": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "groupId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "contactId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "verified": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "name": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "code": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:setGroupState": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "groupId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "state": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "active"
+              },
+              {
+                "type": "literal",
+                "value": "paused"
+              },
+              {
+                "type": "literal",
+                "value": "disconnected"
+              },
+              {
+                "type": "literal",
+                "value": "pending"
+              }
+            ]
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "union",
+                    "value": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "value": {
+                          "code": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "value": {
+                      "groupId": {
+                        "fieldType": {
+                          "type": "string"
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/groups:viewer": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {}
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "canRead": {
+                    "fieldType": {
+                      "type": "boolean"
+                    },
+                    "optional": false
+                  },
+                  "canManageGroups": {
+                    "fieldType": {
+                      "type": "boolean"
+                    },
+                    "optional": false
+                  },
+                  "canSend": {
+                    "fieldType": {
+                      "type": "boolean"
+                    },
+                    "optional": false
+                  },
+                  "canManageConnection": {
+                    "fieldType": {
+                      "type": "boolean"
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/provision:grantOrgAdminLineAccess": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "status": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "upgraded"
+              },
+              {
+                "type": "literal",
+                "value": "current"
+              },
+              {
+                "type": "literal",
+                "value": "customized"
+              },
+              {
+                "type": "literal",
+                "value": "missing"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "added": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "customerLine/provision:revokeOrgAdminLineAccess": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "removed": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "customerLine/transport:connectAdditional": {
+    "kind": "action",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "channelSecret": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "accessToken": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "_id": {
+                    "fieldType": {
+                      "type": "id",
+                      "tableName": "customerLineConnections"
+                    },
+                    "optional": false
+                  },
+                  "name": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "basicId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "state": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "literal",
+                          "value": "setup"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "active"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "disconnected"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  },
+                  "webhookPath": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "identityVerifiedAt": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": false
+                  },
+                  "webhookVerifiedAt": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": true
+                  },
+                  "testSentAt": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": true
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/transport:connectPrimary": {
+    "kind": "action",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "channelSecret": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "accessToken": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "_id": {
+                    "fieldType": {
+                      "type": "id",
+                      "tableName": "customerLineConnections"
+                    },
+                    "optional": false
+                  },
+                  "name": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "basicId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "state": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "literal",
+                          "value": "setup"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "active"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "disconnected"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  },
+                  "webhookPath": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "identityVerifiedAt": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": false
+                  },
+                  "webhookVerifiedAt": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": true
+                  },
+                  "testSentAt": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": true
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/transport:deliverReply": {
+    "kind": "action",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "questionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "null"
+    }
+  },
+  "customerLine/transport:lookupGroupNames": {
+    "kind": "action",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "webhookKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "revision": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "groups": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "object",
+              "value": {
+                "groupId": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                "timestamp": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                }
+              }
+            }
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "null"
+    }
+  },
+  "customerLine/transport:testConnection": {
+    "kind": "action",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "connectionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "groupId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "null"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "customerLine/transportGroupNames:updateGroupNames": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "connectionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "revision": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "names": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "object",
+              "value": {
+                "groupId": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                "timestamp": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                },
+                "name": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                }
+              }
+            }
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "null"
+    }
+  },
   "customers/backfill:backfillJobScanCustomers": {
     "kind": "mutation",
     "visibility": "internal",

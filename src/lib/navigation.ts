@@ -47,6 +47,7 @@ export const ROUTES = Object.freeze({
   storageLayouts: "/master-data/storage-layouts",
   customers: "/master-data/customers",
   customerReview: "/master-data/customers/review",
+  customerLine: "/master-data/customers/line",
   finishedGoods: "/finished-goods",
   jobScan: "/finished-goods/scan",
   jobScanRecords: "/finished-goods/scan/records",
