@@ -218,79 +218,81 @@ function Catalogue({
             )}
           </div>
         )}
-      <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 border-b border-border pb-3 lg:grid-cols-4">
-        {(
-          [
-            [t("copy.products"), summary?.products, null],
+      <div className="@container mb-4 border-b border-border pb-3">
+        <div className="grid gap-x-4 gap-y-2 @min-[18rem]:grid-cols-2 lg:@min-[38rem]:grid-cols-4">
+          {(
             [
-              t("copy.awaiting-measurement"),
-              summary?.awaitingMeasurement,
-              totalStatuses.awaitingMeasurement,
-            ],
-            [
-              t("copy.awaiting-storage"),
-              summary?.awaitingStorage,
-              totalStatuses.awaitingStorage,
-            ],
-            [t("copy.stored-units"), summary?.stored, totalStatuses.stored],
-          ] as const
-        ).map(([label, count, statuses], index) => (
-          <div
-            key={label}
-            className={`relative flex min-h-11 min-w-0 items-center gap-x-2 border-border lg:border-r ${index === 0 ? "pr-10" : ""}`}
-          >
-            {statuses ? (
-              // Opens the units the count describes; the filter chip undoes it.
-              <button
-                type="button"
-                className="-mx-2 flex min-h-11 min-w-0 items-center gap-x-2 rounded-md px-2 text-left focus-ring transition-colors hover:bg-raised aria-pressed:bg-accent-surface"
-                // Pressed only while the list shows exactly what the total counts.
-                aria-pressed={
-                  tab === "pallets" &&
-                  !search.trim() &&
-                  sameStatuses(state.pallets.statuses, statuses) &&
-                  !hasFilters({ ...state.pallets, statuses: [] }, "pallets")
-                }
-                onClick={() =>
-                  updateState({
-                    tab: "pallets",
-                    search: "",
-                    pallets: {
-                      ...clearConditions(state.pallets),
-                      statuses: [...statuses],
-                    },
-                  })
-                }
-              >
-                <span className="order-2 min-w-0 text-xs leading-4 text-muted">
-                  {label}
-                </span>
-                <span className="shrink-0 text-lg font-semibold text-link tabular-nums">
-                  {count ?? "…"}
-                </span>
-              </button>
-            ) : (
-              <>
-                <p className="order-2 min-w-0 text-xs leading-4 text-muted">
-                  {label}
-                </p>
-                <p className="shrink-0 text-lg font-semibold tabular-nums">
-                  {count ?? "…"}
-                </p>
-              </>
-            )}
-            {index === 0 ? (
-              <div className="absolute top-0 right-0">
-                <StatusReason
-                  label={t("copy.about-warehouse-totals")}
-                  message={t(
-                    "copy.totals-cover-the-selected-warehouse-not-just-this-page-or-the-filtered-r",
-                  )}
-                />
-              </div>
-            ) : null}
-          </div>
-        ))}
+              [t("copy.products"), summary?.products, null],
+              [
+                t("copy.awaiting-measurement"),
+                summary?.awaitingMeasurement,
+                totalStatuses.awaitingMeasurement,
+              ],
+              [
+                t("copy.awaiting-storage"),
+                summary?.awaitingStorage,
+                totalStatuses.awaitingStorage,
+              ],
+              [t("copy.stored-units"), summary?.stored, totalStatuses.stored],
+            ] as const
+          ).map(([label, count, statuses], index) => (
+            <div
+              key={label}
+              className={`relative flex min-h-11 min-w-0 items-center gap-x-2 border-border lg:border-r ${index === 0 ? "pr-10" : ""}`}
+            >
+              {statuses ? (
+                // Opens the units the count describes; the filter chip undoes it.
+                <button
+                  type="button"
+                  className="-mx-2 flex min-h-11 min-w-0 items-center gap-x-2 rounded-md px-2 text-left focus-ring transition-colors hover:bg-raised aria-pressed:bg-accent-surface"
+                  // Pressed only while the list shows exactly what the total counts.
+                  aria-pressed={
+                    tab === "pallets" &&
+                    !search.trim() &&
+                    sameStatuses(state.pallets.statuses, statuses) &&
+                    !hasFilters({ ...state.pallets, statuses: [] }, "pallets")
+                  }
+                  onClick={() =>
+                    updateState({
+                      tab: "pallets",
+                      search: "",
+                      pallets: {
+                        ...clearConditions(state.pallets),
+                        statuses: [...statuses],
+                      },
+                    })
+                  }
+                >
+                  <span className="order-2 min-w-0 text-xs leading-4 text-muted">
+                    {label}
+                  </span>
+                  <span className="shrink-0 text-lg font-semibold text-link tabular-nums">
+                    {count ?? "…"}
+                  </span>
+                </button>
+              ) : (
+                <>
+                  <p className="order-2 min-w-0 text-xs leading-4 text-muted">
+                    {label}
+                  </p>
+                  <p className="shrink-0 text-lg font-semibold tabular-nums">
+                    {count ?? "…"}
+                  </p>
+                </>
+              )}
+              {index === 0 ? (
+                <div className="absolute top-0 right-0">
+                  <StatusReason
+                    label={t("copy.about-warehouse-totals")}
+                    message={t(
+                      "copy.totals-cover-the-selected-warehouse-not-just-this-page-or-the-filtered-r",
+                    )}
+                  />
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
       </div>
       <div
         className="mb-4 flex flex-wrap items-center gap-2"
