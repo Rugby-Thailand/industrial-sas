@@ -33,3 +33,5 @@ strictDepBuilds: true
 # repeated scans of unrelated tables and non-matching committed rows.
 patchedDependencies:
   convex-test@0.0.54: patches/convex-test@0.0.54.patch
+  # Revisit when the SDK handles foreground network recovery (convex-js#183).
+  convex@1.46.0: patches/convex@1.46.0.patch

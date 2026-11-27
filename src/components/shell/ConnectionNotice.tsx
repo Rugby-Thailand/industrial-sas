@@ -23,6 +23,9 @@ import {
   type ConnectionStall,
 } from "@/components/system/connectionStall";
 import { Button } from "@/components/ui/button";
+import { useObservability } from "@/components/providers/ObservabilityProvider";
+import { createConnectionDiagnostics } from "@/lib/observability/connectionDiagnostics";
+import { nullObservabilityPort } from "@/lib/observability/port";
 import { guardedNavigate } from "@/lib/navigationGuard";
 
 /** A first connection may take a while; a dropped one usually returns fast. */
@@ -38,13 +41,33 @@ type ConvexClient = ReturnType<typeof useConvex>;
  * dropped (each outage is its own value), suffixed `"+w"` while a mutation
  * is unconfirmed.
  */
-function useLinkSnapshot(client: ConvexClient | undefined): string {
+function useLinkSnapshot(
+  client: ConvexClient | undefined,
+  diagnostics: ReturnType<typeof createConnectionDiagnostics> | null,
+): string {
   const subscribe = useCallback(
-    (notify: () => void) =>
-      client === undefined
-        ? () => {}
-        : client.subscribeToConnectionState(() => notify()),
-    [client],
+    (notify: () => void) => {
+      if (!client) return () => {};
+      if (!diagnostics)
+        return client.subscribeToConnectionState(() => notify());
+      const sample = () => diagnostics.observe(client.connectionState());
+      sample();
+      const unsubscribe = client.subscribeToConnectionState(() => {
+        sample();
+        notify();
+      });
+      document.addEventListener("visibilitychange", diagnostics.sampleBrowser);
+      window.addEventListener("offline", diagnostics.sampleBrowser);
+      return () => {
+        unsubscribe();
+        document.removeEventListener(
+          "visibilitychange",
+          diagnostics.sampleBrowser,
+        );
+        window.removeEventListener("offline", diagnostics.sampleBrowser);
+      };
+    },
+    [client, diagnostics],
   );
   const read = useCallback(() => {
     if (client === undefined) return "none";
@@ -71,6 +94,46 @@ const isOffline = () => navigator.onLine === false;
 const useBrowserOffline = () =>
   useSyncExternalStore(subscribeOnline, isOffline, () => false);
 
+/** Defer only new notices while hidden and through the first seconds back.
+ * The stale-data signal keeps its original deadline throughout.
+ */
+function useForegroundStall(): ConnectionStall {
+  const stall = useConnectionStall();
+  const [view, setView] = useState<{
+    deferred: boolean;
+    shown: ConnectionStall;
+  }>({
+    deferred: false,
+    shown: null,
+  });
+
+  useEffect(() => {
+    let timer: number | undefined;
+    const onVisibility = () => {
+      window.clearTimeout(timer);
+      setView((current) =>
+        current.deferred ? current : { ...current, deferred: true },
+      );
+      if (document.visibilityState === "visible") {
+        timer = window.setTimeout(() => {
+          setView((current) => ({ ...current, deferred: false }));
+        }, RECONNECTION_GRACE_MS);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    if (document.visibilityState === "hidden") onVisibility();
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  // An announced outage stays announced across hiding, until the socket recovers.
+  const shown = view.deferred && view.shown !== stall ? null : stall;
+  if (view.shown !== shown) setView({ ...view, shown });
+  return shown;
+}
+
 /** What the shell's reload action needs, read from the same subscription. */
 interface ReloadSafety {
   readonly writesPending: boolean;
@@ -85,8 +148,8 @@ const ReloadSafetyContext = createContext<ReloadSafety>({
 /**
  * Decides, for the whole shell, when the backend cannot be reached: the
  * first connection has not opened after 8 s, or an open one has been down
- * for 4 s. A normal load or a brief blip never counts. The notice below and
- * the loading presenters read the same answer, so they never disagree.
+ * for 4 s. This marks stale data independently of when
+ * the visible shell announces a reconnect.
  */
 export function ConnectionStallProvider({
   children,
@@ -95,7 +158,19 @@ export function ConnectionStallProvider({
 }) {
   // `useConvex` returns undefined (despite its type) when no backend is set.
   const client = useConvex() as ConvexClient | undefined;
-  const snapshot = useLinkSnapshot(client);
+  const port = useObservability();
+  const diagnostics = useMemo(
+    () =>
+      client && port !== nullObservabilityPort
+        ? createConnectionDiagnostics(
+            port,
+            FIRST_CONNECTION_GRACE_MS,
+            RECONNECTION_GRACE_MS,
+          )
+        : null,
+    [client, port],
+  );
+  const snapshot = useLinkSnapshot(client, diagnostics);
   const writesPending = snapshot.endsWith("+w");
   const episode = writesPending ? snapshot.slice(0, -2) : snapshot;
   const [stalled, setStalled] = useState<string | null>(null);
@@ -103,11 +178,14 @@ export function ConnectionStallProvider({
   useEffect(() => {
     if (episode === "up" || episode === "none") return;
     const timer = window.setTimeout(
-      () => setStalled(episode),
+      () => {
+        diagnostics?.stalled();
+        setStalled(episode);
+      },
       episode === "first" ? FIRST_CONNECTION_GRACE_MS : RECONNECTION_GRACE_MS,
     );
     return () => window.clearTimeout(timer);
-  }, [episode]);
+  }, [episode, diagnostics]);
 
   const safety = useMemo<ReloadSafety>(
     () => ({
@@ -136,6 +214,7 @@ export function ConnectionStallProvider({
  * Convex reconnects by itself; reloading is a secondary way out that waits
  * for unconfirmed saves and is omitted while the browser is offline. If the
  * reload button disappears while focused, focus moves to `focusFallbackId`.
+ * Back in the foreground, it gives the link a fresh grace period first.
  */
 export function ConnectionNotice({
   focusFallbackId,
@@ -143,7 +222,7 @@ export function ConnectionNotice({
   readonly focusFallbackId?: string;
 }) {
   const t = useTranslations("App");
-  const stall = useConnectionStall();
+  const stall = useForegroundStall();
   const shown = stall !== null;
   return (
     <div

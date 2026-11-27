@@ -6460,6 +6460,35 @@
       ]
     },
     {
+      "id": "src/components/shell/ConnectionNotice.tsx#useForegroundStall:view",
+      "policy": "presentation",
+      "expectation": "Controls when the shell shows its inline connection status and reload action after a foreground return. An existing warning remains visible until the connection recovers.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["ReloadAction"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#WifiOff", "p", "span"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/components/shell/ConnectionNotice.test.tsx"],
+      "cases": [
+        {
+          "file": "src/components/shell/ConnectionNotice.test.tsx",
+          "name": "gives a hidden outage a fresh grace in the foreground and stays silent when it recovers meanwhile"
+        },
+        {
+          "file": "src/components/shell/ConnectionNotice.test.tsx",
+          "name": "keeps a warning shown in the foreground across hiding and returning, and waits again for the next outage"
+        }
+      ]
+    },
+    {
       "id": "src/components/shell/SidebarNavigation.tsx#NavigationSubmenu:expanded",
       "policy": "presentation",
       "expectation": "The sidebar submenu expands its same menu links in place; link intent owns route history.",

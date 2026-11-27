@@ -3,8 +3,8 @@
 import { createContext, useContext } from "react";
 
 /**
- * Whether the shell's backend link has stalled, on the timing of its
- * connection notice: `"first"` while the first connection has not opened,
+ * Whether the shell's backend link has stalled, including while the notice
+ * waits for the page to return to the foreground: `"first"` while the first connection has not opened,
  * `"dropped"` while an open one stays down, otherwise `null`. Loading
  * presenters then wait without motion instead of promising data. Outside the
  * shell it is always `null`, so they load as usual.
